@@ -7,6 +7,7 @@ Build/
 .vscode/
 .idea/
 *.sln
+*.slnx
 *.suo
 .DS_Store
 Thumbs.db
