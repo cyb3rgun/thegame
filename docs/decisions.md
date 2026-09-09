@@ -1,6 +1,7 @@
 # Decisions
 
 Numbered newest first.
+
 ## D-006 Commit authorship stays as is
 
 Commit authorship stays as is. Existing history is never rewritten. The co-author trailer question is with Sascha; keep the trailer until told otherwise.
@@ -8,7 +9,6 @@ Commit authorship stays as is. Existing history is never rewritten. The co-autho
 ## D-005 Enforce LF via .gitattributes
 
 Enforce LF via .gitattributes. The machine's core.autocrlf would otherwise create CRLF drift noise on every checkout and for every future contributor. "* text=auto" becomes the FIRST line of .gitattributes. The existing LFS binary patterns keep their explicit -text flags and win as the more specific rule. This lands now, before any Unreal files enter the repo.
-
 
 ## D-004 Game repo boundary
 
