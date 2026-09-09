@@ -2,6 +2,14 @@
 
 Numbered newest first.
 
+## D-008 Ignore *.slnx
+
+Ignore *.slnx. Visual Studio's new XML solution format is generated from the .uproject exactly like *.sln and never enters version control. Decided on CC's recommendation from the B02 report.
+
+## D-007 LFS budget awareness
+
+LFS budget awareness. GitHub's free tier grants 1 GB LFS storage and 1 GB bandwidth per month. Content size is measured BEFORE staging; hard stop above 800 MB total Content or any single non-LFS file above 95 MB. Growing beyond the budget is the architect's explicit call, never a silent push.
+
 ## D-006 Commit authorship stays as is
 
 Commit authorship stays as is. Existing history is never rewritten. The co-author trailer question is with Sascha; keep the trailer until told otherwise.
