@@ -11,6 +11,10 @@ class UCapsuleComponent;
 class UCameraComponent;
 class USceneComponent;
 class UNavigationInvokerComponent;
+class URailAimComponent;
+class UInputAction;
+class UInputMappingContext;
+struct FInputActionValue;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FRailBeatReachedDelegate, ARailTrack*, Track, int32, BeatIndex, const FRailBeat&, Beat);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FRailBeatClearedDelegate, ARailTrack*, Track, int32, BeatIndex, float, HeldSeconds);
@@ -43,6 +47,33 @@ protected:
 	/** Grows the nav mesh around the rider so enemies can path to it without a level wide bake */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UNavigationInvokerComponent> NavInvoker;
+
+	/** Screen space aiming and hitscan shots (D-019) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<URailAimComponent> Aim;
+
+	/** Added to the local player while this pawn is possessed */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TArray<TObjectPtr<UInputMappingContext>> MappingContexts;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> FireAction;
+
+	/** Mouse deltas move the crosshair */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> MouseAimAction;
+
+	/** Stick deflection moves the crosshair */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> StickAimAction;
+
+	/** Viewport fraction the crosshair moves per unit of mouse input */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", meta = (ClampMin = 0.0))
+	float MouseAimSensitivity = 0.0015f;
+
+	/** Viewport fractions per second the crosshair moves at full stick deflection */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", meta = (ClampMin = 0.0))
+	float StickAimSpeed = 0.9f;
 
 	/** Segment the ride starts on. Empty picks the first track in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rail")
@@ -168,10 +199,22 @@ public:
 
 	UCameraComponent* GetCamera() const { return Camera; }
 
+	UFUNCTION(BlueprintPure, Category="Aim")
+	URailAimComponent* GetAim() const { return Aim; }
+
+	/** Pulls the trigger once through the aim component */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoFire();
+
 protected:
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	virtual void PawnClientRestart() override;
+
+	void MouseAimInput(const FInputActionValue& Value);
+	void StickAimInput(const FInputActionValue& Value);
 
 	/** Extra hold conditions from subclasses and later features. The ride advances only when this is false. */
 	virtual bool IsHeldByState() const { return false; }

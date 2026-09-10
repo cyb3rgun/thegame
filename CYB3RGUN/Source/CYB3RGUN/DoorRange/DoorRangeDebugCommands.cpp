@@ -79,13 +79,15 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 		ADoorSlot* Target = DoorRangeDebug::AimAt(World, Wanted);
 		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Fire: target %s"), Target ? *Target->GetName() : TEXT("none, firing ahead"));
 
-		// the camera follows the control rotation on the next update, so fire one tick later
+		// weapons aim through the screen space path (D-019), which reads the view the player last saw.
+		// The snap needs a few camera updates before the crosshair shows the target, so the trigger waits for them
 		if (World)
 		{
-			World->GetTimerManager().SetTimerForNextTick([World]()
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(Handle, [World]()
 			{
 				DoorRangeDebug::Fire(World);
-			});
+			}, 0.1f, false);
 		}
 	}));
 

@@ -13,11 +13,17 @@
 #include "Camera/CameraComponent.h"
 #include "TimerManager.h"
 #include "ShooterGameMode.h"
+#include "RailAimComponent.h"
+#include "GameFramework/PlayerController.h"
 
 AShooterCharacter::AShooterCharacter()
 {
 	// create the noise emitter component
 	PawnNoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("Pawn Noise Emitter"));
+
+	// create the screen space aim component, first person style with the crosshair in the centre
+	AimComponent = CreateDefaultSubobject<URailAimComponent>(TEXT("Aim"));
+	AimComponent->SetInputMode(ERailAimInputMode::ScreenCenter);
 
 	// configure movement
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
@@ -198,6 +204,13 @@ void AShooterCharacter::UpdateWeaponHUD(int32 CurrentAmmo, int32 MagazineSize)
 
 FVector AShooterCharacter::GetWeaponTargetLocation()
 {
+	// players aim through the one screen space path (D-019), the projectile flies toward the point under the crosshair
+	if (AimComponent && Cast<APlayerController>(GetController()))
+	{
+		return AimComponent->ResolveAimPoint();
+	}
+
+	// characters without a screen, such as AI shooters, keep the camera trace
 	// trace ahead from the camera viewpoint
 	FHitResult OutHit;
 

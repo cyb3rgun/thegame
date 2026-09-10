@@ -84,13 +84,16 @@ namespace ZombieDebug
 		const float Distance = (Target && Player) ? FVector::Dist2D(Player->GetActorLocation(), Target->GetActorLocation()) : 0.0f;
 		UE_LOG(LogZombieDebug, Log, TEXT("Zombie.Fire: target %s, distance %.0f cm, shots left %d"), Target ? *Target->GetName() : TEXT("none, firing ahead"), Distance, ShotsLeft);
 
-		World->GetTimerManager().SetTimerForNextTick([WeakWorld]()
+		// weapons aim through the screen space path (D-019), which reads the view the player last saw,
+		// so the trigger waits until the camera has caught up with the snap
+		FTimerHandle FireHandle;
+		World->GetTimerManager().SetTimer(FireHandle, [WeakWorld]()
 		{
 			if (UWorld* InnerWorld = WeakWorld.Get())
 			{
 				Fire(InnerWorld);
 			}
-		});
+		}, 0.1f, false);
 
 		if (ShotsLeft > 1)
 		{

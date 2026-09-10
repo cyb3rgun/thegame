@@ -2,13 +2,21 @@
 
 #include "RailPawn.h"
 #include "EncounterDefinition.h"
+#include "RailAimComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/LocalPlayer.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
+#include "InputMappingContext.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
 #include "NavigationInvokerComponent.h"
 #include "TimerManager.h"
 
@@ -36,6 +44,9 @@ ARailPawn::ARailPawn()
 
 	NavInvoker = CreateDefaultSubobject<UNavigationInvokerComponent>(TEXT("NavInvoker"));
 	NavInvoker->SetGenerationRadii(NavInvokerRadius, NavInvokerRadius + 500.0f);
+
+	Aim = CreateDefaultSubobject<URailAimComponent>(TEXT("Aim"));
+	Aim->SetInputMode(ERailAimInputMode::Relative);
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -86,6 +97,68 @@ void ARailPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(StartTimer);
 	Super::EndPlay(EndPlayReason);
+}
+
+void ARailPawn::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr)
+	{
+		for (UInputMappingContext* Context : MappingContexts)
+		{
+			if (Context)
+			{
+				Subsystem->AddMappingContext(Context, 0);
+			}
+		}
+	}
+}
+
+void ARailPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!Input)
+	{
+		UE_LOG(LogRail, Warning, TEXT("%s needs an Enhanced Input component"), *GetName());
+		return;
+	}
+
+	if (FireAction)
+	{
+		Input->BindAction(FireAction, ETriggerEvent::Started, this, &ARailPawn::DoFire);
+	}
+	if (MouseAimAction)
+	{
+		Input->BindAction(MouseAimAction, ETriggerEvent::Triggered, this, &ARailPawn::MouseAimInput);
+	}
+	if (StickAimAction)
+	{
+		Input->BindAction(StickAimAction, ETriggerEvent::Triggered, this, &ARailPawn::StickAimInput);
+	}
+}
+
+void ARailPawn::MouseAimInput(const FInputActionValue& Value)
+{
+	// IMC_MouseLook negates the raw mouse Y, which is positive upward, so this value already grows downward like the screen
+	const FVector2D Delta = Value.Get<FVector2D>();
+	Aim->AddAimInput(FVector2D(Delta.X, Delta.Y) * MouseAimSensitivity);
+}
+
+void ARailPawn::StickAimInput(const FInputActionValue& Value)
+{
+	// stick Y is positive upward and arrives without modifiers, the screen grows downward
+	const FVector2D Deflection = Value.Get<FVector2D>();
+	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.0f;
+	Aim->AddAimInput(FVector2D(Deflection.X, -Deflection.Y) * StickAimSpeed * DeltaSeconds);
+}
+
+void ARailPawn::DoFire()
+{
+	Aim->Fire();
 }
 
 void ARailPawn::StartRide()
