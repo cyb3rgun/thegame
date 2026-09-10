@@ -24,15 +24,18 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 - [x] Door module: twelve door circle, three visible, friend or foe under time pressure (G02)
 - [x] Door module: draw timing bonus, waiting for the draw scores higher (G02)
+- [x] Door module: draw bonus decays with the closing window, a shot on a shutting door earns less (G02)
 - [x] Door module: hostile telegraph, rises from a crouch before it is shootable (G02)
 - [ ] Door module: Western dressing (saloon doors)
 - [ ] Door module: Zombie dressing
+- [x] Encounter module: data driven waves with time, kill and signal triggers run by a director (G02)
 - [ ] Horde module: chain ignition crowds
 - [ ] On rails module (open option): guided flight or drive with mass targets
 
 ## Weapons
 
 - [x] Pistol placeholder from the first person template hooked to scoring (G02)
+- [ ] Point blank shots: the template projectile spawns inside a touching enemy capsule and misses
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies
@@ -44,6 +47,10 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 ## Enemies
 
 - [x] Placeholder occupants: red spike hostile, green snowman friendly, distinct silhouettes (G02)
+- [x] Enemy base class with one damage entry point, data driven definitions and StateTree behaviour (G02)
+- [x] Undead shambler and sprinter placeholders built from engine shapes (G02)
+- [ ] Player death and respawn on encounter levels
+- [ ] Mass Entity switch for crowd sized enemy counts
 - [ ] Undead standard horde
 - [ ] Undead bear (tank)
 - [ ] Undead chicken (swarm)
@@ -54,6 +61,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 ## UI
 
 - [x] Score, wave, hostiles remaining and end of range summary in WBP_DoorRangeHUD (G02)
+- [x] Wave, alive, kills and encounter complete summary in WBP_EncounterHUD (G02)
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
 - [ ] Ironic safety splash screen spoken by the arena AI (open option)
@@ -69,6 +77,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 - [x] Door range level Lvl_DoorRange built via MCP (G02)
 - [x] Door range settings with per wave difficulty ramp and Training, Standard, Frantic presets (G02)
+- [x] Zombie test level Lvl_ZombieTest with the three wave preset DA_Encounter_Test (G02)
+- [x] Runtime nav mesh generated around a navigation invoker on the player (G02)
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
 - [ ] Laser tag event fusion
