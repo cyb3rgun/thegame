@@ -81,6 +81,7 @@ void ARailPawn::BeginPlay()
 
 	if (Track)
 	{
+		InitialTrack = Track;
 		SetTrack(Track, DistanceAlongSpline);
 	}
 	else
@@ -214,6 +215,24 @@ void ARailPawn::StartRide()
 	bStarted = true;
 	RideStartTime = GetWorld()->GetTimeSeconds();
 	UE_LOG(LogRail, Log, TEXT("Ride starts on %s at %.0f cm, speed %.0f cm/s, segment length %.0f cm"), *Track->GetName(), DistanceAlongSpline, Speed, Track->GetLength());
+}
+
+void ARailPawn::RestartRide(float StartDistance)
+{
+	ARailTrack* First = InitialTrack ? InitialTrack.Get() : Track.Get();
+	if (!First)
+	{
+		return;
+	}
+
+	bStarted = true;
+	bFinished = false;
+	bPausedByRequest = false;
+	RideDistance = 0.0f;
+	RideStartTime = GetWorld()->GetTimeSeconds();
+	GetWorldTimerManager().ClearTimer(StartTimer);
+	SetTrack(First, StartDistance);
+	UE_LOG(LogRail, Log, TEXT("Ride restarts on %s at %.0f cm, speed %.0f cm/s"), *First->GetName(), StartDistance, Speed);
 }
 
 void ARailPawn::Pause()

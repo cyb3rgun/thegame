@@ -137,6 +137,10 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Health")
 	float Health = 0.0f;
 
+	/** The segment the ride began on, where a restart returns to */
+	UPROPERTY(Transient)
+	TObjectPtr<ARailTrack> InitialTrack;
+
 	int32 NextBeatIndex = 0;
 	int32 HeldBeatIndex = INDEX_NONE;
 	float HoldStartTime = 0.0f;
@@ -178,6 +182,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rail")
 	void StartRide();
+
+	/** Rides the route again from its first segment, for benchmark laps and restarts */
+	UFUNCTION(BlueprintCallable, Category="Rail")
+	void RestartRide(float StartDistance = 0.0f);
 
 	/** Stops the ride until Resume. Independent of beat holds. */
 	UFUNCTION(BlueprintCallable, Category="Rail")
