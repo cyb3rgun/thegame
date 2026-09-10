@@ -30,7 +30,8 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Variant_Shooter",
 			"CYB3RGUN/Variant_Shooter/AI",
 			"CYB3RGUN/Variant_Shooter/UI",
-			"CYB3RGUN/Variant_Shooter/Weapons"
+			"CYB3RGUN/Variant_Shooter/Weapons",
+			"CYB3RGUN/DoorRange"
 		});
 
 		// Uncomment if you are using Slate UI
