@@ -70,6 +70,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Score, wave, hostiles remaining and end of range summary in WBP_DoorRangeHUD (G02)
 - [x] Wave, alive, kills and encounter complete summary in WBP_EncounterHUD (G02)
 - [x] Crosshair overlay WBP_RailCrosshair drawn at the aim position (G03)
+- [x] Settings menu WBP_SettingsMenu: preset, every graphics option, reset, apply, live frame rate, F10 in every level (G03)
+- [ ] Settings menu key as a rebindable Enhanced Input action
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
 - [ ] Ironic safety splash screen spoken by the arena AI (open option)
@@ -88,6 +90,10 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Zombie test level Lvl_ZombieTest with the three wave preset DA_Encounter_Test (G02)
 - [x] Runtime nav mesh generated around a navigation invoker on the player (G02)
 - [x] Rail test level Lvl_RailTest, about 207 m with two held encounter beats (G03)
+- [x] Graphics settings: Low to Ultra presets, every heavy feature behind its own option, first run hardware detection (G03)
+- [x] Benchmark level Lvl_Benchmark and Bench.Suite, results in docs/benchmark.md (G03)
+- [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
+- [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
 - [ ] Laser tag event fusion
