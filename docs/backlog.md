@@ -22,8 +22,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 ## Modules
 
-- [ ] Door module: twelve door circle, three visible, friend or foe under time pressure (G02)
-- [ ] Door module: draw timing bonus, waiting for the draw scores higher (G02)
+- [x] Door module: twelve door circle, three visible, friend or foe under time pressure (G02)
+- [x] Door module: draw timing bonus, waiting for the draw scores higher (G02)
+- [x] Door module: hostile telegraph, rises from a crouch before it is shootable (G02)
 - [ ] Door module: Western dressing (saloon doors)
 - [ ] Door module: Zombie dressing
 - [ ] Horde module: chain ignition crowds
@@ -31,7 +32,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 ## Weapons
 
-- [ ] Pistol placeholder from the first person template hooked to scoring (G02)
+- [x] Pistol placeholder from the first person template hooked to scoring (G02)
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies
@@ -42,7 +43,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 ## Enemies
 
-- [ ] Placeholder occupants: red hostile, green friendly basic shapes (G02)
+- [x] Placeholder occupants: red spike hostile, green snowman friendly, distinct silhouettes (G02)
 - [ ] Undead standard horde
 - [ ] Undead bear (tank)
 - [ ] Undead chicken (swarm)
@@ -52,22 +53,22 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 ## UI
 
-- [ ] Score and wave display for the door range (G02, on screen debug text only)
+- [x] Score, wave, hostiles remaining and end of range summary in WBP_DoorRangeHUD (G02)
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
 - [ ] Ironic safety splash screen spoken by the arena AI (open option)
 
 ## Audio
 
-- [ ] Weapon fire and hit feedback
+- [x] Hit, friendly hit and escape feedback with placeholder engine sounds (G02)
 - [ ] Clown horn signature
 - [ ] Torch hiss warning before detonation
-- [ ] Door open and close sounds
+- [x] Door open and close sounds, placeholder engine noise (G02)
 
 ## Infrastructure
 
-- [ ] Door range level Lvl_DoorRange built via MCP (G02)
-- [ ] Door range settings data asset with timings and probabilities (G02)
+- [x] Door range level Lvl_DoorRange built via MCP (G02)
+- [x] Door range settings with per wave difficulty ramp and Training, Standard, Frantic presets (G02)
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
 - [ ] Laser tag event fusion
