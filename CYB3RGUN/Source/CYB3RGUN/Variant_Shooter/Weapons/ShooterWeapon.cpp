@@ -11,6 +11,9 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
+#include "CollisionQueryParams.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogShooterWeapon, Log, All);
 
 AShooterWeapon::AShooterWeapon()
 {
@@ -207,7 +210,25 @@ FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& Targ
 	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
 
 	// calculate the spawn location ahead of the muzzle
-	const FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
+	FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
+
+	// point blank: when something already sits between the owner and the spawn point, a projectile spawned there
+	// starts inside it and its first sweep never reports the hit. Start from the owner's view origin instead so
+	// the sweep enters the obstacle from the front (D-021)
+	if (PawnOwner)
+	{
+		const FVector SafeOrigin = PawnOwner->GetPawnViewLocation();
+
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ShooterWeaponPointBlank), false, this);
+		QueryParams.AddIgnoredActor(PawnOwner);
+
+		FHitResult Blocker;
+		if (GetWorld()->SweepSingleByChannel(Blocker, SafeOrigin, SpawnLoc, FQuat::Identity, ECC_WorldDynamic, FCollisionShape::MakeSphere(PointBlankProbeRadius), QueryParams))
+		{
+			UE_LOG(LogShooterWeapon, Verbose, TEXT("Point blank: %s blocks the muzzle path, projectile starts at the view origin"), *GetNameSafe(Blocker.GetActor()));
+			SpawnLoc = SafeOrigin;
+		}
+	}
 
 	// find the aim rotation vector while applying some variance to the target 
 	const FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));

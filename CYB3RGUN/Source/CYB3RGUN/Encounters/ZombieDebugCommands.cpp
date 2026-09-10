@@ -80,7 +80,9 @@ namespace ZombieDebug
 		}
 
 		ACyberEnemy* Target = AimAtNearest(World);
-		UE_LOG(LogZombieDebug, Log, TEXT("Zombie.Fire: target %s, shots left %d"), Target ? *Target->GetName() : TEXT("none, firing ahead"), ShotsLeft);
+		const APawn* Player = UGameplayStatics::GetPlayerPawn(World, 0);
+		const float Distance = (Target && Player) ? FVector::Dist2D(Player->GetActorLocation(), Target->GetActorLocation()) : 0.0f;
+		UE_LOG(LogZombieDebug, Log, TEXT("Zombie.Fire: target %s, distance %.0f cm, shots left %d"), Target ? *Target->GetName() : TEXT("none, firing ahead"), Distance, ShotsLeft);
 
 		World->GetTimerManager().SetTimerForNextTick([WeakWorld]()
 		{
