@@ -61,7 +61,8 @@ void ARailPawn::BeginPlay()
 	Health = MaxHealth;
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 
-	CameraRoot->SetRelativeLocation(FVector(0.0f, 0.0f, EyeHeight - Capsule->GetUnscaledCapsuleHalfHeight()));
+	CameraBaseLocation = FVector(0.0f, 0.0f, EyeHeight - Capsule->GetUnscaledCapsuleHalfHeight());
+	CameraRoot->SetRelativeLocation(CameraBaseLocation);
 
 	// the invoker registers its radii when it activates, so re-register with the configured radius
 	NavInvoker->Deactivate();
@@ -139,6 +140,48 @@ void ARailPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	{
 		Input->BindAction(StickAimAction, ETriggerEvent::Triggered, this, &ARailPawn::StickAimInput);
 	}
+	if (CoverAction)
+	{
+		Input->BindAction(CoverAction, ETriggerEvent::Started, this, &ARailPawn::CoverPressed);
+		Input->BindAction(CoverAction, ETriggerEvent::Completed, this, &ARailPawn::CoverReleased);
+	}
+}
+
+void ARailPawn::CoverPressed()
+{
+	SetInCover(bHoldForCover ? true : !bInCover);
+}
+
+void ARailPawn::CoverReleased()
+{
+	if (bHoldForCover)
+	{
+		SetInCover(false);
+	}
+}
+
+void ARailPawn::SetInCover(bool bCover)
+{
+	if (bInCover == bCover)
+	{
+		return;
+	}
+
+	bInCover = bCover;
+	Aim->SetFireBlocked(bInCover);
+	UE_LOG(LogRail, Log, TEXT("Cover %s at %.0f cm, ride %s"), bInCover ? TEXT("on") : TEXT("off"), DistanceAlongSpline, IsMoving() ? TEXT("moving") : TEXT("waiting"));
+	OnCoverChanged.Broadcast(bInCover);
+}
+
+void ARailPawn::UpdateCoverCamera(float DeltaSeconds)
+{
+	const float Target = bInCover ? 1.0f : 0.0f;
+	if (FMath::IsNearlyEqual(CoverBlend, Target, KINDA_SMALL_NUMBER))
+	{
+		return;
+	}
+	CoverBlend = FMath::FInterpTo(CoverBlend, Target, DeltaSeconds, CoverBlendSpeed);
+	CameraRoot->SetRelativeLocation(CameraBaseLocation + CoverCameraOffset * CoverBlend);
 }
 
 void ARailPawn::MouseAimInput(const FInputActionValue& Value)
@@ -232,6 +275,8 @@ void ARailPawn::Tick(float DeltaSeconds)
 	{
 		Advance(Speed * DeltaSeconds);
 	}
+
+	UpdateCoverCamera(DeltaSeconds);
 }
 
 void ARailPawn::Advance(float Delta)
@@ -345,6 +390,14 @@ float ARailPawn::GetRideSeconds() const
 
 float ARailPawn::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	// enemy hits do not land while the rider is in cover
+	if (bInCover && Damage > 0.0f)
+	{
+		++HitsBlockedByCover;
+		UE_LOG(LogRail, Verbose, TEXT("Cover blocks %.0f damage from %s, blocked %d"), Damage, *GetNameSafe(DamageCauser), HitsBlockedByCover);
+		return 0.0f;
+	}
+
 	const float Incoming = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
 	if (Health <= 0.0f || Incoming <= 0.0f)
 	{

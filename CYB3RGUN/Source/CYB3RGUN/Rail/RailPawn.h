@@ -21,6 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FRailBeatClearedDelegate, ARailTr
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRailTrackEndedDelegate, ARailTrack*, FinishedTrack, ARailTrack*, NextTrack);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRailRideFinishedDelegate, float, TotalDistance, float, Seconds);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRailHealthChangedDelegate, float, Health, float, MaxHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRailCoverChangedDelegate, bool, bInCover);
 
 /**
  *  Rides ARailTrack segments (D-020). DistanceAlongSpline advances per tick at Speed and the pawn places itself
@@ -74,6 +75,29 @@ protected:
 	/** Viewport fractions per second the crosshair moves at full stick deflection */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", meta = (ClampMin = 0.0))
 	float StickAimSpeed = 0.9f;
+
+	/** Takes cover. While in cover the ride waits, the rider cannot fire and enemy hits do not land. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> CoverAction;
+
+	/** Cover lasts while the input is held, like a light gun cabinet pedal. False makes each press toggle. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Cover")
+	bool bHoldForCover = true;
+
+	/** Camera offset from the eye while in cover */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Cover", meta = (Units = "cm"))
+	FVector CoverCameraOffset = FVector(-25.0f, 0.0f, -80.0f);
+
+	/** How fast the camera blends into and out of cover */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Cover", meta = (ClampMin = 0.1))
+	float CoverBlendSpeed = 12.0f;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Cover")
+	bool bInCover = false;
+
+	float CoverBlend = 0.0f;
+	FVector CameraBaseLocation = FVector::ZeroVector;
+	int32 HitsBlockedByCover = 0;
 
 	/** Segment the ride starts on. Empty picks the first track in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rail")
@@ -142,6 +166,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Health")
 	FRailHealthChangedDelegate OnHealthChanged;
 
+	UPROPERTY(BlueprintAssignable, Category="Cover")
+	FRailCoverChangedDelegate OnCoverChanged;
+
 public:
 
 	ARailPawn();
@@ -206,6 +233,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoFire();
 
+	/** Enters or leaves cover. In cover the ride waits, firing is blocked and enemy hits do not land. */
+	UFUNCTION(BlueprintCallable, Category="Cover")
+	void SetInCover(bool bCover);
+
+	UFUNCTION(BlueprintPure, Category="Cover")
+	bool IsInCover() const { return bInCover; }
+
+	UFUNCTION(BlueprintPure, Category="Cover")
+	int32 GetHitsBlockedByCover() const { return HitsBlockedByCover; }
+
 protected:
 
 	virtual void BeginPlay() override;
@@ -216,8 +253,12 @@ protected:
 	void MouseAimInput(const FInputActionValue& Value);
 	void StickAimInput(const FInputActionValue& Value);
 
-	/** Extra hold conditions from subclasses and later features. The ride advances only when this is false. */
-	virtual bool IsHeldByState() const { return false; }
+	/** Extra hold conditions. The ride advances only when this is false. Cover holds the ride. */
+	virtual bool IsHeldByState() const { return bInCover; }
+
+	void CoverPressed();
+	void CoverReleased();
+	void UpdateCoverCamera(float DeltaSeconds);
 
 	void Advance(float Delta);
 	void ApplyTransform();
