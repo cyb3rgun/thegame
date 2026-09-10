@@ -43,7 +43,8 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/DoorRange",
 			"CYB3RGUN/Enemies",
 			"CYB3RGUN/Encounters",
-			"CYB3RGUN/Rail"
+			"CYB3RGUN/Rail",
+			"CYB3RGUN/Settings"
 		});
 
 		// Uncomment if you are using Slate UI
