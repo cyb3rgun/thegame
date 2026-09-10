@@ -164,12 +164,8 @@ bool ACyberEnemy::IsTargetInAttackRange(float RangeScale) const
 		return false;
 	}
 
-	// measure between capsule edges so wide enemies do not need to overlap the target
-	float TargetRadius = 0.0f;
-	if (const ACharacter* TargetCharacter = Cast<ACharacter>(Target))
-	{
-		TargetRadius = TargetCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
-	}
+	// measure between collision edges so wide enemies do not need to overlap the target, whatever pawn type it is
+	const float TargetRadius = Target->GetSimpleCollisionRadius();
 	const float Reach = Definition->AttackRange * RangeScale + Definition->CapsuleRadius + TargetRadius;
 	return GetDistanceToTarget() <= Reach;
 }
