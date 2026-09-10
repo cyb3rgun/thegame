@@ -12,6 +12,7 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "DoorRangeTarget.h"
 
 AShooterProjectile::AShooterProjectile()
 {
@@ -141,6 +142,12 @@ void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
 
 void AShooterProjectile::ProcessHit(AActor* HitActor, UPrimitiveComponent* HitComp, const FVector& HitLocation, const FVector& HitDirection)
 {
+	// have we hit a scoring target? Let it decide whether the shot counts
+	if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
+	{
+		Target->NotifyShot(HitComp, HitLocation, GetInstigator() ? GetInstigator()->GetController() : nullptr);
+	}
+
 	// have we hit a character?
 	if (ACharacter* HitCharacter = Cast<ACharacter>(HitActor))
 	{
