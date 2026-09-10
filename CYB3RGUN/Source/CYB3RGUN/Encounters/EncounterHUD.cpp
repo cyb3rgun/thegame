@@ -14,11 +14,12 @@
 
 #define LOCTEXT_NAMESPACE "EncounterHUD"
 
+// unique names, unity builds merge this file with the door range HUD which has its own colour constants
 namespace
 {
-	const FLinearColor ColorNeutral(0.95f, 0.95f, 0.95f, 1.0f);
-	const FLinearColor ColorGood(0.2f, 1.0f, 0.3f, 1.0f);
-	const FLinearColor ColorWarn(1.0f, 0.7f, 0.1f, 1.0f);
+	const FLinearColor EncounterColorNeutral(0.95f, 0.95f, 0.95f, 1.0f);
+	const FLinearColor EncounterColorGood(0.2f, 1.0f, 0.3f, 1.0f);
+	const FLinearColor EncounterColorWarn(1.0f, 0.7f, 0.1f, 1.0f);
 }
 
 TSharedRef<SWidget> UEncounterHUD::RebuildWidget()
@@ -48,17 +49,17 @@ void UEncounterHUD::BuildFallbackLayout()
 	UVerticalBox* TopLeft = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("FallbackTopLeft"));
 	if (!WaveText)
 	{
-		WaveText = MakeText(TEXT("WaveText"), 36, ColorNeutral);
+		WaveText = MakeText(TEXT("WaveText"), 36, EncounterColorNeutral);
 		TopLeft->AddChildToVerticalBox(WaveText);
 	}
 	if (!AliveText)
 	{
-		AliveText = MakeText(TEXT("AliveText"), 24, ColorWarn);
+		AliveText = MakeText(TEXT("AliveText"), 24, EncounterColorWarn);
 		TopLeft->AddChildToVerticalBox(AliveText);
 	}
 	if (!KillsText)
 	{
-		KillsText = MakeText(TEXT("KillsText"), 24, ColorNeutral);
+		KillsText = MakeText(TEXT("KillsText"), 24, EncounterColorNeutral);
 		TopLeft->AddChildToVerticalBox(KillsText);
 	}
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(TopLeft))
@@ -70,7 +71,7 @@ void UEncounterHUD::BuildFallbackLayout()
 
 	if (!EventText)
 	{
-		EventText = MakeText(TEXT("EventText"), 40, ColorNeutral);
+		EventText = MakeText(TEXT("EventText"), 40, EncounterColorNeutral);
 		EventText->SetJustification(ETextJustify::Center);
 		if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(EventText))
 		{
@@ -85,7 +86,7 @@ void UEncounterHUD::BuildFallbackLayout()
 		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SummaryPanel"));
 		Border->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.75f));
 		Border->SetPadding(FMargin(32.0f, 24.0f));
-		SummaryText = MakeText(TEXT("SummaryText"), 28, ColorNeutral);
+		SummaryText = MakeText(TEXT("SummaryText"), 28, EncounterColorNeutral);
 		SummaryText->SetJustification(ETextJustify::Center);
 		Border->SetContent(SummaryText);
 		SummaryPanel = Border;
@@ -201,7 +202,7 @@ void UEncounterHUD::HandleWaveStarted(int32 Wave, int32 WaveCount, FText WaveNam
 	}
 
 	SetTextSafe(WaveText, FText::Format(LOCTEXT("WaveFormat", "WAVE {0} / {1}  {2}"), FText::AsNumber(Wave), FText::AsNumber(WaveCount), WaveName));
-	ShowEvent(FText::Format(LOCTEXT("WaveEvent", "WAVE {0}  {1}"), FText::AsNumber(Wave), WaveName), ColorNeutral);
+	ShowEvent(FText::Format(LOCTEXT("WaveEvent", "WAVE {0}  {1}"), FText::AsNumber(Wave), WaveName), EncounterColorNeutral);
 	if (SummaryPanel)
 	{
 		SummaryPanel->SetVisibility(ESlateVisibility::Collapsed);
@@ -217,7 +218,7 @@ void UEncounterHUD::HandleCountsChanged(int32 Alive, int32 Kills, int32 Total)
 void UEncounterHUD::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
 {
 	const FText Name = (Enemy && Enemy->GetDefinition()) ? Enemy->GetDefinition()->DisplayName : LOCTEXT("Enemy", "ENEMY");
-	ShowEvent(FText::Format(LOCTEXT("KillEvent", "{0} DOWN"), Name.ToUpper()), ColorGood);
+	ShowEvent(FText::Format(LOCTEXT("KillEvent", "{0} DOWN"), Name.ToUpper()), EncounterColorGood);
 }
 
 void UEncounterHUD::HandleFinished(int32 Kills, float Seconds)
