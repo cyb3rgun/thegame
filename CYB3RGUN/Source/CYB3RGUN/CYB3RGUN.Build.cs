@@ -19,10 +19,18 @@ public class CYB3RGUN : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"GameplayTags",
+			"NavigationSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
+
+		if (Target.bBuildEditor)
+		{
+			// editor only: the console command that bootstraps state tree assets
+			PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "StateTreeEditorModule", "AssetRegistry", "PropertyBindingUtils", "PropertyBindingUtilsEditor" });
+		}
 
 		PublicIncludePaths.AddRange(new string[] {
 			"CYB3RGUN",
@@ -32,7 +40,9 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Variant_Shooter/AI",
 			"CYB3RGUN/Variant_Shooter/UI",
 			"CYB3RGUN/Variant_Shooter/Weapons",
-			"CYB3RGUN/DoorRange"
+			"CYB3RGUN/DoorRange",
+			"CYB3RGUN/Enemies",
+			"CYB3RGUN/Encounters"
 		});
 
 		// Uncomment if you are using Slate UI
