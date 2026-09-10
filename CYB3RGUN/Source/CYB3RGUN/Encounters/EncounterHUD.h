@@ -58,6 +58,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Encounter")
 	void BindDirector(AEncounterDirector* InDirector);
 
+	/** Shows the summary panel with any text, for example the end of a whole route */
+	UFUNCTION(BlueprintCallable, Category="Encounter")
+	void ShowSummary(const FText& Text);
+
+	UFUNCTION(BlueprintCallable, Category="Encounter")
+	void HideSummary();
+
 protected:
 
 	virtual void NativeConstruct() override;

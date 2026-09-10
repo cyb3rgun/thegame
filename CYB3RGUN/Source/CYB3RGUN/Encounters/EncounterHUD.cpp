@@ -222,10 +222,23 @@ void UEncounterHUD::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
 
 void UEncounterHUD::HandleFinished(int32 Kills, float Seconds)
 {
-	SetTextSafe(SummaryText, FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FText::AsNumber(Kills), FText::AsNumber(FMath::RoundToInt(Seconds))));
+	ShowSummary(FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FText::AsNumber(Kills), FText::AsNumber(FMath::RoundToInt(Seconds))));
+}
+
+void UEncounterHUD::ShowSummary(const FText& Text)
+{
+	SetTextSafe(SummaryText, Text);
 	if (SummaryPanel)
 	{
 		SummaryPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UEncounterHUD::HideSummary()
+{
+	if (SummaryPanel)
+	{
+		SummaryPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 

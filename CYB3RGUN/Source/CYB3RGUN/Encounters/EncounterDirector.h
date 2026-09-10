@@ -89,6 +89,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Encounter")
 	void SetDefinition(UEncounterDefinition* InDefinition) { Definition = InDefinition; }
 
+	/** Spawn points for the next StartEncounter. Empty means every AEnemySpawnPoint in the level. */
+	void SetSpawnPoints(const TArray<TObjectPtr<AEnemySpawnPoint>>& InSpawnPoints) { SpawnPoints = InSpawnPoints; }
+
 	UFUNCTION(BlueprintPure, Category="Encounter")
 	const UEncounterDefinition* GetDefinition() const { return Definition; }
 
