@@ -21,14 +21,14 @@ MCP driven runs never have the editor in the foreground. With the throttle on, P
 Set it once per workstation in either of these ways:
 
 - **Editor UI.** Edit, Editor Preferences, General, Performance, clear "Use Less CPU when in Background".
-- **Config file.** In `CYB3RGUN/Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini` add the section below while the editor is closed.
+- **Config file.** The setting is per user and per engine version, not per project. With the editor closed, add the section below to `%LOCALAPPDATA%\UnrealEngine\5.8\Saved\Config\WindowsEditor\EditorSettings.ini`.
 
 ```ini
 [/Script/UnrealEd.EditorPerformanceSettings]
 bThrottleCPUWhenNotForeground=False
 ```
 
-`Saved` is git-ignored, so every workstation sets this itself.
+The file lives outside the repository, so every workstation sets this itself. Until it is set, an MCP driven session can switch it off in memory on the `Default__EditorPerformanceSettings` object before starting play.
 
 ## Build loop
 
