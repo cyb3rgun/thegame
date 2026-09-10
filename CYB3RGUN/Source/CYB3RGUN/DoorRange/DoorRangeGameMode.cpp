@@ -3,13 +3,15 @@
 #include "DoorRangeGameMode.h"
 #include "DoorSlot.h"
 #include "DoorRangeSettings.h"
+#include "DoorRangeHUD.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
-#include "Engine/Engine.h"
+#include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDoorRange, Log, All);
@@ -25,7 +27,7 @@ const UDoorRangeSettings* ADoorRangeGameMode::GetSettings() const
 
 int32 ADoorRangeGameMode::GetWaveCount() const
 {
-	return GetSettings()->WaveCount;
+	return GetSettings()->GetWaveCount();
 }
 
 void ADoorRangeGameMode::BeginPlay()
@@ -34,7 +36,7 @@ void ADoorRangeGameMode::BeginPlay()
 
 	CollectSlots();
 
-	UE_LOG(LogDoorRange, Log, TEXT("Door range ready with %d slots"), Slots.Num());
+	UE_LOG(LogDoorRange, Log, TEXT("Door range ready with %d slots, settings %s"), Slots.Num(), *GetNameSafe(GetSettings()));
 
 	if (bAutoStart)
 	{
@@ -54,8 +56,29 @@ void ADoorRangeGameMode::HandleStartingNewPlayer_Implementation(APlayerControlle
 {
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
+	CreateHUD(NewPlayer);
+
 	// hand out the weapon on the next tick so the pawn has finished its own BeginPlay
 	GetWorldTimerManager().SetTimerForNextTick(this, &ADoorRangeGameMode::GrantStartingWeapon);
+}
+
+void ADoorRangeGameMode::CreateHUD(APlayerController* Player)
+{
+	if (HUD || !RangeHUDClass || !Player || !Player->IsLocalController())
+	{
+		return;
+	}
+
+	HUD = CreateWidget<UDoorRangeHUD>(Player, RangeHUDClass);
+	if (HUD)
+	{
+		HUD->AddToViewport(1);
+		UE_LOG(LogDoorRange, Log, TEXT("Door range HUD created: %s"), *GetNameSafe(HUD));
+	}
+	else
+	{
+		UE_LOG(LogDoorRange, Warning, TEXT("Could not create the door range HUD from %s"), *GetNameSafe(RangeHUDClass));
+	}
 }
 
 void ADoorRangeGameMode::GrantStartingWeapon()
@@ -99,6 +122,7 @@ void ADoorRangeGameMode::CollectSlots()
 	{
 		Slot->OnSlotHit.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotHit);
 		Slot->OnSlotClosed.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotClosed);
+		Slot->OnSlotDrawn.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotDrawn);
 	}
 }
 
@@ -110,8 +134,17 @@ void ADoorRangeGameMode::StartRange()
 		return;
 	}
 
+	GetWorldTimerManager().ClearTimer(OpenTimer);
+	GetWorldTimerManager().ClearTimer(WaveTimer);
+
+	for (ADoorSlot* Slot : Slots)
+	{
+		Slot->ForceClose(false);
+	}
+
 	Score = 0;
 	OpenDoors = 0;
+	Stats = FDoorRangeStats();
 	bRangeComplete = false;
 	bRangeActive = true;
 
@@ -121,24 +154,61 @@ void ADoorRangeGameMode::StartRange()
 
 void ADoorRangeGameMode::StartWave(int32 WaveNumber)
 {
+	const FDoorWaveSettings& Wave = GetSettings()->GetWave(WaveNumber);
+
 	CurrentWave = WaveNumber;
-	OpeningsThisWave = 0;
+	BuildWaveQueue(Wave);
 
-	UE_LOG(LogDoorRange, Log, TEXT("Wave %d of %d starts"), CurrentWave, GetWaveCount());
+	UE_LOG(LogDoorRange, Log, TEXT("Wave %d of %d starts: %d openings, %d hostiles, exposure %.2fs, cadence %.2fs"),
+		CurrentWave, GetWaveCount(), Wave.Openings, HostilesTotalThisWave, Wave.ExposureWindow, Wave.TimeBetweenOpenings);
+
 	OnWaveChanged.Broadcast(CurrentWave, GetWaveCount());
-	UpdateDebugDisplay(FString::Printf(TEXT("Wave %d starts"), CurrentWave));
+	OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
+	OnRangeEvent.Broadcast(EDoorRangeEvent::WaveStarted, CurrentWave, nullptr);
 
-	const float Interval = FMath::Max(GetSettings()->TimeBetweenOpenings, 0.05f);
-	GetWorldTimerManager().SetTimer(OpenTimer, this, &ADoorRangeGameMode::TryOpenDoor, Interval, true, 0.0f);
+	GetWorldTimerManager().SetTimer(OpenTimer, this, &ADoorRangeGameMode::TryOpenDoor, FMath::Max(Wave.TimeBetweenOpenings, 0.05f), true, 0.0f);
+}
+
+void ADoorRangeGameMode::BuildWaveQueue(const FDoorWaveSettings& Wave)
+{
+	const int32 Openings = FMath::Max(Wave.Openings, 1);
+	const int32 Hostiles = FMath::Clamp(FMath::RoundToInt(Openings * Wave.HostileShare), 0, Openings);
+	const int32 Empties = FMath::Clamp(FMath::RoundToInt(Openings * Wave.EmptyShare), 0, Openings - Hostiles);
+	const int32 Friendlies = Openings - Hostiles - Empties;
+
+	WaveQueue.Reset(Openings);
+	for (int32 i = 0; i < Hostiles; ++i)
+	{
+		WaveQueue.Add(EDoorOccupant::Hostile);
+	}
+	for (int32 i = 0; i < Empties; ++i)
+	{
+		WaveQueue.Add(EDoorOccupant::Empty);
+	}
+	for (int32 i = 0; i < Friendlies; ++i)
+	{
+		WaveQueue.Add(EDoorOccupant::Friendly);
+	}
+
+	// Fisher-Yates shuffle
+	for (int32 i = WaveQueue.Num() - 1; i > 0; --i)
+	{
+		WaveQueue.Swap(i, FMath::RandRange(0, i));
+	}
+
+	HostilesTotalThisWave = Hostiles;
+	HostilesRemainingThisWave = Hostiles;
+	Stats.HostilesTotal += Hostiles;
 }
 
 void ADoorRangeGameMode::TryOpenDoor()
 {
 	const UDoorRangeSettings* Cfg = GetSettings();
+	const FDoorWaveSettings& Wave = Cfg->GetWave(CurrentWave);
 
-	if (OpeningsThisWave >= Cfg->OpeningsPerWave)
+	if (WaveQueue.IsEmpty())
 	{
-		// all openings of this wave are scheduled, wait for the last doors to close
+		// all openings of this wave are done, wait for the last doors to close
 		GetWorldTimerManager().ClearTimer(OpenTimer);
 		if (OpenDoors == 0)
 		{
@@ -147,7 +217,7 @@ void ADoorRangeGameMode::TryOpenDoor()
 		return;
 	}
 
-	if (OpenDoors >= Cfg->VisibleDoors)
+	if (OpenDoors >= Wave.VisibleDoors)
 	{
 		return;
 	}
@@ -158,25 +228,40 @@ void ADoorRangeGameMode::TryOpenDoor()
 		return;
 	}
 
-	const EDoorOccupant Occupant = RollOccupant();
-	UMaterialInterface* Material = nullptr;
-	switch (Occupant)
+	FDoorOpenParams Params;
+	Params.Occupant = WaveQueue.Pop();
+	Params.OpenDuration = Cfg->OpenDuration;
+	Params.CloseDuration = Cfg->CloseDuration;
+	Params.ExposureWindow = Wave.ExposureWindow;
+	Params.TelegraphDuration = Wave.TelegraphDuration;
+	Params.DoorSound = Cfg->DoorSound;
+	Params.DoorPitch = Cfg->DoorPitch;
+	Params.TelegraphSound = Cfg->TelegraphSound;
+	Params.TelegraphPitch = Cfg->TelegraphPitch;
+	Params.DrawSound = Cfg->DrawSound;
+	Params.DrawPitch = Cfg->DrawPitch;
+
+	switch (Params.Occupant)
 	{
 	case EDoorOccupant::Hostile:
-		Material = Cfg->HostileMaterial;
+		Params.OccupantMaterial = Cfg->HostileMaterial;
 		break;
 	case EDoorOccupant::Friendly:
-		Material = Cfg->FriendlyMaterial;
+		Params.OccupantMaterial = Cfg->FriendlyMaterial;
 		break;
 	default:
 		break;
 	}
 
-	Slot->Open(Occupant, Material, Cfg->OpenDuration, Cfg->ExposureWindow, Cfg->CloseDuration);
+	Slot->Open(Params);
 	++OpenDoors;
-	++OpeningsThisWave;
 
-	UE_LOG(LogDoorRange, Verbose, TEXT("%s opens with occupant %d (opening %d of %d)"), *Slot->GetName(), static_cast<int32>(Occupant), OpeningsThisWave, Cfg->OpeningsPerWave);
+	UE_LOG(LogDoorRange, Verbose, TEXT("%s opens with occupant %d (%d left in wave %d)"), *Slot->GetName(), static_cast<int32>(Params.Occupant), WaveQueue.Num(), CurrentWave);
+}
+
+void ADoorRangeGameMode::HandleSlotDrawn(ADoorSlot* Slot)
+{
+	OnRangeEvent.Broadcast(EDoorRangeEvent::HostileDrawn, 0, Slot);
 }
 
 void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, float ExposureFraction)
@@ -188,12 +273,24 @@ void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, 
 	case EDoorOccupant::Hostile:
 	{
 		const int32 DrawBonus = FMath::RoundToInt(Cfg->DrawBonusMax * FMath::Clamp(ExposureFraction, 0.0f, 1.0f));
-		AddScore(Cfg->HitHostileScore + DrawBonus, FString::Printf(TEXT("Hostile hit on %s, draw bonus %d"), *Slot->GetName(), DrawBonus));
+		const int32 Delta = Cfg->HitHostileScore + DrawBonus;
+		++Stats.HostilesHit;
+		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
+		AddScore(Delta, FString::Printf(TEXT("Hostile hit on %s, draw bonus %d, exposure %.2f, state %d"), *Slot->GetName(), DrawBonus, ExposureFraction, static_cast<int32>(Slot->GetDoorState())));
+		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
+		OnRangeEvent.Broadcast(EDoorRangeEvent::HostileHit, Delta, Slot);
+		PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
 		break;
 	}
 	case EDoorOccupant::Friendly:
-		AddScore(-Cfg->HitFriendlyPenalty, FString::Printf(TEXT("Friendly hit on %s"), *Slot->GetName()));
+	{
+		const int32 Delta = -Cfg->HitFriendlyPenalty;
+		++Stats.FriendliesHit;
+		AddScore(Delta, FString::Printf(TEXT("Friendly hit on %s"), *Slot->GetName()));
+		OnRangeEvent.Broadcast(EDoorRangeEvent::FriendlyHit, Delta, Slot);
+		PlayEventSound(EDoorRangeEvent::FriendlyHit, Slot);
 		break;
+	}
 	default:
 		break;
 	}
@@ -203,12 +300,18 @@ void ADoorRangeGameMode::HandleSlotClosed(ADoorSlot* Slot, EDoorOccupant Occupan
 {
 	OpenDoors = FMath::Max(OpenDoors - 1, 0);
 
-	if (Occupant == EDoorOccupant::Hostile && !bWasHit)
+	if (bRangeActive && Occupant == EDoorOccupant::Hostile && !bWasHit)
 	{
-		AddScore(-GetSettings()->MissedHostilePenalty, FString::Printf(TEXT("Hostile escaped from %s"), *Slot->GetName()));
+		const int32 Delta = -GetSettings()->MissedHostilePenalty;
+		++Stats.HostilesEscaped;
+		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
+		AddScore(Delta, FString::Printf(TEXT("Hostile escaped from %s"), *Slot->GetName()));
+		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
+		OnRangeEvent.Broadcast(EDoorRangeEvent::HostileEscaped, Delta, Slot);
+		PlayEventSound(EDoorRangeEvent::HostileEscaped, Slot);
 	}
 
-	if (bRangeActive && OpeningsThisWave >= GetSettings()->OpeningsPerWave && OpenDoors == 0)
+	if (bRangeActive && WaveQueue.IsEmpty() && OpenDoors == 0)
 	{
 		EndWave();
 	}
@@ -217,16 +320,16 @@ void ADoorRangeGameMode::HandleSlotClosed(ADoorSlot* Slot, EDoorOccupant Occupan
 void ADoorRangeGameMode::EndWave()
 {
 	GetWorldTimerManager().ClearTimer(OpenTimer);
+	Stats.WavesPlayed = CurrentWave;
 
 	UE_LOG(LogDoorRange, Log, TEXT("Wave %d ends, score %d"), CurrentWave, Score);
+	OnRangeEvent.Broadcast(EDoorRangeEvent::WaveEnded, CurrentWave, nullptr);
 
 	if (CurrentWave >= GetWaveCount())
 	{
 		FinishRange();
 		return;
 	}
-
-	UpdateDebugDisplay(FString::Printf(TEXT("Wave %d complete"), CurrentWave));
 
 	const int32 NextWave = CurrentWave + 1;
 	GetWorldTimerManager().SetTimer(WaveTimer, [this, NextWave]()
@@ -239,9 +342,13 @@ void ADoorRangeGameMode::FinishRange()
 {
 	bRangeActive = false;
 	bRangeComplete = true;
+	Stats.FinalScore = Score;
 
-	UE_LOG(LogDoorRange, Log, TEXT("Range complete, final score %d"), Score);
-	UpdateDebugDisplay(TEXT("Range complete"));
+	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, escaped %d, friendlies hit %d, waves %d"),
+		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.WavesPlayed);
+
+	OnRangeEvent.Broadcast(EDoorRangeEvent::RangeFinished, Score, nullptr);
+	OnRangeFinished.Broadcast(Stats);
 }
 
 void ADoorRangeGameMode::AddScore(int32 Delta, const FString& Reason)
@@ -250,34 +357,37 @@ void ADoorRangeGameMode::AddScore(int32 Delta, const FString& Reason)
 
 	UE_LOG(LogDoorRange, Log, TEXT("Score %+d -> %d (%s)"), Delta, Score, *Reason);
 	OnScoreChanged.Broadcast(Score, Delta);
-	UpdateDebugDisplay(FString::Printf(TEXT("%s (%+d)"), *Reason, Delta));
 }
 
-void ADoorRangeGameMode::UpdateDebugDisplay(const FString& LastEvent) const
-{
-	if (!bShowDebugScore || !GEngine)
-	{
-		return;
-	}
-
-	const FString Text = FString::Printf(TEXT("DOOR RANGE   Score %d   Wave %d / %d   %s"), Score, CurrentWave, GetWaveCount(), *LastEvent);
-	GEngine->AddOnScreenDebugMessage(1, 30.0f, FColor::Yellow, Text);
-}
-
-EDoorOccupant ADoorRangeGameMode::RollOccupant() const
+void ADoorRangeGameMode::PlayEventSound(EDoorRangeEvent Event, const ADoorSlot* Slot) const
 {
 	const UDoorRangeSettings* Cfg = GetSettings();
-	const float Roll = FMath::FRand();
+	USoundBase* Sound = nullptr;
+	float Pitch = 1.0f;
 
-	if (Roll < Cfg->HostileShare)
+	switch (Event)
 	{
-		return EDoorOccupant::Hostile;
+	case EDoorRangeEvent::HostileHit:
+		Sound = Cfg->HostileHitSound;
+		Pitch = Cfg->HostileHitPitch;
+		break;
+	case EDoorRangeEvent::FriendlyHit:
+		Sound = Cfg->FriendlyHitSound;
+		Pitch = Cfg->FriendlyHitPitch;
+		break;
+	case EDoorRangeEvent::HostileEscaped:
+		Sound = Cfg->EscapeSound;
+		Pitch = Cfg->EscapePitch;
+		break;
+	default:
+		break;
 	}
-	if (Roll < Cfg->HostileShare + Cfg->EmptyShare)
+
+	if (Sound)
 	{
-		return EDoorOccupant::Empty;
+		const FVector Location = Slot ? Slot->GetOccupantAimPoint() : FVector::ZeroVector;
+		UGameplayStatics::PlaySoundAtLocation(this, Sound, Location, 1.0f, Pitch);
 	}
-	return EDoorOccupant::Friendly;
 }
 
 ADoorSlot* ADoorRangeGameMode::PickAvailableSlot() const
