@@ -159,7 +159,8 @@ float ADoorSlot::GetExposureFraction() const
 		}
 		return Params.ExposureWindow > 0.0f ? FMath::Clamp((StateElapsed - DrawnAt) / Params.ExposureWindow, 0.0f, 1.0f) : 1.0f;
 	case EDoorState::Closing:
-		return 1.0f;
+		// the reward shrinks with the closing panel, a shot that lands on a shut door is worth nothing extra
+		return ClosingStartAlpha > 0.0f ? BonusAtCloseStart * FMath::Clamp(PanelAlpha / ClosingStartAlpha, 0.0f, 1.0f) : 0.0f;
 	default:
 		return 0.0f;
 	}
@@ -245,6 +246,12 @@ void ADoorSlot::Tick(float DeltaSeconds)
 
 void ADoorSlot::SetState(EDoorState NewState)
 {
+	// capture the draw bonus before the state clock resets, a close inherits the fraction reached so far
+	if (NewState == EDoorState::Closing)
+	{
+		BonusAtCloseStart = (State == EDoorState::Showing) ? GetExposureFraction() : 0.0f;
+	}
+
 	State = NewState;
 	StateElapsed = 0.0f;
 

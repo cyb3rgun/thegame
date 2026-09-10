@@ -102,6 +102,9 @@ protected:
 	/** Open fraction at the moment closing started, so an early close swings back from where it was */
 	float ClosingStartAlpha = 1.0f;
 
+	/** Draw bonus fraction at the moment closing started, decays to zero with the panel */
+	float BonusAtCloseStart = 0.0f;
+
 	/** True once the occupant can be hit. Friendlies are drawn at once, hostiles after the telegraph. */
 	bool bDrawn = false;
 
@@ -160,7 +163,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Door")
 	bool IsDrawn() const { return bDrawn && !bHitRegistered && (State == EDoorState::Showing); }
 
-	/** Returns 0 at the start of the exposure window, 1 at its end */
+	/** Draw bonus fraction: rises from 0 to 1 over the exposure window, then falls back to 0 while the panel closes */
 	UFUNCTION(BlueprintPure, Category="Door")
 	float GetExposureFraction() const;
 
