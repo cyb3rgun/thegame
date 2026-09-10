@@ -7,6 +7,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Ballistics model, camera and scenario agnostic
 - [ ] Fire control (trigger modes, refire, magazine)
 - [ ] Hit scoring service shared by all scenarios (G02)
+- [x] One screen space aiming path from the crosshair for mouse, light gun and hardware (G03)
 - [ ] Session statistics (hits, misses, reaction times)
 - [ ] Scenario package format: GameMode, data assets, input context (G02)
 
@@ -31,11 +32,17 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Encounter module: data driven waves with time, kill and signal triggers run by a director (G02)
 - [ ] Horde module: chain ignition crowds
 - [ ] On rails module (open option): guided flight or drive with mass targets
+- [x] Rail module: spline route driven by its own distance clock, beats, holds and segment hand over (G03)
+- [x] Rail cover: hold to take cover, the ride waits, no firing, enemy hits do not land (G03)
+- [ ] Rail branch selection beyond the first next segment
+- [ ] Rail fail state when the rider goes down
+- [ ] Rail camera turns toward the action of a beat
 
 ## Weapons
 
 - [x] Pistol placeholder from the first person template hooked to scoring (G02)
-- [ ] Point blank shots: the template projectile spawns inside a touching enemy capsule and misses
+- [x] Point blank shots register: a blocked muzzle path starts the projectile at the view origin (G03)
+- [ ] Weapon data asset for damage and refire, the rail aim component still carries pistol values
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies
@@ -62,6 +69,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 - [x] Score, wave, hostiles remaining and end of range summary in WBP_DoorRangeHUD (G02)
 - [x] Wave, alive, kills and encounter complete summary in WBP_EncounterHUD (G02)
+- [x] Crosshair overlay WBP_RailCrosshair drawn at the aim position (G03)
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
 - [ ] Ironic safety splash screen spoken by the arena AI (open option)
@@ -79,6 +87,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Door range settings with per wave difficulty ramp and Training, Standard, Frantic presets (G02)
 - [x] Zombie test level Lvl_ZombieTest with the three wave preset DA_Encounter_Test (G02)
 - [x] Runtime nav mesh generated around a navigation invoker on the player (G02)
+- [x] Rail test level Lvl_RailTest, about 207 m with two held encounter beats (G03)
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
 - [ ] Laser tag event fusion
