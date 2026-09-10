@@ -8,6 +8,8 @@
 | WBP_ | Widget Blueprint |
 | GM_ | Game Mode |
 | DA_ | Data Asset |
+| IA_ | Input Action |
+| IMC_ | Input Mapping Context |
 | M_ | Material |
 | MI_ | Material Instance |
 | T_ | Texture |
