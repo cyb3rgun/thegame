@@ -7,6 +7,8 @@
 #include "RailPawn.h"
 #include "CyberEnemy.h"
 #include "EncounterDirector.h"
+#include "HostageTaker.h"
+#include "EngineUtils.h"
 #include "CollisionQueryParams.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -194,6 +196,58 @@ static FAutoConsoleCommandWithWorld GRailStatusCommand(
 			Rider->GetHeldBeatIndex(), Rider->IsInCover() ? 1 : 0, Rider->GetHealth(), Rider->IsFinished() ? 1 : 0,
 			Mode ? Mode->GetBeatsCleared() : 0, Mode ? Mode->GetTotalKills() : 0, Director ? Director->GetAliveCount() : 0,
 			Rider->GetAim()->GetShotsFired(), Rider->GetAim()->GetShotsHit());
+
+		FWeaponStatus Weapon;
+		if (Rider->GetWeaponStatus(Weapon))
+		{
+			UE_LOG(LogRailDebug, Log, TEXT("Rail.Status: weapon %s %d/%d, reloading %d at %.0f%%, switching %d, weapon %d of %d"), *Weapon.WeaponName.ToString(), Weapon.Rounds, Weapon.MagazineSize,
+				Weapon.bReloading ? 1 : 0, Weapon.ReloadProgress * 100.0f, Weapon.bSwitching ? 1 : 0, Weapon.WeaponIndex + 1, Weapon.WeaponCount);
+		}
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GRailHostageCommand(
+	TEXT("Rail.Hostage"),
+	TEXT("Places the crosshair on the showing part of the active hostage taker and pulls the trigger. Arguments: Hostage aims at the hostage instead, Aim only places the crosshair."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		ARailPawn* Rider = RailDebug::GetRider(World);
+		APlayerController* PC = World ? UGameplayStatics::GetPlayerController(World, 0) : nullptr;
+		if (!Rider || !PC)
+		{
+			return;
+		}
+
+		AHostageTaker* Taker = nullptr;
+		for (TActorIterator<AHostageTaker> It(World); It; ++It)
+		{
+			if (It->IsActive())
+			{
+				Taker = *It;
+				break;
+			}
+		}
+		if (!Taker)
+		{
+			UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: no active hostage taker"));
+			return;
+		}
+
+		const bool bHostage = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Hostage"), ESearchCase::IgnoreCase); });
+		const bool bAimOnly = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Aim"), ESearchCase::IgnoreCase); });
+		FVector2D Screen;
+		if (!PC->ProjectWorldLocationToScreen(bHostage ? Taker->GetHostageAimPoint() : Taker->GetTakerAimPoint(), Screen, false))
+		{
+			UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s is off screen"), *Taker->GetName());
+			return;
+		}
+
+		Rider->GetAim()->SetCrosshairScreenPosition(Screen);
+		if (!bAimOnly)
+		{
+			Rider->DoFire();
+		}
+		UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s the %s of %s at screen %.0f %.0f"), bAimOnly ? TEXT("aimed at") : TEXT("fired at"),
+			bHostage ? TEXT("hostage") : TEXT("taker"), *Taker->GetName(), Screen.X, Screen.Y);
 	}));
 
 static FAutoConsoleCommandWithWorld GRailPauseCommand(

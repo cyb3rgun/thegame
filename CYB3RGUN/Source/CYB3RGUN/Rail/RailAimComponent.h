@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/HitResult.h"
+#include "WeaponStatus.h"
 #include "RailAimComponent.generated.h"
 
 class APlayerController;
 class UDamageType;
+class UWeaponDefinition;
+class USoundBase;
 
 /** Where the crosshair position comes from */
 UENUM(BlueprintType)
@@ -69,6 +72,29 @@ protected:
 	float LastShotTime = -1000.0f;
 	int32 ShotsFired = 0;
 	int32 ShotsHit = 0;
+
+	/** Weapons the rider carries, the first is in hand at the start. Empty keeps the plain shot values above and an endless magazine. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapons")
+	TArray<TObjectPtr<UWeaponDefinition>> Weapons;
+
+	/** Rounds left in each carried weapon, kept across switches */
+	TArray<int32> Rounds;
+
+	int32 WeaponIndex = 0;
+
+	/** Reload and switch timing, on real time. The frame each of them started on does not count. */
+	bool bReloading = false;
+	float ReloadElapsed = 0.0f;
+	uint64 ReloadStartFrame = 0;
+	float EquipRemaining = 0.0f;
+	uint64 EquipStartFrame = 0;
+
+	/** Wall clock at the start of the reload, the log reports the duration it measured */
+	double ReloadStartSeconds = 0.0;
+
+	/** Real time of the last shot and of the last trigger pull on an empty magazine */
+	double LastShotRealTime = -1000.0;
+	double LastDryFireTime = -1000.0;
 
 public:
 
@@ -133,8 +159,48 @@ public:
 	UFUNCTION(BlueprintPure, Category="Shot")
 	int32 GetShotsHit() const { return ShotsHit; }
 
+	/** Hands over the weapons to carry, the first comes up in hand with a full magazine when play starts */
+	void SetWeapons(const TArray<UWeaponDefinition*>& InWeapons);
+
+	/** The weapon in hand, null without carried weapons */
+	UFUNCTION(BlueprintPure, Category="Weapons")
+	const UWeaponDefinition* GetCurrentWeapon() const;
+
+	/** Brings up the next carried weapon. False with fewer than two. */
+	UFUNCTION(BlueprintCallable, Category="Weapons")
+	bool SwitchWeapon();
+
+	/** Starts refilling the weapon in hand. False when it is full, already reloading or nothing is carried. */
+	UFUNCTION(BlueprintCallable, Category="Weapons")
+	bool StartReload();
+
+	/** Stops a reload before it finished, the magazine keeps what it had */
+	UFUNCTION(BlueprintCallable, Category="Weapons")
+	void CancelReload();
+
+	UFUNCTION(BlueprintPure, Category="Weapons")
+	bool IsReloading() const { return bReloading; }
+
+	/** The weapon in hand for the HUD. False without carried weapons. */
+	bool GetWeaponStatus(FWeaponStatus& OutStatus) const;
+
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 protected:
 
 	APlayerController* GetPlayerController() const;
 	FVector2D ClampToScreen(FVector2D Normalized) const;
+
+	virtual void BeginPlay() override;
+
+	/** Hands one hit to the target and to the damage path. Returns the pawn that took damage, or null. */
+	AActor* ApplyShotHit(const FHitResult& Hit, float ShotDamage);
+
+	/** Fires the weapon's pellets as traces in a cone around the crosshair ray. Returns the first pawn that took damage. */
+	AActor* FirePellets(const UWeaponDefinition& Weapon);
+
+	/** A trigger pull on an empty magazine: the click, and a time stamp for the HUD cue */
+	void DryFire();
+
+	void PlayWeaponSound(USoundBase* Sound) const;
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "RailTrack.h"
+#include "WeaponStatus.h"
 #include "RailPawn.generated.h"
 
 class UCapsuleComponent;
@@ -29,7 +30,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRailCoverChangedDelegate, bool, bIn
  *  the ride until ReleaseBeatHold is called. A finished segment hands over to the next one at distance zero.
  */
 UCLASS()
-class CYB3RGUN_API ARailPawn : public APawn
+class CYB3RGUN_API ARailPawn : public APawn, public IWeaponStatusSource
 {
 	GENERATED_BODY()
 
@@ -79,6 +80,14 @@ protected:
 	/** Takes cover. While in cover the ride waits, the rider cannot fire and enemy hits do not land. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	TObjectPtr<UInputAction> CoverAction;
+
+	/** Brings up the next weapon. The Blueprint's weapons context maps it, Q and the mouse wheel are added at runtime. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> SwitchWeaponAction;
+
+	/** Q and the mouse wheel for switching, added next to the Blueprint's contexts */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
 	/** Cover lasts while the input is held, like a light gun cabinet pedal. False makes each press toggle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Cover")
@@ -250,6 +259,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Cover")
 	int32 GetHitsBlockedByCover() const { return HitsBlockedByCover; }
+
+	/** Brings up the next weapon. In cover the new weapon starts reloading at once. */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoSwitchWeapon();
+
+	//~ Begin IWeaponStatusSource
+	virtual bool GetWeaponStatus(FWeaponStatus& OutStatus) const override;
+	//~ End IWeaponStatusSource
 
 protected:
 

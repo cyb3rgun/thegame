@@ -112,6 +112,16 @@ void ARailGameMode::HandleBeatReached(ARailTrack* Track, int32 BeatIndex, const 
 {
 	GetWorldTimerManager().ClearTimer(SummaryTimer);
 
+	// a hostage taker set piece: reveal it, the hold is released once it resolved
+	if (Beat.HostageTaker)
+	{
+		ActiveHostageBeatIndex = BeatIndex;
+		Beat.HostageTaker->OnResolved.AddUniqueDynamic(this, &ARailGameMode::HandleHostageResolved);
+		Beat.HostageTaker->Activate();
+		UE_LOG(LogRailGame, Log, TEXT("Beat %d %s reveals hostage taker %s"), BeatIndex, *Beat.Name.ToString(), *Beat.HostageTaker->GetName());
+		return;
+	}
+
 	if (Beat.Encounter && Director)
 	{
 		ActiveBeatIndex = BeatIndex;
@@ -166,21 +176,52 @@ void ARailGameMode::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
 	++TotalKills;
 }
 
+void ARailGameMode::HandleHostageResolved(AHostageTaker* Taker, EHostageOutcome Outcome)
+{
+	switch (Outcome)
+	{
+	case EHostageOutcome::Rescued:
+		++HostagesRescued;
+		break;
+	case EHostageOutcome::HostageHit:
+		++HostagesHit;
+		break;
+	default:
+		++HostagesLost;
+		break;
+	}
+
+	UE_LOG(LogRailGame, Log, TEXT("Hostage taker %s resolved: %s"), *GetNameSafe(Taker), *StaticEnum<EHostageOutcome>()->GetNameStringByValue(static_cast<int64>(Outcome)));
+
+	if (ActiveHostageBeatIndex != INDEX_NONE)
+	{
+		const int32 Cleared = ActiveHostageBeatIndex;
+		ActiveHostageBeatIndex = INDEX_NONE;
+		++BeatsCleared;
+		if (Rider)
+		{
+			Rider->ReleaseBeatHold(Cleared);
+		}
+	}
+}
+
 void ARailGameMode::HandleRideFinished(float TotalDistance, float Seconds)
 {
 	const URailAimComponent* Aim = Rider ? Rider->GetAim() : nullptr;
 	const int32 Shots = Aim ? Aim->GetShotsFired() : 0;
 	const int32 Hits = Aim ? Aim->GetShotsHit() : 0;
 
-	UE_LOG(LogRailGame, Log, TEXT("Route complete: %.0f cm in %.1f s, beats cleared %d, kills %d, shots %d, hits %d, health %.0f, hits blocked by cover %d"),
-		TotalDistance, Seconds, BeatsCleared, TotalKills, Shots, Hits, Rider ? Rider->GetHealth() : 0.0f, Rider ? Rider->GetHitsBlockedByCover() : 0);
+	UE_LOG(LogRailGame, Log, TEXT("Route complete: %.0f cm in %.1f s, beats cleared %d, kills %d, shots %d, hits %d, health %.0f, hits blocked by cover %d, hostages freed %d, hit %d, lost %d"),
+		TotalDistance, Seconds, BeatsCleared, TotalKills, Shots, Hits, Rider ? Rider->GetHealth() : 0.0f, Rider ? Rider->GetHitsBlockedByCover() : 0,
+		HostagesRescued, HostagesHit, HostagesLost);
 
 	GetWorldTimerManager().ClearTimer(SummaryTimer);
 	if (HUD)
 	{
-		HUD->ShowSummary(FText::Format(LOCTEXT("RouteComplete", "ROUTE COMPLETE\n\nDistance {0} m\nTime {1} s\nKills {2}\nHits {3} / {4}"),
+		HUD->ShowSummary(FText::Format(LOCTEXT("RouteComplete", "ROUTE COMPLETE\n\nDistance {0} m\nTime {1} s\nKills {2}\nHits {3} / {4}\nHostages freed {5} / {6}"),
 			FText::AsNumber(FMath::RoundToInt(TotalDistance / 100.0f)), FText::AsNumber(FMath::RoundToInt(Seconds)),
-			FText::AsNumber(TotalKills), FText::AsNumber(Hits), FText::AsNumber(Shots)));
+			FText::AsNumber(TotalKills), FText::AsNumber(Hits), FText::AsNumber(Shots),
+			FText::AsNumber(HostagesRescued), FText::AsNumber(HostagesRescued + HostagesHit + HostagesLost)));
 	}
 }
 

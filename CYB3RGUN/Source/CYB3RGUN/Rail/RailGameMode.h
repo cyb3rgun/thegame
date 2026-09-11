@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "RailTrack.h"
 #include "StyleScenario.h"
+#include "HostageTaker.h"
 #include "RailGameMode.generated.h"
 
 class AEncounterDirector;
@@ -58,6 +59,13 @@ protected:
 	int32 BeatsCleared = 0;
 	int32 TotalKills = 0;
 
+	/** Beat whose hostage taker is out, its hold is released when the set piece resolves */
+	int32 ActiveHostageBeatIndex = INDEX_NONE;
+
+	int32 HostagesRescued = 0;
+	int32 HostagesHit = 0;
+	int32 HostagesLost = 0;
+
 	FTimerHandle SummaryTimer;
 
 public:
@@ -101,6 +109,9 @@ protected:
 
 	UFUNCTION()
 	void HandleRideFinished(float TotalDistance, float Seconds);
+
+	UFUNCTION()
+	void HandleHostageResolved(AHostageTaker* Taker, EHostageOutcome Outcome);
 
 	void BindRider(ARailPawn* InRider);
 	void HideSummary();

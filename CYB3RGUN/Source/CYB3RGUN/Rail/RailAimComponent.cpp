@@ -4,6 +4,10 @@
 #include "StyleScoringComponent.h"
 #include "DoorRangeTarget.h"
 #include "ShotFeedback.h"
+#include "WeaponDefinition.h"
+#include "CoreGlobals.h"
+#include "Misc/App.h"
+#include "Sound/SoundBase.h"
 #include "Camera/CameraComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
@@ -17,7 +21,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogRailAim, Log, All);
 
 URailAimComponent::URailAimComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 	DamageTypeClass = UDamageType::StaticClass();
 }
 
@@ -144,18 +149,46 @@ FVector URailAimComponent::ResolveAimPoint() const
 bool URailAimComponent::CanFire() const
 {
 	const UWorld* World = GetWorld();
-	return World && !bFireBlocked && (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
+	if (!World || bFireBlocked)
+	{
+		return false;
+	}
+
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (!Weapon)
+	{
+		return (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
+	}
+
+	// carried weapons keep the player's pace on real time, also while the world is slowed
+	return !bReloading && EquipRemaining <= 0.0f && Rounds.IsValidIndex(WeaponIndex) && Rounds[WeaponIndex] > 0
+		&& (World->GetRealTimeSeconds() - LastShotRealTime) >= Weapon->RefireSeconds;
 }
 
 bool URailAimComponent::Fire()
 {
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+
+	// an empty magazine clicks, unless cover, a reload or a switch holds the trigger anyway
+	if (Weapon && !bFireBlocked && !bReloading && EquipRemaining <= 0.0f && Rounds.IsValidIndex(WeaponIndex) && Rounds[WeaponIndex] <= 0)
+	{
+		DryFire();
+		return false;
+	}
+
 	if (!CanFire())
 	{
 		return false;
 	}
 
-	LastShotTime = GetWorld()->GetTimeSeconds();
+	UWorld* World = GetWorld();
+	LastShotTime = World->GetTimeSeconds();
+	LastShotRealTime = World->GetRealTimeSeconds();
 	++ShotsFired;
+	if (Weapon)
+	{
+		--Rounds[WeaponIndex];
+	}
 
 	// the style record resolves this shot right here: whatever it lands on reports a hit, anything else makes it a miss
 	UStyleScoringComponent* Style = UStyleScoringComponent::Get(GetOwner());
@@ -169,27 +202,19 @@ bool URailAimComponent::Fire()
 	const bool bHit = ResolveAim(Hit);
 	AActor* Damaged = nullptr;
 
-	if (bHit && Hit.GetActor())
+	if (Weapon && Weapon->Pellets > 1)
 	{
-		AActor* HitActor = Hit.GetActor();
-		APawn* OwnerPawn = Cast<APawn>(GetOwner());
-		AController* Instigator = OwnerPawn ? OwnerPawn->GetController() : nullptr;
+		Damaged = FirePellets(*Weapon);
+	}
+	else if (bHit)
+	{
+		Damaged = ApplyShotHit(Hit, Weapon ? Weapon->Damage : Damage);
+		UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
+	}
 
-		// scoring targets decide themselves whether the shot counts
-		if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
-		{
-			Target->NotifyShot(Hit.GetComponent(), Hit.ImpactPoint, Instigator);
-		}
-
-		// the engine damage path, which enemies route into their single entry point
-		const FVector ShotDirection = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
-		const float Applied = UGameplayStatics::ApplyPointDamage(HitActor, Damage, ShotDirection, Hit, Instigator, GetOwner(), DamageTypeClass);
-		// walls and props accept engine damage too, only a pawn that took it counts as a hit
-		if (Applied > 0.0f && HitActor->IsA<APawn>())
-		{
-			Damaged = HitActor;
-			++ShotsHit;
-		}
+	if (Damaged)
+	{
+		++ShotsHit;
 	}
 
 	if (Style)
@@ -204,14 +229,212 @@ bool URailAimComponent::Fire()
 		const FVector AimTarget = bHit ? Hit.ImpactPoint : ResolveAimPoint();
 		UShotFeedback::PlayMuzzleFlash(this, nullptr, NAME_None, Muzzle, (AimTarget - Muzzle).Rotation(), false);
 	}
-	if (bHit)
-	{
-		UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
-	}
 
 	UE_LOG(LogRailAim, Verbose, TEXT("Shot %d at screen %.3f %.3f: %s%s"), ShotsFired, GetCrosshairNormalized().X, GetCrosshairNormalized().Y,
 		bHit ? *GetNameSafe(Hit.GetActor()) : TEXT("nothing"), Damaged ? TEXT(", damaged") : TEXT(""));
 
 	OnShotFired.Broadcast(bHit, Hit, Damaged);
 	return true;
+}
+
+AActor* URailAimComponent::ApplyShotHit(const FHitResult& Hit, float ShotDamage)
+{
+	AActor* HitActor = Hit.GetActor();
+	if (!HitActor)
+	{
+		return nullptr;
+	}
+
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	AController* Instigator = OwnerPawn ? OwnerPawn->GetController() : nullptr;
+
+	// scoring targets decide themselves whether the shot counts
+	if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
+	{
+		Target->NotifyShot(Hit.GetComponent(), Hit.ImpactPoint, Instigator);
+	}
+
+	// the engine damage path, which enemies route into their single entry point
+	const FVector ShotDirection = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
+	const float Applied = UGameplayStatics::ApplyPointDamage(HitActor, ShotDamage, ShotDirection, Hit, Instigator, GetOwner(), DamageTypeClass);
+
+	// walls and props accept engine damage too, only a pawn that took it counts as a hit
+	return Applied > 0.0f && HitActor->IsA<APawn>() ? HitActor : nullptr;
+}
+
+AActor* URailAimComponent::FirePellets(const UWeaponDefinition& Weapon)
+{
+	const APlayerController* PC = GetPlayerController();
+	FVector2D Pixels;
+	FVector Origin;
+	FVector Direction;
+	if (!PC || !GetCrosshairScreenPosition(Pixels) || !PC->DeprojectScreenPositionToWorld(Pixels.X, Pixels.Y, Origin, Direction))
+	{
+		return nullptr;
+	}
+
+	// every pellet is its own trace through a cone around the crosshair ray, the shot still resolves once for style
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RailPellet), false, GetOwner());
+	const float HalfAngle = FMath::DegreesToRadians(Weapon.SpreadDegrees);
+	AActor* FirstDamaged = nullptr;
+	for (int32 Pellet = 0; Pellet < Weapon.Pellets; ++Pellet)
+	{
+		const FVector PelletDirection = FMath::VRandCone(Direction, HalfAngle);
+		FHitResult PelletHit;
+		if (!GetWorld()->LineTraceSingleByChannel(PelletHit, Origin, Origin + PelletDirection * Weapon.MaxRange, TraceChannel, QueryParams))
+		{
+			continue;
+		}
+
+		AActor* PelletDamaged = ApplyShotHit(PelletHit, Weapon.Damage * Weapon.GetDamageScale(PelletHit.Distance));
+		FirstDamaged = FirstDamaged ? FirstDamaged : PelletDamaged;
+		UShotFeedback::PlayImpact(this, PelletHit.ImpactPoint, PelletHit.ImpactNormal);
+	}
+	return FirstDamaged;
+}
+
+void URailAimComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	Weapons.RemoveAll([](const TObjectPtr<UWeaponDefinition>& Weapon) { return !Weapon; });
+	Rounds.Reset(Weapons.Num());
+	for (const UWeaponDefinition* Weapon : Weapons)
+	{
+		Rounds.Add(Weapon->MagazineSize);
+	}
+	WeaponIndex = 0;
+
+	// only carried weapons have reloads and switches to time
+	SetComponentTickEnabled(!Weapons.IsEmpty());
+}
+
+void URailAimComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// reloads and switches run on real time, so they keep the player's pace while the world is slowed
+	const float RealDelta = static_cast<float>(FApp::GetDeltaTime());
+
+	if (EquipRemaining > 0.0f && GFrameCounter != EquipStartFrame)
+	{
+		EquipRemaining = FMath::Max(EquipRemaining - RealDelta, 0.0f);
+	}
+
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (bReloading && Weapon && GFrameCounter != ReloadStartFrame)
+	{
+		ReloadElapsed += RealDelta;
+		if (ReloadElapsed >= Weapon->ReloadSeconds)
+		{
+			bReloading = false;
+			ReloadElapsed = 0.0f;
+			Rounds[WeaponIndex] = Weapon->MagazineSize;
+			PlayWeaponSound(Weapon->ReloadEndSound);
+			UE_LOG(LogRailAim, Log, TEXT("%s reloaded in cover, %d rounds, %.2f s on the wall clock"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], FPlatformTime::Seconds() - ReloadStartSeconds);
+		}
+	}
+}
+
+void URailAimComponent::SetWeapons(const TArray<UWeaponDefinition*>& InWeapons)
+{
+	Weapons.Reset(InWeapons.Num());
+	for (UWeaponDefinition* Weapon : InWeapons)
+	{
+		Weapons.Add(Weapon);
+	}
+}
+
+const UWeaponDefinition* URailAimComponent::GetCurrentWeapon() const
+{
+	return Weapons.IsValidIndex(WeaponIndex) ? Weapons[WeaponIndex].Get() : nullptr;
+}
+
+bool URailAimComponent::SwitchWeapon()
+{
+	if (Weapons.Num() < 2 || Rounds.Num() != Weapons.Num())
+	{
+		return false;
+	}
+
+	CancelReload();
+	WeaponIndex = (WeaponIndex + 1) % Weapons.Num();
+
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	EquipRemaining = Weapon->EquipSeconds;
+	EquipStartFrame = GFrameCounter;
+	PlayWeaponSound(Weapon->EquipSound);
+	UE_LOG(LogRailAim, Log, TEXT("Switched to %s, %d of %d rounds"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], Weapon->MagazineSize);
+	return true;
+}
+
+bool URailAimComponent::StartReload()
+{
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (!Weapon || bReloading || !Rounds.IsValidIndex(WeaponIndex) || Rounds[WeaponIndex] >= Weapon->MagazineSize)
+	{
+		return false;
+	}
+
+	bReloading = true;
+	ReloadElapsed = 0.0f;
+	ReloadStartFrame = GFrameCounter;
+	ReloadStartSeconds = FPlatformTime::Seconds();
+	PlayWeaponSound(Weapon->ReloadStartSound);
+	UE_LOG(LogRailAim, Log, TEXT("%s reloads in cover, %d of %d rounds left, %.2f s"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], Weapon->MagazineSize, Weapon->ReloadSeconds);
+	return true;
+}
+
+void URailAimComponent::CancelReload()
+{
+	if (!bReloading)
+	{
+		return;
+	}
+
+	bReloading = false;
+	ReloadElapsed = 0.0f;
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	UE_LOG(LogRailAim, Log, TEXT("%s reload left unfinished with %d of %d rounds"), Weapon ? *Weapon->DisplayName.ToString() : TEXT("Weapon"),
+		Rounds.IsValidIndex(WeaponIndex) ? Rounds[WeaponIndex] : 0, Weapon ? Weapon->MagazineSize : 0);
+}
+
+bool URailAimComponent::GetWeaponStatus(FWeaponStatus& OutStatus) const
+{
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (!Weapon)
+	{
+		return false;
+	}
+
+	OutStatus.WeaponName = Weapon->DisplayName;
+	OutStatus.Rounds = Rounds.IsValidIndex(WeaponIndex) ? Rounds[WeaponIndex] : 0;
+	OutStatus.MagazineSize = Weapon->MagazineSize;
+	OutStatus.bReloading = bReloading;
+	OutStatus.ReloadProgress = bReloading && Weapon->ReloadSeconds > 0.0f ? FMath::Clamp(ReloadElapsed / Weapon->ReloadSeconds, 0.0f, 1.0f) : 0.0f;
+	OutStatus.bSwitching = EquipRemaining > 0.0f;
+	OutStatus.LastDryFireTime = LastDryFireTime;
+	OutStatus.WeaponIndex = WeaponIndex;
+	OutStatus.WeaponCount = Weapons.Num();
+	return true;
+}
+
+void URailAimComponent::DryFire()
+{
+	LastDryFireTime = GetWorld()->GetRealTimeSeconds();
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (Weapon)
+	{
+		PlayWeaponSound(Weapon->EmptySound);
+	}
+	UE_LOG(LogRailAim, Log, TEXT("%s clicks empty"), Weapon ? *Weapon->DisplayName.ToString() : TEXT("Weapon"));
+}
+
+void URailAimComponent::PlayWeaponSound(USoundBase* Sound) const
+{
+	// the rider hears their own weapon in the head, not placed in the world
+	if (Sound)
+	{
+		UGameplayStatics::PlaySound2D(this, Sound);
+	}
 }

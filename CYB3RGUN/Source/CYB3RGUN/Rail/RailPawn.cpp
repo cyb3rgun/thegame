@@ -3,6 +3,7 @@
 #include "RailPawn.h"
 #include "EncounterDefinition.h"
 #include "RailAimComponent.h"
+#include "WeaponDefinition.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
@@ -19,6 +20,8 @@
 #include "GameFramework/PlayerController.h"
 #include "NavigationInvokerComponent.h"
 #include "TimerManager.h"
+#include "InputCoreTypes.h"
+#include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRail, Log, All);
 
@@ -47,6 +50,13 @@ ARailPawn::ARailPawn()
 
 	Aim = CreateDefaultSubobject<URailAimComponent>(TEXT("Aim"));
 	Aim->SetInputMode(ERailAimInputMode::Relative);
+
+	// the rider carries the pistol and the scattergun, switching uses the shooter template's action
+	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> PistolWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_Pistol.DA_Weapon_Pistol"));
+	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> ScattergunWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_Scattergun.DA_Weapon_Scattergun"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> SwitchInput(TEXT("/Game/Variant_Shooter/Input/Actions/IA_SwapWeapon.IA_SwapWeapon"));
+	Aim->SetWeapons({ PistolWeapon.Object, ScattergunWeapon.Object });
+	SwitchWeaponAction = SwitchInput.Object;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -115,6 +125,19 @@ void ARailPawn::PawnClientRestart()
 				Subsystem->AddMappingContext(Context, 0);
 			}
 		}
+
+		// Q and the mouse wheel switch as well; the rail has no reload key, taking cover reloads
+		if (!CombatMappingContext && SwitchWeaponAction)
+		{
+			CombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("CombatMappingContext"));
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::Q);
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollUp);
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollDown);
+		}
+		if (CombatMappingContext)
+		{
+			Subsystem->AddMappingContext(CombatMappingContext, 1);
+		}
 	}
 }
 
@@ -146,6 +169,10 @@ void ARailPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		Input->BindAction(CoverAction, ETriggerEvent::Started, this, &ARailPawn::CoverPressed);
 		Input->BindAction(CoverAction, ETriggerEvent::Completed, this, &ARailPawn::CoverReleased);
 	}
+	if (SwitchWeaponAction)
+	{
+		Input->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ARailPawn::DoSwitchWeapon);
+	}
 }
 
 void ARailPawn::CoverPressed()
@@ -170,6 +197,16 @@ void ARailPawn::SetInCover(bool bCover)
 
 	bInCover = bCover;
 	Aim->SetFireBlocked(bInCover);
+
+	// cover is the reload: entering it starts one, leaving before it finished leaves the magazine as it was
+	if (bInCover)
+	{
+		Aim->StartReload();
+	}
+	else
+	{
+		Aim->CancelReload();
+	}
 	UE_LOG(LogRail, Log, TEXT("Cover %s at %.0f cm, ride %s"), bInCover ? TEXT("on") : TEXT("off"), DistanceAlongSpline, IsMoving() ? TEXT("moving") : TEXT("waiting"));
 	OnCoverChanged.Broadcast(bInCover);
 }
@@ -436,4 +473,22 @@ float ARailPawn::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACont
 	}
 
 	return Applied;
+}
+
+void ARailPawn::DoSwitchWeapon()
+{
+	if (Aim->SwitchWeapon() && bInCover)
+	{
+		Aim->StartReload();
+	}
+}
+
+bool ARailPawn::GetWeaponStatus(FWeaponStatus& OutStatus) const
+{
+	if (!Aim->GetWeaponStatus(OutStatus))
+	{
+		return false;
+	}
+	OutStatus.ReloadHint = NSLOCTEXT("RailPawn", "ReloadHint", "TAKE COVER TO RELOAD");
+	return true;
 }

@@ -11,6 +11,7 @@ class USplineComponent;
 class UEncounterDefinition;
 class AEnemySpawnPoint;
 class ARailPawn;
+class AHostageTaker;
 
 /** Something that happens at a distance along a rail segment */
 USTRUCT(BlueprintType)
@@ -32,6 +33,10 @@ struct FRailBeat
 	/** Spawn points for the encounter. Empty means every spawn point in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Beat")
 	TArray<TObjectPtr<AEnemySpawnPoint>> SpawnPoints;
+
+	/** Hostage taker set piece revealed when the beat fires, in place of an encounter. A holding beat waits until the hostage is freed or hit, or the taker gets away. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Beat")
+	TObjectPtr<AHostageTaker> HostageTaker;
 
 	/** Stops the ride at the trigger distance until the beat is cleared */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Beat")
