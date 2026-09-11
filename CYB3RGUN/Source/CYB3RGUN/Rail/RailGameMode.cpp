@@ -4,6 +4,7 @@
 #include "RailAimComponent.h"
 #include "RailCrosshairWidget.h"
 #include "RailPawn.h"
+#include "StyleHUDWidget.h"
 #include "EncounterDirector.h"
 #include "EncounterHUD.h"
 #include "Blueprint/UserWidget.h"
@@ -91,6 +92,12 @@ void ARailGameMode::HandleStartingNewPlayer_Implementation(APlayerController* Ne
 			Crosshair->AddToViewport(2);
 			Crosshair->BindAim(Rider ? Rider->GetAim() : nullptr);
 		}
+	}
+
+	// the style HUD is the same in every scenario
+	if (!StyleHUD)
+	{
+		StyleHUD = UStyleHUDWidget::CreateFor(NewPlayer);
 	}
 }
 
@@ -215,13 +222,17 @@ void ARailGameMode::HandleRideFinished(float TotalDistance, float Seconds)
 		TotalDistance, Seconds, BeatsCleared, TotalKills, Shots, Hits, Rider ? Rider->GetHealth() : 0.0f, Rider ? Rider->GetHitsBlockedByCover() : 0,
 		HostagesRescued, HostagesHit, HostagesLost);
 
+	const FText RouteSummary = FText::Format(LOCTEXT("RouteComplete", "ROUTE COMPLETE\n\nDistance {0} m\nTime {1} s\nKills {2}\nHits {3} / {4}\nHostages freed {5} / {6}"),
+		FText::AsNumber(FMath::RoundToInt(TotalDistance / 100.0f)), FText::AsNumber(FMath::RoundToInt(Seconds)),
+		FText::AsNumber(TotalKills), FText::AsNumber(Hits), FText::AsNumber(Shots),
+		FText::AsNumber(HostagesRescued), FText::AsNumber(HostagesRescued + HostagesHit + HostagesLost));
+	const FText Summary = FText::Format(LOCTEXT("RouteWithStyle", "{0}\n\n{1}"), RouteSummary, UStyleHUDWidget::FormatRunSummary(GetWorld()->GetFirstPlayerController()));
+	UStyleHUDWidget::LogSummary(Summary);
+
 	GetWorldTimerManager().ClearTimer(SummaryTimer);
 	if (HUD)
 	{
-		HUD->ShowSummary(FText::Format(LOCTEXT("RouteComplete", "ROUTE COMPLETE\n\nDistance {0} m\nTime {1} s\nKills {2}\nHits {3} / {4}\nHostages freed {5} / {6}"),
-			FText::AsNumber(FMath::RoundToInt(TotalDistance / 100.0f)), FText::AsNumber(FMath::RoundToInt(Seconds)),
-			FText::AsNumber(TotalKills), FText::AsNumber(Hits), FText::AsNumber(Shots),
-			FText::AsNumber(HostagesRescued), FText::AsNumber(HostagesRescued + HostagesHit + HostagesLost)));
+		HUD->ShowSummary(Summary);
 	}
 }
 

@@ -12,6 +12,7 @@ class AShooterWeapon;
 class UEncounterHUD;
 class UEncounterDefinition;
 class UStyleSettings;
+class UStyleHUDWidget;
 
 /**
  *  Hands the player the pistol, gives the pawn a navigation invoker so the nav mesh grows around it,
@@ -56,6 +57,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UEncounterHUD> HUD;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStyleHUDWidget> StyleHUD;
 
 	FTimerHandle StartTimer;
 

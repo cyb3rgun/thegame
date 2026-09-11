@@ -4,6 +4,7 @@
 #include "EncounterDirector.h"
 #include "CyberEnemy.h"
 #include "EnemyDefinition.h"
+#include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -223,7 +224,10 @@ void UEncounterHUD::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
 
 void UEncounterHUD::HandleFinished(int32 Kills, float Seconds)
 {
-	ShowSummary(FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FText::AsNumber(Kills), FText::AsNumber(FMath::RoundToInt(Seconds))));
+	const FText EncounterSummary = FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FText::AsNumber(Kills), FText::AsNumber(FMath::RoundToInt(Seconds)));
+	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), EncounterSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
+	UStyleHUDWidget::LogSummary(Summary);
+	ShowSummary(Summary);
 }
 
 void UEncounterHUD::ShowSummary(const FText& Text)

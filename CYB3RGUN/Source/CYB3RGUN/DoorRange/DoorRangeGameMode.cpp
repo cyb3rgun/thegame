@@ -5,6 +5,7 @@
 #include "DoorRangeSettings.h"
 #include "DoorRangeHUD.h"
 #include "StyleScoringComponent.h"
+#include "StyleHUDWidget.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
 #include "Blueprint/UserWidget.h"
@@ -65,6 +66,12 @@ void ADoorRangeGameMode::HandleStartingNewPlayer_Implementation(APlayerControlle
 
 void ADoorRangeGameMode::CreateHUD(APlayerController* Player)
 {
+	// the style HUD is the same in every scenario
+	if (!StyleHUD && Player && Player->IsLocalController())
+	{
+		StyleHUD = UStyleHUDWidget::CreateFor(Player);
+	}
+
 	if (HUD || !RangeHUDClass || !Player || !Player->IsLocalController())
 	{
 		return;

@@ -12,6 +12,7 @@ class ADoorSlot;
 class UDoorRangeSettings;
 class UDoorRangeHUD;
 class UStyleSettings;
+class UStyleHUDWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDoorRangeScoreChangedDelegate, int32, Score, int32, Delta);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDoorRangeWaveChangedDelegate, int32, Wave, int32, WaveCount);
@@ -53,6 +54,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDoorRangeHUD> HUD;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStyleHUDWidget> StyleHUD;
 
 	/** Occupants still to be opened in the current wave, pre-rolled so the hostile share is exact */
 	TArray<EDoorOccupant> WaveQueue;

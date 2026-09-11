@@ -15,6 +15,7 @@ class ARailPawn;
 class UEncounterHUD;
 class URailCrosshairWidget;
 class UStyleSettings;
+class UStyleHUDWidget;
 
 /**
  *  Possesses the rail pawn placed in the level, or spawns the default pawn when there is none.
@@ -54,6 +55,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URailCrosshairWidget> Crosshair;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStyleHUDWidget> StyleHUD;
 
 	int32 ActiveBeatIndex = INDEX_NONE;
 	int32 BeatsCleared = 0;

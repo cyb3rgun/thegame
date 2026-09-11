@@ -2,6 +2,7 @@
 
 #include "DoorRangeHUD.h"
 #include "DoorRangeGameMode.h"
+#include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -251,11 +252,13 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 
 void UDoorRangeHUD::HandleRangeFinished(const FDoorRangeStats& Stats)
 {
-	const FText Summary = FText::Format(
+	const FText RangeSummary = FText::Format(
 		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nHostiles escaped {3}\nFriendlies hit {4}\nHostages freed {5}, hit {6}"),
 		FText::AsNumber(Stats.FinalScore), FText::AsNumber(Stats.HostilesHit), FText::AsNumber(Stats.HostilesTotal),
 		FText::AsNumber(Stats.HostilesEscaped), FText::AsNumber(Stats.FriendliesHit), FText::AsNumber(Stats.HostagesRescued), FText::AsNumber(Stats.HostagesHit));
 
+	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), RangeSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
+	UStyleHUDWidget::LogSummary(Summary);
 	SetTextSafe(SummaryText, Summary);
 	if (SummaryPanel)
 	{

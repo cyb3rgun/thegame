@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. Game mode for the zombie test arena.
 
 #include "ZombieTestGameMode.h"
+#include "StyleHUDWidget.h"
 #include "EncounterDirector.h"
 #include "EncounterHUD.h"
 #include "ShooterWeapon.h"
@@ -65,6 +66,12 @@ void AZombieTestGameMode::HandleStartingNewPlayer_Implementation(APlayerControll
 			HUD->AddToViewport(1);
 			HUD->BindDirector(Director);
 		}
+	}
+
+	// the style HUD is the same in every scenario
+	if (!StyleHUD && NewPlayer && NewPlayer->IsLocalController())
+	{
+		StyleHUD = UStyleHUDWidget::CreateFor(NewPlayer);
 	}
 
 	GetWorldTimerManager().SetTimerForNextTick(this, &AZombieTestGameMode::SetupPlayer);
