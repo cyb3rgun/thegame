@@ -3,6 +3,8 @@
 #include "CyberEnemy.h"
 #include "CyberEnemyController.h"
 #include "EnemyDefinition.h"
+#include "StyleScoringComponent.h"
+#include "StyleSettings.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
@@ -272,7 +274,55 @@ float ACyberEnemy::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACo
 		Source = EEnemyDamageSource::Fire;
 	}
 
-	return ApplyEnemyDamage(Damage, Source, EventInstigator, DamageCauser);
+	// a shot on the head brings the enemy down at once
+	bool bHeadshot = false;
+	float Amount = Damage;
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
+		bHeadshot = IsHeadHit(PointEvent.HitInfo.ImpactPoint, PointEvent.ShotDirection);
+		if (bHeadshot)
+		{
+			Amount = FMath::Max(Amount, Health);
+		}
+	}
+
+	const bool bWasAlive = !bDead;
+	const float Applied = ApplyEnemyDamage(Amount, Source, EventInstigator, DamageCauser);
+
+	if (bWasAlive && Applied > 0.0f)
+	{
+		if (UStyleScoringComponent* Style = UStyleScoringComponent::ForController(EventInstigator))
+		{
+			Style->RecordTargetHit(this, bHeadshot, bDead);
+		}
+	}
+	return Applied;
+}
+
+bool ACyberEnemy::IsHeadHit(const FVector& Location, const FVector& Direction) const
+{
+	const UStyleSettings* Style = UStyleSettings::Get(this);
+	static const FName HeadBone(TEXT("head"));
+
+	// the head: its bone on a skeletal body, the top of the capsule on a placeholder
+	FVector Head;
+	if (HasBody() && GetMesh()->GetBoneIndex(HeadBone) != INDEX_NONE)
+	{
+		Head = GetMesh()->GetBoneLocation(HeadBone);
+	}
+	else
+	{
+		Head = GetActorLocation() + FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - Style->PlaceholderHeadDepth);
+	}
+
+	// the shot enters the capsule at Location; it is a head hit when its line passes through the head
+	const FVector ShotDirection = Direction.GetSafeNormal();
+	if (ShotDirection.IsNearlyZero())
+	{
+		return FVector::Dist(Location, Head) <= Style->EnemyHeadRadius;
+	}
+	return FMath::PointDistToLine(Head, ShotDirection, Location) <= Style->EnemyHeadRadius;
 }
 
 float ACyberEnemy::ApplyEnemyDamage(float Amount, EEnemyDamageSource Source, AController* EventInstigator, AActor* DamageCauser)

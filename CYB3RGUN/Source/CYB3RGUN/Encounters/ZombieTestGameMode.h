@@ -4,19 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "StyleScenario.h"
 #include "ZombieTestGameMode.generated.h"
 
 class AEncounterDirector;
 class AShooterWeapon;
 class UEncounterHUD;
 class UEncounterDefinition;
+class UStyleSettings;
 
 /**
  *  Hands the player the pistol, gives the pawn a navigation invoker so the nav mesh grows around it,
  *  creates the encounter HUD and starts the level's encounter director.
  */
 UCLASS()
-class CYB3RGUN_API AZombieTestGameMode : public AGameModeBase
+class CYB3RGUN_API AZombieTestGameMode : public AGameModeBase, public IStyleScenario
 {
 	GENERATED_BODY()
 
@@ -41,6 +43,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test", meta = (ClampMin = 500.0, Units = "cm"))
 	float NavInvokerRadius = 4000.0f;
 
+	/** Style values of this scenario, empty uses the project default */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
+	TObjectPtr<UStyleSettings> StyleSettings;
+
 	UPROPERTY(Transient)
 	TObjectPtr<AEncounterDirector> Director;
 
@@ -53,6 +59,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Zombie Test")
 	AEncounterDirector* GetDirector() const { return Director; }
+
+	//~ Begin IStyleScenario
+	virtual const UStyleSettings* GetStyleSettings() const override { return StyleSettings; }
+	//~ End IStyleScenario
 
 protected:
 

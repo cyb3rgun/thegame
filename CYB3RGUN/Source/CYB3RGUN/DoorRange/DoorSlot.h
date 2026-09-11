@@ -165,6 +165,12 @@ protected:
 	bool bHitRegistered = false;
 	float HitReactionElapsed = 0.0f;
 
+	/** World time the hit registered, a follow-up hit shortly after still reaches the style record */
+	double HitRegisteredAt = 0.0;
+
+	/** Closes the door once the pair window after a hit has passed */
+	FTimerHandle HitCloseTimer;
+
 	/** False while a restart closes the door, so the closing is not scored */
 	bool bReportNextClose = true;
 
@@ -221,6 +227,10 @@ public:
 	/** World position to aim at for the occupant, roughly its centre of mass */
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetOccupantAimPoint() const;
+
+	/** World position of the occupant's head */
+	UFUNCTION(BlueprintPure, Category="Door")
+	FVector GetOccupantHeadPoint() const;
 
 	//~ Begin IDoorRangeTarget
 	virtual bool NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy) override;

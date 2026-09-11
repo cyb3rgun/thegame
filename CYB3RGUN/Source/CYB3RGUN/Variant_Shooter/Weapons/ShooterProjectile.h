@@ -75,6 +75,15 @@ protected:
 	/** Timer to handle deferred destruction of this projectile */
 	FTimerHandle DestructionTimer;
 
+	/** True for a player's shot, which the style record resolves as a hit or a miss */
+	bool bStyleShot = false;
+
+	/** True once the style shot has been resolved */
+	bool bStyleResolved = false;
+
+	/** Counts the style shot as a miss when it flies too long without landing */
+	FTimerHandle StyleTimeoutTimer;
+
 public:	
 
 	/** Constructor */
@@ -106,9 +115,15 @@ protected:
 	/** Called from the destruction timer to destroy this projectile */
 	void OnDeferredDestruction();
 
+	/** Resolves an unresolved style shot as a miss */
+	void ResolveStyleMiss();
+
 public:
 
 	/** Sets the noise tag to use when generating AI perception noise on impact */
 	void SetNoiseTag(const FName& Tag);
+
+	/** Marks this projectile as a player's shot for the style record. It resolves where it lands, or as a miss after MissTimeout. */
+	void MarkAsStyleShot(float MissTimeout);
 
 };

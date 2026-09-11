@@ -4,6 +4,7 @@
 #include "DoorSlot.h"
 #include "DoorRangeSettings.h"
 #include "DoorRangeHUD.h"
+#include "StyleScoringComponent.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
 #include "Blueprint/UserWidget.h"
@@ -149,6 +150,13 @@ void ADoorRangeGameMode::StartRange()
 	bRangeActive = true;
 
 	OnScoreChanged.Broadcast(Score, 0);
+
+	// a restarted range is a new run for the style record too
+	if (UStyleScoringComponent* Style = GetWorld()->GetFirstPlayerController() ? GetWorld()->GetFirstPlayerController()->FindComponentByClass<UStyleScoringComponent>() : nullptr)
+	{
+		Style->ResetRun();
+	}
+
 	StartWave(1);
 }
 

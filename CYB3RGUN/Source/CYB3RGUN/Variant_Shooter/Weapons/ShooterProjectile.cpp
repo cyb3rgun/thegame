@@ -14,6 +14,7 @@
 #include "TimerManager.h"
 #include "DoorRangeTarget.h"
 #include "ShotFeedback.h"
+#include "StyleScoringComponent.h"
 
 AShooterProjectile::AShooterProjectile()
 {
@@ -52,6 +53,13 @@ void AShooterProjectile::EndPlay(EEndPlayReason::Type EndPlayReason)
 
 	// clear the destruction timer
 	GetWorld()->GetTimerManager().ClearTimer(DestructionTimer);
+	GetWorld()->GetTimerManager().ClearTimer(StyleTimeoutTimer);
+
+	// a shot that leaves the world without landing is a miss
+	if (EndPlayReason == EEndPlayReason::Destroyed)
+	{
+		ResolveStyleMiss();
+	}
 }
 
 void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
@@ -70,6 +78,19 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 	// make AI perception noise
 	MakeNoise(NoiseLoudness, GetInstigator(), GetActorLocation(), NoiseRange, NoiseTag);
 
+	// a player's shot resolves here: whatever it landed on reports a hit, anything else makes it a miss
+	UStyleScoringComponent* Style = nullptr;
+	if (bStyleShot && !bStyleResolved)
+	{
+		bStyleResolved = true;
+		GetWorld()->GetTimerManager().ClearTimer(StyleTimeoutTimer);
+		Style = UStyleScoringComponent::Get(GetInstigator());
+	}
+	if (Style)
+	{
+		Style->BeginShotResolution();
+	}
+
 	if (bExplodeOnHit)
 	{
 		
@@ -78,9 +99,15 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 
 	} else {
 
-		// single hit projectile. Process the collided actor
-		ProcessHit(Other, OtherComp, Hit.ImpactPoint, -Hit.ImpactNormal);
+		// single hit projectile. Process the collided actor along the direction it travelled
+		const FVector Travel = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
+		ProcessHit(Other, OtherComp, Hit.ImpactPoint, Travel.IsNearlyZero() ? -Hit.ImpactNormal : Travel);
 
+	}
+
+	if (Style)
+	{
+		Style->EndShotResolution();
 	}
 
 	// sparks and a brief light where the shot lands
@@ -158,8 +185,10 @@ void AShooterProjectile::ProcessHit(AActor* HitActor, UPrimitiveComponent* HitCo
 		// ignore the owner of this projectile
 		if (HitCharacter != GetOwner() || bDamageOwner)
 		{
-			// apply damage to the character
-			UGameplayStatics::ApplyDamage(HitCharacter, HitDamage, GetInstigator()->GetController(), this, HitDamageType);
+			// point damage carries where the shot landed, so the target can tell a head hit from a body hit
+			const FHitResult PointHit(HitActor, HitComp, HitLocation, -HitDirection);
+			AController* InstigatorController = GetInstigator() ? GetInstigator()->GetController() : nullptr;
+			UGameplayStatics::ApplyPointDamage(HitCharacter, HitDamage, HitDirection, PointHit, InstigatorController, this, HitDamageType);
 		}
 	}
 
@@ -180,4 +209,27 @@ void AShooterProjectile::OnDeferredDestruction()
 void AShooterProjectile::SetNoiseTag(const FName& Tag)
 {
 	NoiseTag = Tag;
+}
+
+void AShooterProjectile::MarkAsStyleShot(float MissTimeout)
+{
+	bStyleShot = true;
+
+	// a shot into the open never lands, it counts as a miss once it has flown this long
+	GetWorld()->GetTimerManager().SetTimer(StyleTimeoutTimer, this, &AShooterProjectile::ResolveStyleMiss, FMath::Max(MissTimeout, 0.1f), false);
+}
+
+void AShooterProjectile::ResolveStyleMiss()
+{
+	if (!bStyleShot || bStyleResolved)
+	{
+		return;
+	}
+	bStyleResolved = true;
+
+	if (UStyleScoringComponent* Style = UStyleScoringComponent::Get(GetInstigator()))
+	{
+		Style->BeginShotResolution();
+		Style->EndShotResolution();
+	}
 }

@@ -2,6 +2,8 @@
 
 
 #include "ShooterWeapon.h"
+#include "StyleScoringComponent.h"
+#include "StyleSettings.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
 #include "ShooterProjectile.h"
@@ -184,6 +186,16 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	if (Projectile)
 	{
 		Projectile->SetNoiseTag(NoiseOwnerTag);
+	}
+
+	// a player's shot counts for style: fired now, resolved where it lands or when it times out
+	if (UStyleScoringComponent* Style = UStyleScoringComponent::Get(PawnOwner.Get()))
+	{
+		Style->RecordShotFired();
+		if (Projectile)
+		{
+			Projectile->MarkAsStyleShot(UStyleSettings::Get(this)->ShotMissTimeout);
+		}
 	}
 
 	// muzzle flash and its light where the shot leaves; the local player sees it on the first person weapon

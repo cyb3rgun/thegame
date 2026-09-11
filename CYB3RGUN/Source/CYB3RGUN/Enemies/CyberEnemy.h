@@ -138,6 +138,9 @@ protected:
 	void BP_OnDeath();
 
 	void ApplyDefinition();
+
+	/** True when a shot that lands at Location travelling along Direction passes through the head */
+	bool IsHeadHit(const FVector& Location, const FVector& Direction) const;
 	void BuildPlaceholder();
 
 	/** True when the definition gives this enemy a skeletal body */

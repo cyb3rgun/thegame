@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. The one screen space aiming path (D-019).
 
 #include "RailAimComponent.h"
+#include "StyleScoringComponent.h"
 #include "DoorRangeTarget.h"
 #include "ShotFeedback.h"
 #include "Camera/CameraComponent.h"
@@ -156,6 +157,14 @@ bool URailAimComponent::Fire()
 	LastShotTime = GetWorld()->GetTimeSeconds();
 	++ShotsFired;
 
+	// the style record resolves this shot right here: whatever it lands on reports a hit, anything else makes it a miss
+	UStyleScoringComponent* Style = UStyleScoringComponent::Get(GetOwner());
+	if (Style)
+	{
+		Style->RecordShotFired();
+		Style->BeginShotResolution();
+	}
+
 	FHitResult Hit;
 	const bool bHit = ResolveAim(Hit);
 	AActor* Damaged = nullptr;
@@ -181,6 +190,11 @@ bool URailAimComponent::Fire()
 			Damaged = HitActor;
 			++ShotsHit;
 		}
+	}
+
+	if (Style)
+	{
+		Style->EndShotResolution();
 	}
 
 	// the rail has no weapon model: the flash sits low and right of the camera, where a held weapon would be

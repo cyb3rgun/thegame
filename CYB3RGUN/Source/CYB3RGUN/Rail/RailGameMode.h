@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "RailTrack.h"
+#include "StyleScenario.h"
 #include "RailGameMode.generated.h"
 
 class AEncounterDirector;
@@ -12,6 +13,7 @@ class ACyberEnemy;
 class ARailPawn;
 class UEncounterHUD;
 class URailCrosshairWidget;
+class UStyleSettings;
 
 /**
  *  Possesses the rail pawn placed in the level, or spawns the default pawn when there is none.
@@ -20,7 +22,7 @@ class URailCrosshairWidget;
  *  follow the same pattern as the other scenarios.
  */
 UCLASS()
-class CYB3RGUN_API ARailGameMode : public AGameModeBase
+class CYB3RGUN_API ARailGameMode : public AGameModeBase, public IStyleScenario
 {
 	GENERATED_BODY()
 
@@ -35,6 +37,10 @@ protected:
 	/** Seconds the encounter summary stays up after a beat is cleared and the ride moves on */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rail", meta = (ClampMin = 0.0, Units = "s"))
 	float SummaryHoldSeconds = 2.5f;
+
+	/** Style values of this scenario, empty uses the project default */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rail")
+	TObjectPtr<UStyleSettings> StyleSettings;
 
 	UPROPERTY(Transient)
 	TObjectPtr<AEncounterDirector> Director;
@@ -69,6 +75,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rail")
 	int32 GetTotalKills() const { return TotalKills; }
+
+	//~ Begin IStyleScenario
+	virtual const UStyleSettings* GetStyleSettings() const override { return StyleSettings; }
+	//~ End IStyleScenario
 
 protected:
 

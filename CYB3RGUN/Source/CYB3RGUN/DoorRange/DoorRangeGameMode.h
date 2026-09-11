@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "DoorTypes.h"
+#include "StyleScenario.h"
 #include "DoorRangeGameMode.generated.h"
 
 class ADoorSlot;
 class UDoorRangeSettings;
 class UDoorRangeHUD;
+class UStyleSettings;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDoorRangeScoreChangedDelegate, int32, Score, int32, Delta);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDoorRangeWaveChangedDelegate, int32, Wave, int32, WaveCount);
@@ -23,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDoorRangeFinishedDelegate, const FD
  *  Reads its tunables from a UDoorRangeSettings data asset and drives the HUD through delegates.
  */
 UCLASS()
-class CYB3RGUN_API ADoorRangeGameMode : public AGameModeBase
+class CYB3RGUN_API ADoorRangeGameMode : public AGameModeBase, public IStyleScenario
 {
 	GENERATED_BODY()
 
@@ -36,6 +38,10 @@ protected:
 	/** HUD widget created for the local player */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Door Range")
 	TSubclassOf<UDoorRangeHUD> RangeHUDClass;
+
+	/** Style values of this scenario, empty uses the project default */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Door Range")
+	TObjectPtr<UStyleSettings> StyleSettings;
 
 	/** Start the first wave automatically at BeginPlay */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Door Range")
@@ -115,6 +121,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Door Range")
 	const UDoorRangeSettings* GetSettings() const;
+
+	//~ Begin IStyleScenario
+	virtual const UStyleSettings* GetStyleSettings() const override { return StyleSettings; }
+	//~ End IStyleScenario
 
 	/** Door slots in this level, sorted by name */
 	const TArray<TObjectPtr<ADoorSlot>>& GetSlots() const { return Slots; }

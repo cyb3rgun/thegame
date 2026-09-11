@@ -1,6 +1,8 @@
 // CYB3RGUN THEGAME. One door of the door module.
 
 #include "DoorSlot.h"
+#include "StyleScoringComponent.h"
+#include "StyleSettings.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -185,6 +187,7 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 	DrawnAt = 0.0f;
 	HitReactionElapsed = 0.0f;
 	bReportNextClose = true;
+	GetWorldTimerManager().ClearTimer(HitCloseTimer);
 
 	if (Params.Occupant != EDoorOccupant::Empty)
 	{
@@ -208,6 +211,8 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 
 void ADoorSlot::ForceClose(bool bReportClose)
 {
+	GetWorldTimerManager().ClearTimer(HitCloseTimer);
+
 	if (State == EDoorState::Opening || State == EDoorState::Showing)
 	{
 		bReportNextClose = bReportClose;
@@ -228,6 +233,7 @@ bool ADoorSlot::RegisterHit()
 	}
 
 	bHitRegistered = true;
+	HitRegisteredAt = GetWorld()->GetTimeSeconds();
 	HitReactionElapsed = 0.0f;
 
 	USkeletalMeshComponent* Body = GetShownBody();
@@ -240,8 +246,17 @@ bool ADoorSlot::RegisterHit()
 	const float ExposureFraction = GetExposureFraction();
 	OnSlotHit.Broadcast(this, Params.Occupant, ExposureFraction);
 
-	// the occupant falls and the door swings shut
-	ForceClose();
+	// the occupant falls, and the door swings shut once the controlled pair window has passed, so the
+	// second shot of a pair is not stopped by the closing panel
+	const float CloseDelay = UStyleSettings::Get(this)->ControlledPairWindow;
+	if (CloseDelay > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(HitCloseTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { ForceClose(); }), CloseDelay, false);
+	}
+	else
+	{
+		ForceClose();
+	}
 
 	return true;
 }
@@ -270,6 +285,11 @@ FVector ADoorSlot::GetOccupantAimPoint() const
 	return SpawnPoint->GetComponentLocation() + FVector(0.0f, 0.0f, Height);
 }
 
+FVector ADoorSlot::GetOccupantHeadPoint() const
+{
+	return (Params.Occupant == EDoorOccupant::Friendly ? FriendlyHead : HostileHead)->GetComponentLocation();
+}
+
 bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy)
 {
 	// only the occupant counts, hits on the frame or the panel are ignored
@@ -278,7 +298,38 @@ bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& Hit
 		return false;
 	}
 
-	return RegisterHit();
+	UStyleScoringComponent* Style = UStyleScoringComponent::ForController(InstigatedBy);
+
+	// a second shot on a hostile that is already going down scores nothing on the door, but it is a hit
+	// for the style record and can complete a controlled pair
+	if (bHitRegistered)
+	{
+		const bool bFollowUp = Params.Occupant == EDoorOccupant::Hostile && GetWorld()->GetTimeSeconds() - HitRegisteredAt <= UStyleSettings::Get(this)->ControlledPairWindow;
+		if (bFollowUp && Style)
+		{
+			Style->RecordTargetHit(this, false, false);
+		}
+		return bFollowUp;
+	}
+
+	const EDoorOccupant Occupant = Params.Occupant;
+	if (!RegisterHit())
+	{
+		return false;
+	}
+
+	if (Style)
+	{
+		if (Occupant == EDoorOccupant::Hostile)
+		{
+			Style->RecordTargetHit(this, HitComponent == HostileHead, true);
+		}
+		else if (Occupant == EDoorOccupant::Friendly)
+		{
+			Style->RecordNonTargetHit(this);
+		}
+	}
+	return true;
 }
 
 void ADoorSlot::Tick(float DeltaSeconds)
