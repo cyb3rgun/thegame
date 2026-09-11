@@ -2,7 +2,11 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
-Build/
+# build output, except the application icons that go into the executables
+**/Build/*
+!**/Build/*/
+**/Build/*/**
+!**/Build/**/*.ico
 .vs/
 .vscode/
 .idea/
