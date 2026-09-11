@@ -10,6 +10,8 @@
 
 class USceneComponent;
 class UStaticMeshComponent;
+class USkeletalMeshComponent;
+class UAnimSequenceBase;
 class UMaterialInterface;
 class USoundBase;
 
@@ -22,9 +24,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDoorSlotDrawnDelegate, ADoorSlot*, 
  *  The game mode opens the slot with an occupant; the slot animates open, shows, closes,
  *  and reports hits and closings back through delegates.
  *
- *  Placeholder visuals, engine shapes only, chosen so friend and foe read by silhouette:
- *  a hostile is a tall spike with a wide arm bar and a cone head that rises from a crouch
- *  before it is shootable, a friendly is a short round snowman that is up at once.
+ *  Friend and foe read without colour (D-013, D-035). A hostile is the taller mannequin in dark
+ *  gunmetal that draws a pistol during the telegraph and then aims it at the player; a friendly
+ *  is the smaller mannequin in light matte paint, at ease with empty hands. Hidden engine shapes
+ *  around each body are what shots hit.
  */
 UCLASS()
 class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
@@ -57,10 +60,23 @@ class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* SpawnPoint;
 
-	/** Animated pivot for the occupant: rises during the telegraph, tips over when hit */
+	/** Pivot for the occupant bodies and their hit volumes, tips over when hit without a hit animation */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* OccupantRoot;
 
+	/** Visible hostile body */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* HostileMesh;
+
+	/** The hostile's pistol, in its right hand */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* HostileWeapon;
+
+	/** Visible friendly body */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* FriendlyMesh;
+
+	/** Hit volumes around the bodies. Never drawn, only their collision follows the occupant. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* HostileBody;
 
@@ -82,11 +98,34 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 10, ClampMax = 170, Units = "Degrees"))
 	float OpenAngle = 110.0f;
 
-	/** Height scale a hostile starts at before it rises */
-	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.05, ClampMax = 1.0))
-	float CrouchScale = 0.35f;
+	/** Size of the hostile body against the mannequin. The hit volumes are sized for the defaults. */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
+	float HostileBodyScale = 1.05f;
 
-	/** Seconds the occupant takes to tip over after a hit */
+	/** Size of the friendly body, smaller than the hostile so size reads as well */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
+	float FriendlyBodyScale = 0.9f;
+
+	/** Played across the telegraph and stretched to its length: the hostile draws its pistol */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies")
+	TObjectPtr<UAnimSequenceBase> HostileDrawAnimation;
+
+	/** Looped once the hostile is drawn */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies")
+	TObjectPtr<UAnimSequenceBase> HostileAimAnimation;
+
+	/** Looped while a friendly shows */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies")
+	TObjectPtr<UAnimSequenceBase> FriendlyIdleAnimation;
+
+	/** Played on the body that was hit. Without one the occupant tips over as a whole. */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies")
+	TObjectPtr<UAnimSequenceBase> HitAnimation;
+
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.1, ClampMax = 4.0))
+	float HitAnimationRate = 1.5f;
+
+	/** Seconds the occupant takes to tip over after a hit, when there is no hit animation */
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.05, Units = "s"))
 	float HitReactionDuration = 0.3f;
 
@@ -139,7 +178,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Door")
 	FDoorSlotClosedDelegate OnSlotClosed;
 
-	/** Fired when a hostile finished rising and became shootable */
+	/** Fired when a hostile finished its draw and became shootable */
 	UPROPERTY(BlueprintAssignable, Category="Door")
 	FDoorSlotDrawnDelegate OnSlotDrawn;
 
@@ -199,7 +238,16 @@ protected:
 	void ApplyPanelAlpha(float Alpha);
 	void ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Material);
 	void HideOccupant();
-	void SetOccupantRise(float RiseAlpha);
+	void ApplyBodyScale();
+
+	/** Holds the hostile at the first frame of the draw while the door opens */
+	void PoseHostileReady();
+
+	/** Starts the draw so it ends exactly when the telegraph does */
+	void StartHostileDraw();
+
+	void PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation);
+	USkeletalMeshComponent* GetShownBody() const;
 	void ApplyHitReaction(float ReactionAlpha);
 	void PlaySlotSound(USoundBase* Sound, float Pitch) const;
 	bool IsOccupantComponent(const UPrimitiveComponent* Component) const;

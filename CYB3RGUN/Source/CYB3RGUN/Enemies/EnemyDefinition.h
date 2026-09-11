@@ -9,7 +9,9 @@
 #include "EnemyDefinition.generated.h"
 
 class ACyberEnemy;
+class UAnimSequenceBase;
 class UMaterialInterface;
+class USkeletalMesh;
 class UStateTree;
 
 /**
@@ -86,11 +88,43 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Collision", meta = (ClampMin = 10.0, Units = "cm"))
 	float CapsuleHalfHeight = 88.0f;
 
-	/** Placeholder silhouette built from engine shapes, positions relative to the feet */
+	/** Skeletal body on the standard mannequin skeleton. When set it replaces the placeholder parts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TObjectPtr<USkeletalMesh> BodyMesh;
+
+	/** Material put on every slot of the body */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TObjectPtr<UMaterialInterface> BodyMaterial;
+
+	/** Size against the mannequin. Keep the body inside the capsule, shots hit the capsule. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body", meta = (ClampMin = 0.5, ClampMax = 2.0))
+	float BodyScale = 1.0f;
+
+	/** Looped while standing */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TObjectPtr<UAnimSequenceBase> IdleAnimation;
+
+	/** Looped while moving, played faster or slower with the ground speed */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TObjectPtr<UAnimSequenceBase> MoveAnimation;
+
+	/** Ground speed at which the move animation plays at its authored rate */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body", meta = (ClampMin = 10.0, Units = "cm/s"))
+	float MoveAnimationSpeed = 150.0f;
+
+	/** Played once per attack */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TObjectPtr<UAnimSequenceBase> AttackAnimation;
+
+	/** One is picked at random on death, the body holds its last frame until it is removed */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals|Body")
+	TArray<TObjectPtr<UAnimSequenceBase>> DeathAnimations;
+
+	/** Placeholder silhouette built from engine shapes, used without a body mesh, positions relative to the feet */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals")
 	TArray<FEnemyShapePart> Parts;
 
-	/** Material applied to every part */
+	/** Material applied to every placeholder part */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visuals")
 	TObjectPtr<UMaterialInterface> Material;
 

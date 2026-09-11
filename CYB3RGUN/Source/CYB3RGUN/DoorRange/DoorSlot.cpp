@@ -1,8 +1,11 @@
 // CYB3RGUN THEGAME. One door of the door module.
 
 #include "DoorSlot.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
@@ -24,9 +27,35 @@ namespace
 		return Component;
 	}
 
+	/** A hit volume is a shape that is never drawn */
+	UStaticMeshComponent* MakeHitVolume(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh, const FVector& Location, const FVector& Scale)
+	{
+		UStaticMeshComponent* Component = MakeShape(Owner, Parent, Name, Mesh, Location, Scale);
+		Component->SetVisibility(false);
+		Component->SetHiddenInGame(true);
+		Component->SetCastShadow(false);
+		return Component;
+	}
+
+	USkeletalMeshComponent* MakeBody(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, USkeletalMesh* Mesh)
+	{
+		USkeletalMeshComponent* Body = Owner->CreateDefaultSubobject<USkeletalMeshComponent>(Name);
+		Body->SetupAttachment(Parent);
+		Body->SetSkeletalMeshAsset(Mesh);
+		// the mannequin faces +Y, the slot faces the player along +X
+		Body->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Body->SetGenerateOverlapEvents(false);
+		Body->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+		Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+		Body->SetVisibility(false);
+		return Body;
+	}
+
+	/** Hit volumes stay hidden, only their collision is switched */
 	void SetShapeActive(UStaticMeshComponent* Component, bool bActive)
 	{
-		Component->SetVisibility(bActive);
 		Component->SetCollisionEnabled(bActive ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	}
 }
@@ -39,13 +68,23 @@ ADoorSlot::ADoorSlot()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HostileBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> FriendlyBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PistolMesh(TEXT("/Game/Weapons/Pistol/Meshes/SKM_Pistol.SKM_Pistol"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> DrawAnim(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Equip.MM_Pistol_Equip"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> AimAnim(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> IdleAnim(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> HitAnim(TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FrameLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Frame.MI_Door_Frame"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PanelLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Panel.MI_Door_Panel"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WallLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Wall_Alcove.MI_Wall_Alcove"));
 	FrameMaterial = FrameLook.Object;
 	PanelMaterial = PanelLook.Object;
 	WallMaterial = WallLook.Object;
+	HostileDrawAnimation = DrawAnim.Object;
+	HostileAimAnimation = AimAnim.Object;
+	FriendlyIdleAnimation = IdleAnim.Object;
+	HitAnimation = HitAnim.Object;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
@@ -70,20 +109,32 @@ ADoorSlot::ADoorSlot()
 	OccupantRoot = CreateDefaultSubobject<USceneComponent>(TEXT("OccupantRoot"));
 	OccupantRoot->SetupAttachment(SpawnPoint);
 
-	// Hostile: tall narrow body, wide arm bar at shoulder height, cone head. A spike with a crossbar.
-	HostileBody = MakeShape(this, OccupantRoot, TEXT("HostileBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 65.0f), FVector(0.4f, 0.4f, 1.3f));
-	HostileArms = MakeShape(this, OccupantRoot, TEXT("HostileArms"), CubeMesh.Object, FVector(0.0f, 0.0f, 118.0f), FVector(0.14f, 1.3f, 0.12f));
-	HostileHead = MakeShape(this, OccupantRoot, TEXT("HostileHead"), ConeMesh.Object, FVector(0.0f, 0.0f, 158.0f), FVector(0.45f, 0.45f, 0.55f));
+	// Hostile: the taller mannequin with a pistol in the right hand. The volumes wrap the aiming
+	// pose: torso and legs, the arms held out towards the player, the head.
+	HostileMesh = MakeBody(this, OccupantRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
+	HostileWeapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HostileWeapon"));
+	HostileWeapon->SetupAttachment(HostileMesh, FName("HandGrip_R"));
+	HostileWeapon->SetSkeletalMeshAsset(PistolMesh.Object);
+	HostileWeapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HostileWeapon->SetGenerateOverlapEvents(false);
+	HostileWeapon->SetVisibility(false);
+	HostileBody = MakeHitVolume(this, OccupantRoot, TEXT("HostileBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 78.0f), FVector(0.42f, 0.42f, 1.56f));
+	HostileArms = MakeHitVolume(this, OccupantRoot, TEXT("HostileArms"), CubeMesh.Object, FVector(30.0f, 0.0f, 148.0f), FVector(0.6f, 0.3f, 0.16f));
+	HostileHead = MakeHitVolume(this, OccupantRoot, TEXT("HostileHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 176.0f), FVector(0.3f, 0.3f, 0.32f));
 
-	// Friendly: short round body and round head. A snowman.
-	FriendlyBody = MakeShape(this, OccupantRoot, TEXT("FriendlyBody"), SphereMesh.Object, FVector(0.0f, 0.0f, 42.0f), FVector(0.85f, 0.85f, 0.85f));
-	FriendlyHead = MakeShape(this, OccupantRoot, TEXT("FriendlyHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 108.0f), FVector(0.5f, 0.5f, 0.5f));
+	// Friendly: the smaller mannequin, empty hands, at ease.
+	FriendlyMesh = MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh.Object);
+	FriendlyBody = MakeHitVolume(this, OccupantRoot, TEXT("FriendlyBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 65.0f), FVector(0.4f, 0.4f, 1.3f));
+	FriendlyHead = MakeHitVolume(this, OccupantRoot, TEXT("FriendlyHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 145.0f), FVector(0.28f, 0.28f, 0.3f));
+
+	ApplyBodyScale();
 }
 
 void ADoorSlot::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	ApplyLookMaterials();
+	ApplyBodyScale();
 }
 
 void ADoorSlot::ApplyLookMaterials()
@@ -140,8 +191,15 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 		ShowOccupant(Params.Occupant, Params.OccupantMaterial);
 	}
 
-	// hostiles start crouched behind the door, friendlies are up at once
-	SetOccupantRise(Params.Occupant == EDoorOccupant::Hostile ? 0.0f : 1.0f);
+	// a hostile waits with the pistol down while the door opens, a friendly is at ease from the start
+	if (Params.Occupant == EDoorOccupant::Hostile)
+	{
+		PoseHostileReady();
+	}
+	else if (Params.Occupant == EDoorOccupant::Friendly)
+	{
+		PlayBodyLoop(FriendlyMesh, FriendlyIdleAnimation);
+	}
 	ApplyHitReaction(0.0f);
 
 	PlaySlotSound(Params.DoorSound, Params.DoorPitch);
@@ -172,10 +230,17 @@ bool ADoorSlot::RegisterHit()
 	bHitRegistered = true;
 	HitReactionElapsed = 0.0f;
 
+	USkeletalMeshComponent* Body = GetShownBody();
+	if (Body && HitAnimation)
+	{
+		Body->PlayAnimation(HitAnimation, false);
+		Body->SetPlayRate(HitAnimationRate);
+	}
+
 	const float ExposureFraction = GetExposureFraction();
 	OnSlotHit.Broadcast(this, Params.Occupant, ExposureFraction);
 
-	// the occupant tips over and the door swings shut
+	// the occupant falls and the door swings shut
 	ForceClose();
 
 	return true;
@@ -201,7 +266,7 @@ float ADoorSlot::GetExposureFraction() const
 
 FVector ADoorSlot::GetOccupantAimPoint() const
 {
-	const float Height = Params.Occupant == EDoorOccupant::Hostile ? 110.0f : 70.0f;
+	const float Height = Params.Occupant == EDoorOccupant::Hostile ? 125.0f : 100.0f;
 	return SpawnPoint->GetComponentLocation() + FVector(0.0f, 0.0f, Height);
 }
 
@@ -238,13 +303,12 @@ void ADoorSlot::Tick(float DeltaSeconds)
 	{
 		if (!bDrawn)
 		{
-			// hostile telegraph: rise from the crouch, then draw
-			const float Rise = Params.TelegraphDuration > 0.0f ? FMath::Clamp(StateElapsed / Params.TelegraphDuration, 0.0f, 1.0f) : 1.0f;
-			SetOccupantRise(Rise);
-			if (Rise >= 1.0f)
+			// hostile telegraph: the draw animation runs, the hostile is shootable once it ends
+			if (StateElapsed >= Params.TelegraphDuration)
 			{
 				bDrawn = true;
 				DrawnAt = StateElapsed;
+				PlayBodyLoop(HostileMesh, HostileAimAnimation);
 				PlaySlotSound(Params.DrawSound, Params.DrawPitch);
 				OnSlotDrawn.Broadcast(this);
 			}
@@ -298,6 +362,7 @@ void ADoorSlot::SetState(EDoorState NewState)
 		if (Params.Occupant == EDoorOccupant::Hostile)
 		{
 			PlaySlotSound(Params.TelegraphSound, Params.TelegraphPitch);
+			StartHostileDraw();
 		}
 		else
 		{
@@ -351,11 +416,15 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 	SetShapeActive(FriendlyBody, bFriendly);
 	SetShapeActive(FriendlyHead, bFriendly);
 
-	if (Material)
+	HostileMesh->SetVisibility(bHostile, true);
+	FriendlyMesh->SetVisibility(bFriendly);
+
+	USkeletalMeshComponent* Body = bHostile ? HostileMesh : (bFriendly ? FriendlyMesh : nullptr);
+	if (Body && Material)
 	{
-		for (UStaticMeshComponent* Shape : { HostileBody, HostileArms, HostileHead, FriendlyBody, FriendlyHead })
+		for (int32 Index = 0; Index < Body->GetNumMaterials(); ++Index)
 		{
-			Shape->SetMaterial(0, Material);
+			Body->SetMaterial(Index, Material);
 		}
 	}
 }
@@ -366,20 +435,65 @@ void ADoorSlot::HideOccupant()
 	{
 		SetShapeActive(Shape, false);
 	}
-	SetOccupantRise(1.0f);
+	HostileMesh->SetVisibility(false, true);
+	FriendlyMesh->SetVisibility(false);
 	ApplyHitReaction(0.0f);
 }
 
-void ADoorSlot::SetOccupantRise(float RiseAlpha)
+void ADoorSlot::ApplyBodyScale()
 {
-	const float Scale = FMath::Lerp(CrouchScale, 1.0f, FMath::Clamp(RiseAlpha, 0.0f, 1.0f));
-	OccupantRoot->SetRelativeScale3D(FVector(1.0f, 1.0f, Scale));
+	HostileMesh->SetRelativeScale3D(FVector(HostileBodyScale));
+	FriendlyMesh->SetRelativeScale3D(FVector(FriendlyBodyScale));
+}
+
+void ADoorSlot::PoseHostileReady()
+{
+	if (!HostileDrawAnimation)
+	{
+		PlayBodyLoop(HostileMesh, HostileAimAnimation);
+		return;
+	}
+
+	HostileMesh->PlayAnimation(HostileDrawAnimation, false);
+	HostileMesh->SetPlayRate(0.0f);
+	HostileMesh->SetPosition(0.0f, false);
+}
+
+void ADoorSlot::StartHostileDraw()
+{
+	if (HostileDrawAnimation && Params.TelegraphDuration > 0.0f)
+	{
+		HostileMesh->SetPlayRate(HostileDrawAnimation->GetPlayLength() / Params.TelegraphDuration);
+	}
+}
+
+void ADoorSlot::PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation)
+{
+	if (Animation)
+	{
+		Body->PlayAnimation(Animation, true);
+		Body->SetPlayRate(1.0f);
+	}
+}
+
+USkeletalMeshComponent* ADoorSlot::GetShownBody() const
+{
+	switch (Params.Occupant)
+	{
+	case EDoorOccupant::Hostile:
+		return HostileMesh;
+	case EDoorOccupant::Friendly:
+		return FriendlyMesh;
+	default:
+		return nullptr;
+	}
 }
 
 void ADoorSlot::ApplyHitReaction(float ReactionAlpha)
 {
-	// tip backwards away from the player, the occupant root sits at floor level so it falls over its feet
-	OccupantRoot->SetRelativeRotation(FRotator(80.0f * ReactionAlpha, 0.0f, 0.0f));
+	// without a hit animation the occupant tips backwards away from the player, the root sits at floor level so it falls over its feet
+	const float Pitch = HitAnimation ? 0.0f : 80.0f * ReactionAlpha;
+	OccupantRoot->SetRelativeRotation(FRotator(Pitch, 0.0f, 0.0f));
 }
 
 void ADoorSlot::PlaySlotSound(USoundBase* Sound, float Pitch) const

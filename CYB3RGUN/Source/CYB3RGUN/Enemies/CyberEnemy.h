@@ -7,6 +7,7 @@
 #include "EnemyTypes.h"
 #include "CyberEnemy.generated.h"
 
+class UAnimSequenceBase;
 class UEnemyDefinition;
 class USceneComponent;
 class UStaticMeshComponent;
@@ -48,6 +49,14 @@ protected:
 	float DeathPoseSeconds = 0.35f;
 	FTimerHandle FlinchTimer;
 	FTimerHandle LingerTimer;
+	FTimerHandle BodyAnimationTimer;
+
+	/** Loop the body plays right now, idle or move */
+	UPROPERTY(Transient)
+	TObjectPtr<UAnimSequenceBase> BodyLoop;
+
+	/** World time until which a one shot animation owns the body */
+	float OneShotUntil = 0.0f;
 
 public:
 
@@ -120,16 +129,24 @@ public:
 
 protected:
 
-	/** Blueprint hook for a hit reaction, called after the placeholder flinch */
+	/** Blueprint hook for a hit reaction, called after the flinch */
 	UFUNCTION(BlueprintImplementableEvent, Category="Enemy", meta = (DisplayName = "On Hit Reaction"))
 	void BP_OnHitReaction(float Amount, EEnemyDamageSource Source);
 
-	/** Blueprint hook for death, called after the placeholder tip over starts */
+	/** Blueprint hook for death, called after the death animation or the placeholder tip over starts */
 	UFUNCTION(BlueprintImplementableEvent, Category="Enemy", meta = (DisplayName = "On Death"))
 	void BP_OnDeath();
 
 	void ApplyDefinition();
 	void BuildPlaceholder();
+
+	/** True when the definition gives this enemy a skeletal body */
+	bool HasBody() const;
+	void BuildBody();
+
+	/** Switches the body between idle and move by ground speed, on a short timer rather than every tick */
+	void UpdateBodyAnimation();
+	void PlayBodyOneShot(UAnimSequenceBase* Animation);
 	void ClearPlaceholder();
 	void Die(AController* Killer);
 	void Flinch();

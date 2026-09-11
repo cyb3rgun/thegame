@@ -3,11 +3,13 @@
 #include "CyberEnemy.h"
 #include "CyberEnemyController.h"
 #include "EnemyDefinition.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -28,9 +30,10 @@ ACyberEnemy::ACyberEnemy()
 	AIControllerClass = ACyberEnemyController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-	// the skeletal mesh stays empty until real characters exist
+	// the skeletal mesh shows only for definitions with a body; shots hit the capsule, never the mesh
 	GetMesh()->SetVisibility(false);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 
 	PlaceholderRoot = CreateDefaultSubobject<USceneComponent>(TEXT("PlaceholderRoot"));
 	PlaceholderRoot->SetupAttachment(GetCapsuleComponent());
@@ -68,6 +71,10 @@ void ACyberEnemy::BeginPlay()
 	if (Definition)
 	{
 		PlayEnemySound(Definition->Sounds.Spawn);
+		if (HasBody())
+		{
+			GetWorld()->GetTimerManager().SetTimer(BodyAnimationTimer, this, &ACyberEnemy::UpdateBodyAnimation, 0.1f, true);
+		}
 	}
 	else
 	{
@@ -81,6 +88,7 @@ void ACyberEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		World->GetTimerManager().ClearTimer(FlinchTimer);
 		World->GetTimerManager().ClearTimer(LingerTimer);
+		World->GetTimerManager().ClearTimer(BodyAnimationTimer);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -98,7 +106,82 @@ void ACyberEnemy::ApplyDefinition()
 	PlaceholderRoot->SetRelativeLocation(FVector(0.0f, 0.0f, -Definition->CapsuleHalfHeight));
 	SetMoveSpeed(Definition->MoveSpeed);
 
-	BuildPlaceholder();
+	if (HasBody())
+	{
+		ClearPlaceholder();
+		BuildBody();
+	}
+	else
+	{
+		GetMesh()->SetVisibility(false);
+		BuildPlaceholder();
+	}
+}
+
+bool ACyberEnemy::HasBody() const
+{
+	return Definition && Definition->BodyMesh;
+}
+
+void ACyberEnemy::BuildBody()
+{
+	USkeletalMeshComponent* Body = GetMesh();
+	Body->SetSkeletalMesh(Definition->BodyMesh);
+
+	// feet on the bottom of the capsule; the mannequin faces +Y, the actor faces +X
+	Body->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, -Definition->CapsuleHalfHeight), FRotator(0.0f, -90.0f, 0.0f));
+	Body->SetRelativeScale3D(FVector(Definition->BodyScale));
+
+	if (Definition->BodyMaterial)
+	{
+		for (int32 Index = 0; Index < Body->GetNumMaterials(); ++Index)
+		{
+			Body->SetMaterial(Index, Definition->BodyMaterial);
+		}
+	}
+
+	Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	Body->SetVisibility(true);
+	BodyLoop = nullptr;
+	OneShotUntil = 0.0f;
+	UpdateBodyAnimation();
+}
+
+void ACyberEnemy::UpdateBodyAnimation()
+{
+	if (bDead || !HasBody() || GetWorld()->GetTimeSeconds() < OneShotUntil)
+	{
+		return;
+	}
+
+	const float Speed = GetVelocity().Size2D();
+	const bool bMoving = Speed > 20.0f && Definition->MoveAnimation;
+	UAnimSequenceBase* Wanted = bMoving ? Definition->MoveAnimation.Get() : Definition->IdleAnimation.Get();
+	if (!Wanted)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* Body = GetMesh();
+	if (Wanted != BodyLoop || !Body->IsPlaying())
+	{
+		Body->PlayAnimation(Wanted, true);
+		BodyLoop = Wanted;
+	}
+	Body->SetPlayRate(bMoving ? FMath::Clamp(Speed / Definition->MoveAnimationSpeed, 0.5f, 2.5f) : 1.0f);
+}
+
+void ACyberEnemy::PlayBodyOneShot(UAnimSequenceBase* Animation)
+{
+	if (!Animation || !HasBody())
+	{
+		return;
+	}
+
+	GetMesh()->PlayAnimation(Animation, false);
+	GetMesh()->SetPlayRate(1.0f);
+	BodyLoop = nullptr;
+	OneShotUntil = GetWorld()->GetTimeSeconds() + Animation->GetPlayLength();
 }
 
 void ACyberEnemy::BuildPlaceholder()
@@ -232,8 +315,15 @@ bool ACyberEnemy::PerformAttack()
 
 	PlayEnemySound(Definition->Sounds.Attack);
 
-	// placeholder lunge: a short forward scale punch through the flinch path
-	Flinch();
+	if (HasBody())
+	{
+		PlayBodyOneShot(Definition->AttackAnimation);
+	}
+	else
+	{
+		// placeholder lunge: a short forward scale punch through the flinch path
+		Flinch();
+	}
 
 	UGameplayStatics::ApplyDamage(Target, Definition->Damage, GetController(), this, UDamageType::StaticClass());
 	UE_LOG(LogCyberEnemy, Verbose, TEXT("%s attacks %s for %.0f"), *GetName(), *GetNameSafe(Target), Definition->Damage);
@@ -262,8 +352,25 @@ void ACyberEnemy::Die(AController* Killer)
 	}
 
 	ClearFlinch();
-	DeathPoseElapsed = 0.0f;
-	SetActorTickEnabled(true);
+	GetWorld()->GetTimerManager().ClearTimer(BodyAnimationTimer);
+	if (HasBody())
+	{
+		// the body falls with a death animation and holds its last frame
+		const TArray<TObjectPtr<UAnimSequenceBase>>& Deaths = Definition->DeathAnimations;
+		if (Deaths.Num() > 0)
+		{
+			if (UAnimSequenceBase* Death = Deaths[FMath::RandRange(0, Deaths.Num() - 1)])
+			{
+				GetMesh()->PlayAnimation(Death, false);
+				GetMesh()->SetPlayRate(1.0f);
+			}
+		}
+	}
+	else
+	{
+		DeathPoseElapsed = 0.0f;
+		SetActorTickEnabled(true);
+	}
 
 	BP_OnDeath();
 	OnEnemyDied.Broadcast(this, Killer);
@@ -296,12 +403,23 @@ void ACyberEnemy::Tick(float DeltaSeconds)
 
 void ACyberEnemy::Flinch()
 {
-	PlaceholderRoot->SetRelativeScale3D(FVector(1.15f, 1.15f, 0.92f));
+	if (HasBody())
+	{
+		GetMesh()->SetRelativeScale3D(FVector(Definition->BodyScale) * FVector(1.06f, 1.06f, 0.95f));
+	}
+	else
+	{
+		PlaceholderRoot->SetRelativeScale3D(FVector(1.15f, 1.15f, 0.92f));
+	}
 	GetWorld()->GetTimerManager().SetTimer(FlinchTimer, this, &ACyberEnemy::ClearFlinch, 0.12f, false);
 }
 
 void ACyberEnemy::ClearFlinch()
 {
+	if (HasBody())
+	{
+		GetMesh()->SetRelativeScale3D(FVector(Definition->BodyScale));
+	}
 	PlaceholderRoot->SetRelativeScale3D(FVector::OneVector);
 }
 

@@ -57,11 +57,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
 	int32 MissedHostilePenalty = 50;
 
-	/** Material applied to hostile placeholder occupants */
+	/** Material put on every slot of the hostile occupant body */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Occupants")
 	TObjectPtr<UMaterialInterface> HostileMaterial;
 
-	/** Material applied to friendly placeholder occupants */
+	/** Material put on every slot of the friendly occupant body */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Occupants")
 	TObjectPtr<UMaterialInterface> FriendlyMaterial;
 
