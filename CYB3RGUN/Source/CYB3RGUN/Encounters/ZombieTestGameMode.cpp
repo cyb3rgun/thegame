@@ -2,6 +2,7 @@
 
 #include "ZombieTestGameMode.h"
 #include "StyleHUDWidget.h"
+#include "LogoCrosshairWidget.h"
 #include "EncounterDirector.h"
 #include "EncounterHUD.h"
 #include "ShooterWeapon.h"
@@ -72,6 +73,7 @@ void AZombieTestGameMode::HandleStartingNewPlayer_Implementation(APlayerControll
 	if (!StyleHUD && NewPlayer && NewPlayer->IsLocalController())
 	{
 		StyleHUD = UStyleHUDWidget::CreateFor(NewPlayer);
+		ULogoCrosshairWidget::CreateFor(NewPlayer);
 	}
 
 	GetWorldTimerManager().SetTimerForNextTick(this, &AZombieTestGameMode::SetupPlayer);

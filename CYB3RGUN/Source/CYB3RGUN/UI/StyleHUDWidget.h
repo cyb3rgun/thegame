@@ -14,7 +14,8 @@ class UTextBlock;
 /**
  *  Reads the local player's style record, the weapon in hand through IWeaponStatusSource and Overclock from the
  *  combat feel subsystem, and shows them on two small panels: rank, meter, style points, combo, the last style
- *  event and Overclock at the top right; the weapon, its reload and the empty cue at the bottom left.
+ *  event and the Overclock state at the top right; the weapon, its reload and the empty cue at the bottom left.
+ *  The Overclock charge itself is the thin arc of the logo crosshair.
  *  Every scenario creates it for its local player, and every end of run summary adds its style lines.
  */
 UCLASS()
@@ -60,9 +61,6 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> OverclockText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UProgressBar> OverclockBar;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WeaponText;

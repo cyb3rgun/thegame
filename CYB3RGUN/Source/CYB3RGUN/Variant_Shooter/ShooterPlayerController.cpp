@@ -9,6 +9,8 @@
 #include "GameFramework/PlayerStart.h"
 #include "ShooterCharacter.h"
 #include "ShooterBulletCounterUI.h"
+#include "CyberMenuStyle.h"
+#include "Components/ProgressBar.h"
 #include "CYB3RGUN.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
@@ -65,6 +67,20 @@ void AShooterPlayerController::SetupInputComponent()
 		if (BulletCounterUI)
 		{
 			BulletCounterUI->AddToPlayerScreen(0);
+
+			// the logo crosshair replaces the template's centre ring (Image_58) and its segmented round counter (SizeBox_1)
+			// (D-048); the life bar stays, in the brand colour (D-047)
+			for (const TCHAR* Replaced : { TEXT("Image_58"), TEXT("SizeBox_1") })
+			{
+				if (UWidget* Widget = BulletCounterUI->GetWidgetFromName(Replaced))
+				{
+					Widget->SetVisibility(ESlateVisibility::Collapsed);
+				}
+			}
+			if (UProgressBar* LifeBar = Cast<UProgressBar>(BulletCounterUI->GetWidgetFromName(TEXT("LifeBar"))))
+			{
+				LifeBar->SetFillColorAndOpacity(FCyberMenuStyle::BrandColor());
+			}
 
 		} else {
 

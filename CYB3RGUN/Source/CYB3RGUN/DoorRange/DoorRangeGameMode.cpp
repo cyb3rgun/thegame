@@ -6,6 +6,7 @@
 #include "DoorRangeHUD.h"
 #include "StyleScoringComponent.h"
 #include "StyleHUDWidget.h"
+#include "LogoCrosshairWidget.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
 #include "Blueprint/UserWidget.h"
@@ -70,6 +71,7 @@ void ADoorRangeGameMode::CreateHUD(APlayerController* Player)
 	if (!StyleHUD && Player && Player->IsLocalController())
 	{
 		StyleHUD = UStyleHUDWidget::CreateFor(Player);
+		ULogoCrosshairWidget::CreateFor(Player);
 	}
 
 	if (HUD || !RangeHUDClass || !Player || !Player->IsLocalController())

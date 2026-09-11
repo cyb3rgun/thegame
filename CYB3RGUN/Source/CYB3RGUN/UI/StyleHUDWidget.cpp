@@ -125,14 +125,12 @@ void UStyleHUDWidget::BuildLayout()
 	ComboText = StyleHudLook::MakeLine(WidgetTree, TEXT("ComboText"), 26, FCyberMenuStyle::BrandColor(), ETextJustify::Right);
 	EventText = StyleHudLook::MakeLine(WidgetTree, TEXT("EventText"), 18, FCyberMenuStyle::TextColor(), ETextJustify::Right);
 	OverclockText = StyleHudLook::MakeLine(WidgetTree, TEXT("OverclockText"), 18, FCyberMenuStyle::CounterColor(), ETextJustify::Right);
-	OverclockBar = StyleHudLook::MakeBar(WidgetTree, TEXT("OverclockBar"), FCyberMenuStyle::CounterColor());
 	StyleHudLook::AddLine(StyleColumn, RankText, HAlign_Right, 2.0f);
 	StyleHudLook::AddBar(WidgetTree, StyleColumn, MeterBar, 300.0f, 10.0f, HAlign_Right, 6.0f);
 	StyleHudLook::AddLine(StyleColumn, StyleText, HAlign_Right, 2.0f);
 	StyleHudLook::AddLine(StyleColumn, ComboText, HAlign_Right, 2.0f);
 	StyleHudLook::AddLine(StyleColumn, EventText, HAlign_Right, 18.0f);
-	StyleHudLook::AddLine(StyleColumn, OverclockText, HAlign_Right, 2.0f);
-	StyleHudLook::AddBar(WidgetTree, StyleColumn, OverclockBar, 300.0f, 8.0f, HAlign_Right, 0.0f);
+	StyleHudLook::AddLine(StyleColumn, OverclockText, HAlign_Right, 0.0f);
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(StyleColumn))
 	{
 		PanelSlot->SetAnchors(FAnchors(1.0f, 0.0f));
@@ -330,11 +328,9 @@ void UStyleHUDWidget::UpdateOverclock(double WallNow)
 		OverclockText->SetText(LOCTEXT("OverclockLocked", "OVERCLOCK LOCKED"));
 		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor()));
 		OverclockText->SetRenderOpacity(1.0f);
-		OverclockBar->SetPercent(0.0f);
 		return;
 	}
 
-	OverclockBar->SetPercent(Feel->GetOverclockFraction());
 	if (Feel->IsOverclockActive())
 	{
 		OverclockText->SetText(LOCTEXT("OverclockOn", "OVERCLOCK ON"));

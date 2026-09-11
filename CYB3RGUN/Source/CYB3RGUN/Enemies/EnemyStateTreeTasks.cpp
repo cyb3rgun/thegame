@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. State tree tasks for enemy behaviour: idle, acquire, approach, attack, die.
 
 #include "EnemyStateTreeTasks.h"
+#include "ThreatSubsystem.h"
 #include "CyberEnemy.h"
 #include "EnemyDefinition.h"
 #include "AIController.h"
@@ -200,6 +201,16 @@ EStateTreeRunStatus FEnemyAttackTask::Tick(FStateTreeExecutionContext& Context, 
 	}
 
 	Data.Countdown -= DeltaTime;
+
+	// the windup before each strike tightens the logo reticle (D-048)
+	if (Definition->AttackWindup > 0.0f && Data.Countdown <= Definition->AttackWindup && Data.Enemy->IsTargetInAttackRange(1.0f))
+	{
+		if (UThreatSubsystem* Threats = UThreatSubsystem::Get(Data.Enemy))
+		{
+			Threats->ReportThreat(Data.Enemy, 1.0f - FMath::Clamp(Data.Countdown / Definition->AttackWindup, 0.0f, 1.0f));
+		}
+	}
+
 	if (Data.Countdown <= 0.0f)
 	{
 		Data.Enemy->PerformAttack();

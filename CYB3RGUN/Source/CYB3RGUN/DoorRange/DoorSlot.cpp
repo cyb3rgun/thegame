@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. One door of the door module.
 
 #include "DoorSlot.h"
+#include "ThreatSubsystem.h"
 #include "StyleScoringComponent.h"
 #include "StyleSettings.h"
 #include "Animation/AnimSequenceBase.h"
@@ -334,6 +335,33 @@ int32 ADoorSlot::RepairHostileSet(bool bFix)
 	return Stale;
 }
 
+void ADoorSlot::ReportThreat() const
+{
+	// the logo reticle tightens over the draw, is fully tight while the hostile can shoot and lets go as the door shuts (D-048)
+	if (bHitRegistered || (Params.Occupant != EDoorOccupant::Hostile && Params.Occupant != EDoorOccupant::HostageTaker))
+	{
+		return;
+	}
+
+	float Level = 0.0f;
+	if (State == EDoorState::Showing)
+	{
+		Level = bDrawn ? 1.0f : (Params.TelegraphDuration > 0.0f ? FMath::Clamp(StateElapsed / Params.TelegraphDuration, 0.0f, 1.0f) : 1.0f);
+	}
+	else if (State == EDoorState::Closing && ClosingStartAlpha > 0.0f)
+	{
+		Level = FMath::Clamp(PanelAlpha / ClosingStartAlpha, 0.0f, 1.0f);
+	}
+
+	if (Level > 0.0f)
+	{
+		if (UThreatSubsystem* Threats = UThreatSubsystem::Get(this))
+		{
+			Threats->ReportThreat(this, Level);
+		}
+	}
+}
+
 float ADoorSlot::GetExposureFraction() const
 {
 	switch (State)
@@ -555,6 +583,8 @@ void ADoorSlot::Tick(float DeltaSeconds)
 		HitReactionElapsed += DeltaSeconds;
 		ApplyHitReaction(FMath::Clamp(HitReactionElapsed / HitReactionDuration, 0.0f, 1.0f));
 	}
+
+	ReportThreat();
 }
 
 void ADoorSlot::SetState(EDoorState NewState)

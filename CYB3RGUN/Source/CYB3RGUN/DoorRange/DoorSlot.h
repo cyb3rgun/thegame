@@ -299,4 +299,7 @@ protected:
 	/** Moves the hostile set behind the hostage for a hostage taker, or back to the front */
 	void ApplyHostileLayout(bool bTaker);
 
+	/** Tells the threat subsystem how close the occupant is to shooting: rising while a hostile draws, full while it can fire */
+	void ReportThreat() const;
+
 };

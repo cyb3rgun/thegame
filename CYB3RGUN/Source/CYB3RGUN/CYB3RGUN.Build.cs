@@ -56,7 +56,8 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Menu",
 			"CYB3RGUN/Style",
 			"CYB3RGUN/Weapons",
-			"CYB3RGUN/Feel"
+			"CYB3RGUN/Feel",
+			"CYB3RGUN/Combat"
 		});
 
 		// Uncomment if you are using Slate UI
