@@ -61,7 +61,17 @@ UnrealEditor.exe CYB3RGUN.uproject /Game/CYB3RGUN/Maps/Lvl_Benchmark -game -ResX
 
 That runs every configuration once in order. Run 4, the published pass, used the interleaved order instead: `Bench.Suite` accepts `config:label` entries, so it was `baseline:r4_soak1 baseline:r4_soak2 baseline:r4_b01 megalights:r4_megalights baseline:r4_b02 gi_lumenlite:r4_gi_lumenlite ...` with a baseline lap before and after each of the 16 single features, then `preset_low` to `preset_ultra`.
 
-Results land in the log as `BENCH|...` lines and in `Saved/Benchmark/bench_results.csv`.
+Results land in the log as `BENCH|...` lines and in `Saved/Benchmark/bench_results.csv`. Since G03-B03 every result line also names the GPU (`gpu=`), its driver version (`driver=`) and the resolution (`res=`), so a result file shows which hardware it came from.
+
+### Night run
+
+Long measurements only run in a dedicated night run (D-032). The next one is prepared and has not been run. It measures the six presets as they are now, plus Ultra at 150 and 200 percent resolution scale, with the run 4 method: one process, two unmeasured baseline laps first, then every configuration between two baseline laps. That is 19 measured laps, about 20 minutes. Start it from the repository root with the editor closed:
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools/night_benchmark.ps1
+```
+
+The script checks that no editor is running, reads the physical display resolution, logs the GPU clock with `nvidia-smi` when it is present, and runs `Bench.Suite night quit`. The suite is defined in `UBenchmarkSubsystem::GetNightSuite`.
 
 ## Options and the console variables they drive
 

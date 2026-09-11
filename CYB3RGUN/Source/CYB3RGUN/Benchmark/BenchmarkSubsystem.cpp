@@ -5,6 +5,7 @@
 #include "CyberSettingsOptions.h"
 #include "RailPawn.h"
 #include "DynamicRHI.h"
+#include "RHIGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
@@ -54,6 +55,7 @@ namespace Bench
 		State.Features.EffectsQuality = 0;
 		State.Features.ViewDistanceQuality = 0;
 		State.Features.bMotionBlur = false;
+		State.Features.ResolutionScale = 100;
 		State.FrameRateLimit = 0.0f;
 		State.bVSync = false;
 		State.bExperimentalNaniteSkinnedMeshes = false;
@@ -94,6 +96,16 @@ namespace Bench
 		return CVar ? CVar->GetString() : TEXT("missing");
 	}
 
+	/** Keeps a free text value usable inside a BENCH line and a csv cell */
+	FString CleanField(const FString& Value)
+	{
+		const FString Clean = Value.Replace(TEXT("|"), TEXT("/")).Replace(TEXT(","), TEXT(" ")).TrimStartAndEnd();
+		return Clean.IsEmpty() ? FString(TEXT("unknown")) : Clean;
+	}
+
+	/** The column layout of bench_results.csv; a file with another header is moved aside before writing */
+	const TCHAR* CsvHeader = TEXT("time,label,config,frames,avg_ms,avg_fps,low1_ms,low1_fps,gpu_ms,game_ms,width,height,screen_pct,gpu,driver,startup");
+
 	int32 RemainingShaderJobs()
 	{
 #if WITH_EDITOR
@@ -113,8 +125,27 @@ TArray<FString> UBenchmarkSubsystem::GetConfigNames()
 		TEXT("fog_low"), TEXT("fog_high"),
 		TEXT("tsr_native"), TEXT("tsr_quality"), TEXT("tsr_balanced"), TEXT("tsr_performance"),
 		TEXT("nanite"), TEXT("effects_epic"), TEXT("viewdistance_epic"), TEXT("motionblur"),
-		TEXT("preset_low"), TEXT("preset_medium"), TEXT("preset_high"), TEXT("preset_epic"), TEXT("preset_ultra")
+		TEXT("preset_low"), TEXT("preset_medium"), TEXT("preset_high"), TEXT("preset_epic"), TEXT("preset_ultra"), TEXT("preset_cinematic"),
+		TEXT("preset_ultra_rs150"), TEXT("preset_ultra_rs200")
 	};
+}
+
+TArray<FString> UBenchmarkSubsystem::GetNightSuite()
+{
+	// the run 4 method in docs/benchmark.md: two unmeasured baseline laps bring the GPU to its sustained clock, then every
+	// configuration is measured between two baseline laps of the same process, so drift shows in the baselines
+	const TCHAR* Configs[] = {
+		TEXT("preset_low"), TEXT("preset_medium"), TEXT("preset_high"), TEXT("preset_epic"), TEXT("preset_ultra"), TEXT("preset_cinematic"),
+		TEXT("preset_ultra_rs150"), TEXT("preset_ultra_rs200") };
+	TArray<FString> Suite = { TEXT("baseline:night_soak1"), TEXT("baseline:night_soak2") };
+	int32 Lap = 1;
+	for (const TCHAR* Config : Configs)
+	{
+		Suite.Add(FString::Printf(TEXT("baseline:night_b%02d"), Lap++));
+		Suite.Add(FString::Printf(TEXT("%s:night_%s"), Config, Config));
+	}
+	Suite.Add(FString::Printf(TEXT("baseline:night_b%02d"), Lap));
+	return Suite;
 }
 
 bool UBenchmarkSubsystem::BuildConfig(const FString& Name, FCyberSettingsState& OutState)
@@ -124,13 +155,31 @@ bool UBenchmarkSubsystem::BuildConfig(const FString& Name, FCyberSettingsState& 
 
 	if (Name.StartsWith(TEXT("preset_")))
 	{
-		const FString Preset = Name.RightChop(7);
+		// preset_<name>, or preset_<name>_rs<percent> for a resolution scale on top, such as preset_ultra_rs200
+		FString Preset = Name.RightChop(7);
+		FString Scale;
+		const int32 ScaleAt = Preset.Find(TEXT("_rs"));
+		if (ScaleAt != INDEX_NONE)
+		{
+			Scale = Preset.RightChop(ScaleAt + 3);
+			Preset = Preset.Left(ScaleAt);
+		}
 		int32 Index = 0;
 		if (!FCyberSettingsOptions::ParseValue(ECyberSettingOption::Preset, Preset, Index))
 		{
 			return false;
 		}
 		FCyberSettingsOptions::SetValueIndex(ECyberSettingOption::Preset, State, Index);
+		if (!Scale.IsEmpty())
+		{
+			int32 ScaleIndex = 0;
+			if (!Scale.IsNumeric() || !FCyberSettingsOptions::IsAvailable(ECyberSettingOption::ResolutionScale, State)
+				|| !FCyberSettingsOptions::ParseValue(ECyberSettingOption::ResolutionScale, Scale, ScaleIndex))
+			{
+				return false;
+			}
+			FCyberSettingsOptions::SetValueIndex(ECyberSettingOption::ResolutionScale, State, ScaleIndex);
+		}
 		OutState = State;
 		return true;
 	}
@@ -328,18 +377,32 @@ void UBenchmarkSubsystem::Report()
 	const FString Startup = FString::Printf(TEXT("skinned=%s foliage=%s assemblies=%s"),
 		*Bench::CVarValue(TEXT("r.Nanite.AllowSkinnedMeshes")), *Bench::CVarValue(TEXT("r.Nanite.Foliage")), *Bench::CVarValue(TEXT("r.Nanite.AllowAssemblies")));
 
-	UE_LOG(LogBenchmark, Log, TEXT("BENCH|%s|config=%s|frames=%d|avg_ms=%.2f|avg_fps=%.1f|low1_ms=%.2f|low1_fps=%.1f|gpu_ms=%.2f|game_ms=%.2f|res=%dx%d|screen_pct=%s|%s"),
+	// every result names the hardware and resolution it was taken on, so a result file proves where it came from
+	const FString GpuName = Bench::CleanField(GRHIAdapterName);
+	const FString DriverVersion = Bench::CleanField(GRHIAdapterUserDriverVersion);
+	const FString ScreenPercentage = Bench::CVarValue(TEXT("r.ScreenPercentage"));
+
+	UE_LOG(LogBenchmark, Log, TEXT("BENCH|%s|config=%s|frames=%d|avg_ms=%.2f|avg_fps=%.1f|low1_ms=%.2f|low1_fps=%.1f|gpu_ms=%.2f|game_ms=%.2f|res=%dx%d|screen_pct=%s|gpu=%s|driver=%s|%s"),
 		*CurrentLabel, *CurrentConfig, FrameMs.Num(), AvgMs, AvgMs > 0.0f ? 1000.0f / AvgMs : 0.0f, LowMs, LowMs > 0.0f ? 1000.0f / LowMs : 0.0f,
-		Gpu, Game, Size.X, Size.Y, *Bench::CVarValue(TEXT("r.ScreenPercentage")), *Startup);
+		Gpu, Game, Size.X, Size.Y, *ScreenPercentage, *GpuName, *DriverVersion, *Startup);
 
 	const FString CsvPath = FPaths::ProjectSavedDir() / TEXT("Benchmark/bench_results.csv");
+	const FString Header = Bench::CsvHeader;
+	FString Existing;
+	if (FPaths::FileExists(CsvPath) && FFileHelper::LoadFileToString(Existing, *CsvPath) && !Existing.StartsWith(Header))
+	{
+		// an older column layout moves aside, so the header of every file matches its rows
+		const FString OldPath = FPaths::ProjectSavedDir() / FString::Printf(TEXT("Benchmark/bench_results_until_%s.csv"), *FDateTime::Now().ToString(TEXT("%Y%m%d-%H%M%S")));
+		IFileManager::Get().Move(*OldPath, *CsvPath);
+		UE_LOG(LogBenchmark, Log, TEXT("bench_results.csv had an older column layout, moved to %s"), *OldPath);
+	}
 	if (!FPaths::FileExists(CsvPath))
 	{
-		FFileHelper::SaveStringToFile(TEXT("time,label,config,frames,avg_ms,avg_fps,low1_ms,low1_fps,gpu_ms,game_ms,width,height,startup\n"), *CsvPath);
+		FFileHelper::SaveStringToFile(Header + TEXT("\n"), *CsvPath);
 	}
-	const FString Row = FString::Printf(TEXT("%s,%s,%s,%d,%.2f,%.1f,%.2f,%.1f,%.2f,%.2f,%d,%d,%s\n"),
+	const FString Row = FString::Printf(TEXT("%s,%s,%s,%d,%.2f,%.1f,%.2f,%.1f,%.2f,%.2f,%d,%d,%s,%s,%s,%s\n"),
 		*FDateTime::Now().ToString(), *CurrentLabel, *CurrentConfig, FrameMs.Num(), AvgMs, AvgMs > 0.0f ? 1000.0f / AvgMs : 0.0f,
-		LowMs, LowMs > 0.0f ? 1000.0f / LowMs : 0.0f, Gpu, Game, Size.X, Size.Y, *Startup);
+		LowMs, LowMs > 0.0f ? 1000.0f / LowMs : 0.0f, Gpu, Game, Size.X, Size.Y, *ScreenPercentage, *GpuName, *DriverVersion, *Startup);
 	FFileHelper::SaveStringToFile(Row, *CsvPath, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 }
 
@@ -405,7 +468,7 @@ static FAutoConsoleCommandWithWorldAndArgs GBenchRunCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GBenchSuiteCommand(
 	TEXT("Bench.Suite"),
-	TEXT("Bench.Suite <all|configuration[:label]...> [quit]. Measures each configuration in turn, quit exits when done."),
+	TEXT("Bench.Suite <all|night|configuration[:label]...> [quit]. Measures each configuration in turn, quit exits when done. night is the night run: the six presets and Ultra at 150 and 200 percent resolution scale, each between two baseline laps."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		UBenchmarkSubsystem* Bench = BenchCommands::Get(World);
@@ -425,6 +488,10 @@ static FAutoConsoleCommandWithWorldAndArgs GBenchSuiteCommand(
 			{
 				Entries.Append(UBenchmarkSubsystem::GetConfigNames());
 			}
+			else if (Arg.Equals(TEXT("night"), ESearchCase::IgnoreCase))
+			{
+				Entries.Append(UBenchmarkSubsystem::GetNightSuite());
+			}
 			else
 			{
 				Entries.Add(Arg);
@@ -439,6 +506,7 @@ static FAutoConsoleCommand GBenchListCommand(
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		UE_LOG(LogBenchmark, Log, TEXT("Benchmark configurations: %s"), *FString::Join(UBenchmarkSubsystem::GetConfigNames(), TEXT(" ")));
+		UE_LOG(LogBenchmark, Log, TEXT("Night suite: %s"), *FString::Join(UBenchmarkSubsystem::GetNightSuite(), TEXT(" ")));
 	}));
 
 #endif

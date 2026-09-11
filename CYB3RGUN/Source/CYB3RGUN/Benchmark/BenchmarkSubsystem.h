@@ -26,6 +26,9 @@ public:
 	/** Every configuration the suite knows, in suite order */
 	static TArray<FString> GetConfigNames();
 
+	/** The night run (D-032): the six presets and Ultra at 150 and 200 percent resolution scale, each between two baseline laps */
+	static TArray<FString> GetNightSuite();
+
 	/** Builds a named configuration on top of the benchmark baseline. False for an unknown name. */
 	static bool BuildConfig(const FString& Name, FCyberSettingsState& OutState);
 
