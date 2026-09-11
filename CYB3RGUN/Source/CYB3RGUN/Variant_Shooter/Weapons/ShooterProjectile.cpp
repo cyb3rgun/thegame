@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "DoorRangeTarget.h"
+#include "ShotFeedback.h"
 
 AShooterProjectile::AShooterProjectile()
 {
@@ -81,6 +82,9 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 		ProcessHit(Other, OtherComp, Hit.ImpactPoint, -Hit.ImpactNormal);
 
 	}
+
+	// sparks and a brief light where the shot lands
+	UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
 
 	// pass control to BP for any extra effects
 	BP_OnProjectileHit(Hit);

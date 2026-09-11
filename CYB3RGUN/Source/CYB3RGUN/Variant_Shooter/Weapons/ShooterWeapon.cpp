@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "ShooterProjectile.h"
 #include "ShooterWeaponHolder.h"
+#include "ShotFeedback.h"
 #include "Components/SceneComponent.h"
 #include "TimerManager.h"
 #include "Animation/AnimInstance.h"
@@ -184,6 +185,11 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	{
 		Projectile->SetNoiseTag(NoiseOwnerTag);
 	}
+
+	// muzzle flash and its light where the shot leaves; the local player sees it on the first person weapon
+	const bool bFirstPersonView = PawnOwner && PawnOwner->IsLocallyControlled() && PawnOwner->IsPlayerControlled();
+	USkeletalMeshComponent* MuzzleMesh = bFirstPersonView ? FirstPersonMesh : ThirdPersonMesh;
+	UShotFeedback::PlayMuzzleFlash(this, MuzzleMesh, MuzzleSocketName, MuzzleMesh->GetSocketLocation(MuzzleSocketName), ProjectileTransform.Rotator(), bFirstPersonView);
 
 	// play the firing montage
 	WeaponOwner->PlayFiringMontage(FiringMontage);

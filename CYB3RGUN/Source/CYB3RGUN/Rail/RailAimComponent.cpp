@@ -2,6 +2,8 @@
 
 #include "RailAimComponent.h"
 #include "DoorRangeTarget.h"
+#include "ShotFeedback.h"
+#include "Camera/CameraComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -179,6 +181,18 @@ bool URailAimComponent::Fire()
 			Damaged = HitActor;
 			++ShotsHit;
 		}
+	}
+
+	// the rail has no weapon model: the flash sits low and right of the camera, where a held weapon would be
+	if (const UCameraComponent* Camera = GetOwner() ? GetOwner()->FindComponentByClass<UCameraComponent>() : nullptr)
+	{
+		const FVector Muzzle = Camera->GetComponentTransform().TransformPosition(FVector(60.0f, 18.0f, -22.0f));
+		const FVector AimTarget = bHit ? Hit.ImpactPoint : ResolveAimPoint();
+		UShotFeedback::PlayMuzzleFlash(this, nullptr, NAME_None, Muzzle, (AimTarget - Muzzle).Rotation(), false);
+	}
+	if (bHit)
+	{
+		UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
 	}
 
 	UE_LOG(LogRailAim, Verbose, TEXT("Shot %d at screen %.3f %.3f: %s%s"), ShotsFired, GetCrosshairNormalized().X, GetCrosshairNormalized().Y,

@@ -23,7 +23,9 @@ public class CYB3RGUN : ModuleRules
 			"GameplayTags",
 			"NavigationSystem",
 			"RHI",
-			"RenderCore"
+			"RenderCore",
+			"Niagara",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
@@ -48,7 +50,8 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Rail",
 			"CYB3RGUN/Settings",
 			"CYB3RGUN/UI",
-			"CYB3RGUN/Benchmark"
+			"CYB3RGUN/Benchmark",
+			"CYB3RGUN/VFX"
 		});
 
 		// Uncomment if you are using Slate UI
