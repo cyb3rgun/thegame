@@ -40,6 +40,12 @@ ADoorSlot::ADoorSlot()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FrameLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Frame.MI_Door_Frame"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PanelLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Panel.MI_Door_Panel"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WallLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Wall_Alcove.MI_Wall_Alcove"));
+	FrameMaterial = FrameLook.Object;
+	PanelMaterial = PanelLook.Object;
+	WallMaterial = WallLook.Object;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
@@ -74,9 +80,36 @@ ADoorSlot::ADoorSlot()
 	FriendlyHead = MakeShape(this, OccupantRoot, TEXT("FriendlyHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 108.0f), FVector(0.5f, 0.5f, 0.5f));
 }
 
+void ADoorSlot::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	ApplyLookMaterials();
+}
+
+void ADoorSlot::ApplyLookMaterials()
+{
+	for (UStaticMeshComponent* Part : { FramePostLeft, FramePostRight, FrameTop })
+	{
+		if (FrameMaterial)
+		{
+			Part->SetMaterial(0, FrameMaterial);
+		}
+	}
+	if (PanelMaterial)
+	{
+		DoorPanel->SetMaterial(0, PanelMaterial);
+	}
+	if (WallMaterial)
+	{
+		BackWall->SetMaterial(0, WallMaterial);
+	}
+}
+
 void ADoorSlot::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ApplyLookMaterials();
 
 	HideOccupant();
 	ApplyPanelAlpha(0.0f);

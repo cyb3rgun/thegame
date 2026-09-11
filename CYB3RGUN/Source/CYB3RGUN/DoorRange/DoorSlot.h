@@ -90,6 +90,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.05, Units = "s"))
 	float HitReactionDuration = 0.3f;
 
+	/** Surface of the frame posts and the lintel, darkest of the three so the opening reads */
+	UPROPERTY(EditAnywhere, Category="Door|Look")
+	TObjectPtr<UMaterialInterface> FrameMaterial;
+
+	/** Surface of the swinging panel, between frame and wall in value */
+	UPROPERTY(EditAnywhere, Category="Door|Look")
+	TObjectPtr<UMaterialInterface> PanelMaterial;
+
+	/** Surface of the wall behind the occupant */
+	UPROPERTY(EditAnywhere, Category="Door|Look")
+	TObjectPtr<UMaterialInterface> WallMaterial;
+
 	EDoorState State = EDoorState::Closed;
 	FDoorOpenParams Params;
 
@@ -178,6 +190,10 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	/** Puts the look materials on the frame, panel and back wall */
+	void ApplyLookMaterials();
 
 	void SetState(EDoorState NewState);
 	void ApplyPanelAlpha(float Alpha);
