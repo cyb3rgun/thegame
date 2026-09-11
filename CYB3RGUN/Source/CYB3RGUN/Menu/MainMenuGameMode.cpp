@@ -46,6 +46,11 @@ void AMainMenuGameMode::BeginPlay()
 	}
 }
 
+bool AMainMenuGameMode::IsBackgroundShown() const
+{
+	return !Background || Background->IsLevelVisible();
+}
+
 void AMainMenuGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(AmbientTimer);

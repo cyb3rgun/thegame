@@ -52,6 +52,12 @@ public:
 	/** True when there is enough charge to start */
 	bool IsOverclockReady() const;
 
+	/** The player took damage: the projected HUD glitches for a moment (D-051) */
+	void NotifyPlayerDamaged(float Amount);
+
+	/** 0 to 1, how strongly the projected HUD glitches right now, fading over DamageGlitchSeconds on the wall clock */
+	float GetDamageGlitch() const;
+
 	/** Speed of the player against the wall clock right now */
 	float GetPlayerTimeScale() const { return PlayerTimeScale; }
 
@@ -92,6 +98,9 @@ protected:
 
 	/** A hit stop waiting for the next tick, which starts its clock, so a slow rest of the frame cannot use it up */
 	float PendingHitStopSeconds = 0.0f;
+
+	/** Wall clock of the last damage the player took */
+	double DamageGlitchAt = -1000.0;
 
 	/** Wall clock until which the current hit stop holds, and when it began */
 	double HitStopUntil = 0.0;

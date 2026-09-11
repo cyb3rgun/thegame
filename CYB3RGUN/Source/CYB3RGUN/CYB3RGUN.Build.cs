@@ -29,7 +29,7 @@ public class CYB3RGUN : ModuleRules
 			"EngineSettings"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "MoviePlayer" });
 
 		if (Target.bBuildEditor)
 		{

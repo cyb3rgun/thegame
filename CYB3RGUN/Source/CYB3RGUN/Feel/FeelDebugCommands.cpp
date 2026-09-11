@@ -43,4 +43,15 @@ static FAutoConsoleCommandWithWorldAndArgs GFeelChargeCommand(
 		}
 	}));
 
+static FAutoConsoleCommandWithWorldAndArgs GFeelDamageCommand(
+	TEXT("Feel.Damage"),
+	TEXT("Plays the projected HUD glitch as if the player took this much damage, 10 without an argument. No damage is dealt."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(World))
+		{
+			Feel->NotifyPlayerDamaged(Args.Num() > 0 ? FCString::Atof(*Args[0]) : 10.0f);
+		}
+	}));
+
 #endif

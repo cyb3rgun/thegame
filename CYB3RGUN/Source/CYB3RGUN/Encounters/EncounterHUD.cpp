@@ -5,6 +5,7 @@
 #include "CyberEnemy.h"
 #include "CyberText.h"
 #include "CyberMenuStyle.h"
+#include "HoloHUD.h"
 #include "EnemyDefinition.h"
 #include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -123,6 +124,8 @@ void UEncounterHUD::NativeConstruct()
 	{
 		Panel->SetBrushColor(FCyberMenuStyle::PanelColor());
 	}
+	HoloText = FHoloHUD::CreateTextMaterial(this);
+	FHoloHUD::ApplyToText(WidgetTree, HoloText);
 
 	if (EventText)
 	{
@@ -192,6 +195,7 @@ void UEncounterHUD::RefreshAll()
 void UEncounterHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	FHoloHUD::Update(this, HoloText);
 
 	if (!bEventVisible || !EventText)
 	{

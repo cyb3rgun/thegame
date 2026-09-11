@@ -179,6 +179,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feel", meta = (ClampMin = 0.0, ClampMax = 1.0))
 	float KillFlashStrength = 0.6f;
 
+	/** Wall clock seconds the projected HUD glitches after the player takes damage (D-051) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feel", meta = (ClampMin = 0.0, ClampMax = 2.0, Units = "s"))
+	float DamageGlitchSeconds = 0.4f;
+
 	/** Overclock can be used in this scenario. Off for a precision scenario. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Overclock")
 	bool bOverclockAllowed = true;

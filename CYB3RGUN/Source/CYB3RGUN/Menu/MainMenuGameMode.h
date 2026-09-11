@@ -27,6 +27,9 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
 
+	/** True once the streamed background level is on screen, or when there is none */
+	bool IsBackgroundShown() const;
+
 protected:
 
 	/** Level streamed in behind the menu. Empty keeps the menu level as it is. */

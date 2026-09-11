@@ -71,6 +71,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CueText;
 
+	/** The projection material of this HUD's text (D-051) */
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> HoloText;
+
 	TWeakObjectPtr<UStyleScoringComponent> BoundStyle;
 
 	/** The last style events, one shot's events share the line, and when it was set on the wall clock */

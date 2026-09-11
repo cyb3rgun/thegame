@@ -2,6 +2,7 @@
 
 #include "GameMenuSubsystem.h"
 #include "CyberMenuScreen.h"
+#include "CyberLogoWidget.h"
 #include "LevelSelectWidget.h"
 #include "MainMenuGameMode.h"
 #include "MainMenuWidget.h"
@@ -21,6 +22,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "MoviePlayer.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/SViewport.h"
 
@@ -311,6 +313,17 @@ void UGameMenuSubsystem::HandlePreLoadMap(const FString& MapName)
 	// the screens belong to the world that is being left
 	ClearStack();
 	bPausedByMenu = false;
+
+	// the spinning arc of the mark covers the load. The movie player draws it on its own thread in a standalone game, the
+	// editor has no loading screen (D-048)
+	if (!GIsEditor && !IsRunningDedicatedServer())
+	{
+		FLoadingScreenAttributes LoadingScreen;
+		LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
+		LoadingScreen.MinimumLoadingScreenDisplayTime = 0.5f;
+		LoadingScreen.WidgetLoadingScreen = SNew(SCyberLoadingScreen);
+		GetMoviePlayer()->SetupLoadingScreen(LoadingScreen);
+	}
 }
 
 bool UGameMenuSubsystem::IsViewportFocused() const

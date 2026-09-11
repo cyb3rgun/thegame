@@ -2,7 +2,9 @@
 
 #include "MainMenuWidget.h"
 #include "CyberMenuStyle.h"
+#include "CyberLogoWidget.h"
 #include "GameMenuSubsystem.h"
+#include "MainMenuGameMode.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -32,6 +34,10 @@ void UMainMenuWidget::BuildLayout()
 
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainColumn"));
 	Band->SetContent(Column);
+
+	// the mark powers on as the menu appears, its arc spins while the night range behind the menu still streams in (D-048)
+	LogoMark = WidgetTree->ConstructWidget<UCyberLogoWidget>(UCyberLogoWidget::StaticClass(), TEXT("LogoMark"));
+	FCyberMenuStyle::AddToColumn(Column, LogoMark, FMargin(0.0f, 0.0f, 0.0f, 24.0f));
 
 	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "CYB3RGUN"), 96, FCyberMenuStyle::TextColor());
 	Title->SetFont(FCyberMenuStyle::MakeFont(96, TEXT("Bold"), 120));
@@ -77,6 +83,18 @@ void UMainMenuWidget::HandleQuit()
 	if (UGameMenuSubsystem* Menu = GetGameMenu())
 	{
 		Menu->QuitGame();
+	}
+}
+
+void UMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// the arc is the loading indicator: it spins until the streamed background is on screen
+	if (LogoMark)
+	{
+		const AMainMenuGameMode* Menu = GetWorld() ? Cast<AMainMenuGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
+		LogoMark->SetLoading(Menu && !Menu->IsBackgroundShown());
 	}
 }
 

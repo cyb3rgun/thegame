@@ -306,3 +306,23 @@ void UCombatFeelSubsystem::ApplyTime(float RealDelta)
 		Modifier->SetOverclockLook(OverclockBlend * Settings->OverclockLookStrength);
 	}
 }
+
+void UCombatFeelSubsystem::NotifyPlayerDamaged(float Amount)
+{
+	if (Amount > 0.0f)
+	{
+		DamageGlitchAt = FPlatformTime::Seconds();
+		UE_LOG(LogCombatFeel, Verbose, TEXT("The player took %.0f damage, the HUD glitches"), Amount);
+	}
+}
+
+float UCombatFeelSubsystem::GetDamageGlitch() const
+{
+	const float Seconds = UStyleSettings::Get(this)->DamageGlitchSeconds;
+	if (Seconds <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const float Age = static_cast<float>(FPlatformTime::Seconds() - DamageGlitchAt);
+	return FMath::Clamp(1.0f - Age / Seconds, 0.0f, 1.0f);
+}

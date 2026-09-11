@@ -102,6 +102,12 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 	// Reduce HP
 	CurrentHP -= Damage;
 
+	// the projected HUD glitches for a moment (D-051)
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->NotifyPlayerDamaged(Damage);
+	}
+
 	// Have we depleted HP?
 	if (CurrentHP <= 0.0f)
 	{

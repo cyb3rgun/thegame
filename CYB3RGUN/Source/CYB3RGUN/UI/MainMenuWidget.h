@@ -6,6 +6,8 @@
 #include "CyberMenuScreen.h"
 #include "MainMenuWidget.generated.h"
 
+class UCyberLogoWidget;
+
 /**
  *  Root of the menu stack in the menu level (D-036). Play opens the level selection, Settings the settings menu,
  *  Quit is the only way out of the game. Escape does nothing here. Built in code, WBP_MainMenu derives from it.
@@ -25,7 +27,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Menu", meta = (ClampMin = 200.0))
 	float BandWidth = 680.0f;
 
+	/** The mark above the name: boots up with the menu, spins while the background level streams in */
+	UPROPERTY(Transient)
+	TObjectPtr<UCyberLogoWidget> LogoMark;
+
 	virtual void BuildLayout() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UFUNCTION()
 	void HandlePlay();

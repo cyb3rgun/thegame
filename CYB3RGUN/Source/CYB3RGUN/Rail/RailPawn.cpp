@@ -481,6 +481,10 @@ float ARailPawn::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACont
 	Health -= Applied;
 	UE_LOG(LogRail, Verbose, TEXT("Rider takes %.0f damage from %s, health %.0f"), Applied, *GetNameSafe(DamageCauser), Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->NotifyPlayerDamaged(Applied);
+	}
 
 	if (Health <= 0.0f)
 	{

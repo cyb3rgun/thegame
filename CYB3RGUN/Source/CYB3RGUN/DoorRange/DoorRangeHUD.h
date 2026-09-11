@@ -43,6 +43,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Door Range", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SummaryText;
 
+	/** The projection material of this HUD's text (D-051) */
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> HoloText;
+
 	/** Seconds an event line stays fully visible before it fades */
 	UPROPERTY(EditAnywhere, Category="Door Range", meta = (ClampMin = 0.1, Units = "s"))
 	float EventHoldSeconds = 1.2f;

@@ -33,6 +33,7 @@ namespace LogoCrosshairLook
 		FName Flash = TEXT("Flash");
 		FName Collapse = TEXT("Collapse");
 		FName Opacity = TEXT("Opacity");
+		FName Glitch = TEXT("Glitch");
 	};
 
 	const FParams& Params()
@@ -240,4 +241,8 @@ void ULogoCrosshairWidget::UpdateMark(const FGeometry& MyGeometry)
 	MarkMaterial->SetScalarParameterValue(Param.Flash, Flash);
 	MarkMaterial->SetScalarParameterValue(Param.Collapse, Collapse);
 	MarkMaterial->SetScalarParameterValue(Param.Opacity, CurrentAim->IsFireBlocked() ? BlockedOpacity : 1.0f);
+
+	// the projection glitches for a moment when the player is hit (D-051)
+	const UCombatFeelSubsystem* FeelNow = UCombatFeelSubsystem::Get(this);
+	MarkMaterial->SetScalarParameterValue(Param.Glitch, FeelNow ? FeelNow->GetDamageGlitch() : 0.0f);
 }

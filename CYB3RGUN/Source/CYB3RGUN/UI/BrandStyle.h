@@ -7,7 +7,9 @@
 #include "Engine/DeveloperSettings.h"
 #include "BrandStyle.generated.h"
 
+class UMaterialInterface;
 class UMaterialParameterCollection;
+class UTexture2D;
 
 /**
  *  The UI style of the brand (D-047). The logo cyan, the magenta counter colour and the danger red are defined once, as the
@@ -82,6 +84,18 @@ public:
 	/** Stands in for a missing preview image */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Neutral")
 	FLinearColor Placeholder = FLinearColor(0.02f, 0.022f, 0.03f, 1.0f);
+
+	/** The projection material the HUD text is drawn through (D-051) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
+	TObjectPtr<UMaterialInterface> HoloTextMaterial;
+
+	/** The arc of the mark as an alpha mask, tinted in the brand colour (D-048) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
+	TObjectPtr<UTexture2D> LogoArc;
+
+	/** The ring of the mark as an alpha mask */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
+	TObjectPtr<UTexture2D> LogoRing;
 
 	FLinearColor GetBrand() const { return ReadColor(BrandParameter); }
 	FLinearColor GetCounter() const { return ReadColor(CounterParameter); }

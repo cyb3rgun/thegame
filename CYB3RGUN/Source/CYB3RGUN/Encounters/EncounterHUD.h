@@ -40,6 +40,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Encounter", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SummaryText;
 
+	/** The projection material of this HUD's text (D-051) */
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> HoloText;
+
 	UPROPERTY(EditAnywhere, Category="Encounter", meta = (ClampMin = 0.1, Units = "s"))
 	float EventHoldSeconds = 1.2f;
 

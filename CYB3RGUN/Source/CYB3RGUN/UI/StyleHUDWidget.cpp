@@ -4,6 +4,7 @@
 #include "CombatFeelSubsystem.h"
 #include "CyberMenuStyle.h"
 #include "CyberText.h"
+#include "HoloHUD.h"
 #include "StyleSettings.h"
 #include "WeaponStatus.h"
 #include "Blueprint/WidgetTree.h"
@@ -161,6 +162,8 @@ void UStyleHUDWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+	HoloText = FHoloHUD::CreateTextMaterial(this);
+	FHoloHUD::ApplyToText(WidgetTree, HoloText);
 	if (ReloadBar)
 	{
 		ReloadBar->SetVisibility(ESlateVisibility::Collapsed);
@@ -254,6 +257,7 @@ void UStyleHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	UpdateStyle(WallNow);
 	UpdateWeapon(GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0);
 	UpdateOverclock(WallNow);
+	FHoloHUD::Update(this, HoloText);
 }
 
 void UStyleHUDWidget::UpdateStyle(double WallNow)

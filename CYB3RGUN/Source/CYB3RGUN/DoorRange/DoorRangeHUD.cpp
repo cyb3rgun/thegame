@@ -4,6 +4,7 @@
 #include "DoorRangeGameMode.h"
 #include "CyberText.h"
 #include "CyberMenuStyle.h"
+#include "HoloHUD.h"
 #include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -127,6 +128,8 @@ void UDoorRangeHUD::NativeConstruct()
 	{
 		Panel->SetBrushColor(FCyberMenuStyle::PanelColor());
 	}
+	HoloText = FHoloHUD::CreateTextMaterial(this);
+	FHoloHUD::ApplyToText(WidgetTree, HoloText);
 
 	if (EventText)
 	{
@@ -203,6 +206,7 @@ void UDoorRangeHUD::UnbindGameMode()
 void UDoorRangeHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	FHoloHUD::Update(this, HoloText);
 
 	if (!bEventVisible || !EventText)
 	{
