@@ -64,12 +64,12 @@ public:
 	/** Feature defaults for a preset */
 	static FCyberFeatureSettings GetPresetFeatures(ECyberQualityPreset Preset);
 
-	/** Engine scalability level for a preset: Low 0 to Epic 3, Ultra is Cine */
+	/** Engine scalability level for a preset: Low 0 to Epic 3, Ultra stays at 3, Cinematic is Cine (4) */
 	static int32 GetPresetScalabilityLevel(ECyberQualityPreset Preset);
 
 	static FString GetPresetName(ECyberQualityPreset Preset);
 
-	/** Selects a preset and resets every feature to its defaults. Leaves the experimental options off below Ultra. */
+	/** Selects a preset and resets every feature to its defaults. Leaves the experimental options off below Ultra and Cinematic. */
 	void SetQualityPreset(ECyberQualityPreset Preset);
 
 	ECyberQualityPreset GetQualityPreset() const { return QualityPreset; }

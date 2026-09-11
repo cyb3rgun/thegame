@@ -13,8 +13,10 @@ enum class ECyberQualityPreset : uint8
 	Medium,
 	High,
 	Epic,
-	/** Engine Cine scalability plus every feature at its maximum. The experimental options live here. */
-	Ultra
+	/** Maximum game quality: every feature on at native resolution, on the Epic scalability level (D-028) */
+	Ultra,
+	/** The engine's Cine scalability level, meant for screenshots and video capture rather than play (D-029) */
+	Cinematic
 };
 
 /** Global illumination. Lumen Lite is Lumen with the Irradiance Field Gather, the engine's mid range tier. */
@@ -130,11 +132,11 @@ struct FCyberSettingsState
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	float FieldOfView = 90.0f;
 
-	/** Experimental, Ultra only, needs a restart */
+	/** Experimental, Ultra and Cinematic only, needs a restart */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	bool bExperimentalNaniteSkinnedMeshes = false;
 
-	/** Experimental, Ultra only, needs a restart */
+	/** Experimental, Ultra and Cinematic only, needs a restart */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	bool bExperimentalNaniteFoliage = false;
 };

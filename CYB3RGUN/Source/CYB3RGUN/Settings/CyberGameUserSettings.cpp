@@ -126,7 +126,21 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.bMotionBlur = true;
 		break;
 	case ECyberQualityPreset::Ultra:
+		// maximum game quality (D-028): everything on, native resolution without upscaling, Nanite with Virtual
+		// Shadow Maps Epic, fog and effects at their highest playable setting; the Cine level stays out
+		F.bMegaLights = true;
+		F.GlobalIllumination = ECyberGIMode::Lumen;
+		F.VirtualShadowMaps = ECyberShadowQuality::Epic;
+		F.VolumetricFog = ECyberFogQuality::Medium;
+		F.AntiAliasing = ECyberAntiAliasing::TSRNative;
+		F.bNanite = true;
+		F.EffectsQuality = 3;
+		F.ViewDistanceQuality = 3;
+		F.bMotionBlur = false;
+		break;
+	case ECyberQualityPreset::Cinematic:
 	default:
+		// screenshots and video capture (D-029): the engine's Cine level, fog at its finest grid, motion blur for footage
 		F.bMegaLights = true;
 		F.GlobalIllumination = ECyberGIMode::Lumen;
 		F.VirtualShadowMaps = ECyberShadowQuality::Epic;
@@ -143,8 +157,17 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 
 int32 UCyberGameUserSettings::GetPresetScalabilityLevel(ECyberQualityPreset Preset)
 {
-	// Ultra is the engine's Cine level, the highest it has
-	return FMath::Clamp(static_cast<int32>(Preset), 0, 4);
+	// Ultra is a game preset and stays on the Epic level; only Cinematic uses the engine's Cine level
+	switch (Preset)
+	{
+	case ECyberQualityPreset::Low: return 0;
+	case ECyberQualityPreset::Medium: return 1;
+	case ECyberQualityPreset::High: return 2;
+	case ECyberQualityPreset::Epic: return 3;
+	case ECyberQualityPreset::Ultra: return 3;
+	case ECyberQualityPreset::Cinematic: return 4;
+	default: return 2;
+	}
 }
 
 FString UCyberGameUserSettings::GetPresetName(ECyberQualityPreset Preset)
@@ -183,7 +206,7 @@ void UCyberGameUserSettings::ValidateSettings()
 	FieldOfView = FMath::Clamp(FieldOfView, 60.0f, 120.0f);
 	Features.EffectsQuality = FMath::Clamp(Features.EffectsQuality, 0, 3);
 	Features.ViewDistanceQuality = FMath::Clamp(Features.ViewDistanceQuality, 0, 3);
-	if (QualityPreset != ECyberQualityPreset::Ultra)
+	if (!FCyberSettingsOptions::IsUltraOrAbove(QualityPreset))
 	{
 		bExperimentalNaniteSkinnedMeshes = false;
 		bExperimentalNaniteFoliage = false;
@@ -205,7 +228,7 @@ void UCyberGameUserSettings::SetQualityPreset(ECyberQualityPreset Preset)
 {
 	QualityPreset = Preset;
 	Features = GetPresetFeatures(Preset);
-	if (Preset != ECyberQualityPreset::Ultra)
+	if (!FCyberSettingsOptions::IsUltraOrAbove(Preset))
 	{
 		bExperimentalNaniteSkinnedMeshes = false;
 		bExperimentalNaniteFoliage = false;
@@ -353,7 +376,7 @@ void UCyberGameUserSettings::SetState(const FCyberSettingsState& State, bool bAp
 	QualityPreset = State.Preset;
 	Features = State.Features;
 	FieldOfView = FMath::Clamp(State.FieldOfView, 60.0f, 120.0f);
-	const bool bUltra = QualityPreset == ECyberQualityPreset::Ultra;
+	const bool bUltra = FCyberSettingsOptions::IsUltraOrAbove(QualityPreset);
 	bExperimentalNaniteSkinnedMeshes = bUltra && State.bExperimentalNaniteSkinnedMeshes;
 	bExperimentalNaniteFoliage = bUltra && State.bExperimentalNaniteFoliage;
 

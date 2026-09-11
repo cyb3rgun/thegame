@@ -67,7 +67,7 @@ Results land in the log as `BENCH|...` lines and in `Saved/Benchmark/bench_resul
 
 | Option | Values | Console variables |
 |--------|--------|-------------------|
-| Quality preset | Low, Medium, High, Epic, Ultra | `sg.*` scalability groups at level 0 to 3, Ultra uses Cine (4), plus the feature defaults of the preset |
+| Quality preset | Low, Medium, High, Epic, Ultra, Cinematic | `sg.*` scalability groups at level 0 to 3, Ultra stays at 3, Cinematic uses Cine (4), plus the feature defaults of the preset |
 | MegaLights | Off, On | `r.MegaLights.EnableForProject` |
 | Global illumination | Off, Lumen Lite, Lumen | `r.DynamicGlobalIlluminationMethod`, `r.Lumen.DiffuseIndirect.Allow`, `r.Lumen.FinalGatherMethod`, `r.ReflectionMethod`, `r.Lumen.Reflections.Allow` |
 | Virtual shadow maps | Off, Low, Medium, High, Epic | `r.Shadow.Virtual.Enable`, `r.Shadow.Virtual.ResolutionLodBiasDirectional` and `...Moving`, `r.Shadow.Virtual.ResolutionLodBiasLocal` and `...Moving`, `r.Shadow.Virtual.SMRT.RayCountDirectional`, `r.Shadow.Virtual.SMRT.RayCountLocal`, `r.Shadow.Virtual.MaxPhysicalPages` |
@@ -82,8 +82,8 @@ Results land in the log as `BENCH|...` lines and in `Saved/Benchmark/bench_resul
 | Resolution | supported modes plus the desktop resolution | `r.SetRes`, through `UGameUserSettings` |
 | Window mode | Fullscreen, Borderless, Windowed | `r.SetRes` window mode suffix, through `UGameUserSettings` |
 | Field of view | 60 to 120 degrees in steps of 5 | none, the settings subsystem sets the field of view of the camera the player looks through |
-| Experimental Nanite skeletal meshes | Off, On, Ultra only | `r.Nanite.AllowSkinnedMeshes`, read only, staged in the engine config for the next start |
-| Experimental Nanite foliage | Off, On, Ultra only | `r.Nanite.Foliage` and `r.Nanite.AllowAssemblies`, read only, staged in the engine config for the next start |
+| Experimental Nanite skeletal meshes | Off, On, Ultra and Cinematic only | `r.Nanite.AllowSkinnedMeshes`, read only, staged in the engine config for the next start |
+| Experimental Nanite foliage | Off, On, Ultra and Cinematic only | `r.Nanite.Foliage` and `r.Nanite.AllowAssemblies`, read only, staged in the engine config for the next start |
 
 **The experimental switches** are read only, so the settings object writes them to the `[ConsoleVariables]` section of the saved Engine.ini, which the engine reads at the next start. The engine only saves the Engine.ini sections listed under `[SectionsToSave]`, so `DefaultEngine.ini` adds that section to the list, and it sets `r.Nanite.AllowSkinnedMeshes=0` because the engine default is on. Checked over four starts: both switches on at Ultra stages 1, 1, 1 with a restart pending; the next start runs with 1, 1, 1 and nothing pending; a reset stages the defaults; the start after that runs with 0, 0, 0.
 
@@ -122,6 +122,8 @@ Baseline laps through the process: 12.59, 12.62, 12.68, 12.74, 12.61, 12.57, 12.
 Their GPU clocks: 1524, 1474, 1488, 1502, 1487, 1492, 1506, 1488, 1488, 1506, 1470, 1490, 1504, 1518, 1498, 1481, 1474 MHz.
 
 ### Presets end to end
+
+These are the presets as they were during run 4. Ultra then used the engine's Cine level; that preset is now called Cinematic, and Ultra became the maximum game preset on the Epic level (D-028, D-029).
 
 | Preset | avg ms | avg fps | 1% low ms | 1% low fps | GPU ms | game ms | GPU MHz |
 |---|---:|---:|---:|---:|---:|---:|---:|

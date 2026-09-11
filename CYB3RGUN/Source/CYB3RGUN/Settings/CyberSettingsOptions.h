@@ -23,13 +23,19 @@ struct CYB3RGUN_API FCyberSettingsOptions
 
 	static int32 GetValueCount(ECyberSettingOption Option);
 	static FText GetValueLabel(ECyberSettingOption Option, int32 Index);
+
+	/** Menu text for a value. Same as the label, except that the Cinematic preset says it is meant for capture. */
+	static FText GetValueDisplayLabel(ECyberSettingOption Option, int32 Index);
 	static int32 GetValueIndex(ECyberSettingOption Option, const FCyberSettingsState& State);
 
 	/** Selects a value. Selecting a preset resets every feature to that preset's defaults. */
 	static void SetValueIndex(ECyberSettingOption Option, FCyberSettingsState& State, int32 Index);
 
-	/** Experimental options are only offered on Ultra */
+	/** Experimental options are only offered on Ultra and Cinematic */
 	static bool IsAvailable(ECyberSettingOption Option, const FCyberSettingsState& State);
+
+	/** Ultra and Cinematic, the presets above Epic */
+	static bool IsUltraOrAbove(ECyberQualityPreset Preset);
 
 	/** True when Nanite really runs: the switch is on and Virtual Shadow Maps are on. */
 	static bool IsNaniteActive(const FCyberFeatureSettings& Features);

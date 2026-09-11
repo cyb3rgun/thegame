@@ -35,7 +35,7 @@ namespace CyberSettingsDebug
 		FCyberSettingsState State = Settings->GetState();
 		if (!FCyberSettingsOptions::IsAvailable(Option, State))
 		{
-			UE_LOG(LogCyberSettingsDebug, Warning, TEXT("Settings.Set: %s is only available on the Ultra preset"), *OptionName);
+			UE_LOG(LogCyberSettingsDebug, Warning, TEXT("Settings.Set: %s is only available on the Ultra and Cinematic presets"), *OptionName);
 			return false;
 		}
 
@@ -75,7 +75,7 @@ static FAutoConsoleCommand GSettingsSetCommand(
 
 static FAutoConsoleCommand GSettingsPresetCommand(
 	TEXT("Settings.Preset"),
-	TEXT("Settings.Preset <Low|Medium|High|Epic|Ultra>. Selects a preset, resets every feature to its defaults, applies and saves."),
+	TEXT("Settings.Preset <Low|Medium|High|Epic|Ultra|Cinematic>. Selects a preset, resets every feature to its defaults, applies and saves."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		if (Args.Num() > 0)

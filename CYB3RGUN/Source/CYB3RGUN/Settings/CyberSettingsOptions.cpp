@@ -123,7 +123,7 @@ FString FCyberSettingsOptions::GetDrivenCVars(ECyberSettingOption Option)
 {
 	switch (Option)
 	{
-	case ECyberSettingOption::Preset: return TEXT("sg.* scalability groups (Ultra uses Cine) plus the feature defaults below");
+	case ECyberSettingOption::Preset: return TEXT("sg.* scalability groups (Ultra stays at Epic, Cinematic uses Cine) plus the feature defaults below");
 	case ECyberSettingOption::MegaLights: return TEXT("r.MegaLights.EnableForProject");
 	case ECyberSettingOption::GlobalIllumination: return TEXT("r.DynamicGlobalIlluminationMethod, r.Lumen.DiffuseIndirect.Allow, r.Lumen.FinalGatherMethod, r.ReflectionMethod, r.Lumen.Reflections.Allow");
 	case ECyberSettingOption::VirtualShadowMaps: return TEXT("r.Shadow.Virtual.Enable, r.Shadow.Virtual.ResolutionLodBiasDirectional(Moving), r.Shadow.Virtual.ResolutionLodBiasLocal(Moving), r.Shadow.Virtual.SMRT.RayCountDirectional, r.Shadow.Virtual.SMRT.RayCountLocal, r.Shadow.Virtual.MaxPhysicalPages");
@@ -148,7 +148,7 @@ int32 FCyberSettingsOptions::GetValueCount(ECyberSettingOption Option)
 {
 	switch (Option)
 	{
-	case ECyberSettingOption::Preset: return 5;
+	case ECyberSettingOption::Preset: return 6;
 	case ECyberSettingOption::GlobalIllumination: return 3;
 	case ECyberSettingOption::VirtualShadowMaps: return 5;
 	case ECyberSettingOption::VolumetricFog: return 4;
@@ -165,7 +165,7 @@ int32 FCyberSettingsOptions::GetValueCount(ECyberSettingOption Option)
 
 FText FCyberSettingsOptions::GetValueLabel(ECyberSettingOption Option, int32 Index)
 {
-	static const FText Presets[] = { LOCTEXT("Low", "Low"), LOCTEXT("Medium", "Medium"), LOCTEXT("High", "High"), LOCTEXT("Epic", "Epic"), LOCTEXT("Ultra", "Ultra") };
+	static const FText Presets[] = { LOCTEXT("Low", "Low"), LOCTEXT("Medium", "Medium"), LOCTEXT("High", "High"), LOCTEXT("Epic", "Epic"), LOCTEXT("Ultra", "Ultra"), LOCTEXT("Cinematic", "Cinematic") };
 	static const FText GI[] = { LOCTEXT("Off", "Off"), LOCTEXT("LumenLite", "Lumen Lite"), LOCTEXT("Lumen", "Lumen") };
 	static const FText Levels5[] = { LOCTEXT("Off", "Off"), LOCTEXT("Low", "Low"), LOCTEXT("Medium", "Medium"), LOCTEXT("High", "High"), LOCTEXT("Epic", "Epic") };
 	static const FText Levels4Off[] = { LOCTEXT("Off", "Off"), LOCTEXT("Low", "Low"), LOCTEXT("Medium", "Medium"), LOCTEXT("High", "High") };
@@ -202,6 +202,15 @@ FText FCyberSettingsOptions::GetValueLabel(ECyberSettingOption Option, int32 Ind
 	default:
 		return OffOn(Index);
 	}
+}
+
+FText FCyberSettingsOptions::GetValueDisplayLabel(ECyberSettingOption Option, int32 Index)
+{
+	if (Option == ECyberSettingOption::Preset && Index == static_cast<int32>(ECyberQualityPreset::Cinematic))
+	{
+		return LOCTEXT("CinematicCapture", "Cinematic, capture only");
+	}
+	return GetValueLabel(Option, Index);
 }
 
 int32 FCyberSettingsOptions::GetValueIndex(ECyberSettingOption Option, const FCyberSettingsState& State)
@@ -249,7 +258,7 @@ void FCyberSettingsOptions::SetValueIndex(ECyberSettingOption Option, FCyberSett
 	case ECyberSettingOption::Preset:
 		State.Preset = static_cast<ECyberQualityPreset>(Index);
 		State.Features = UCyberGameUserSettings::GetPresetFeatures(State.Preset);
-		if (State.Preset != ECyberQualityPreset::Ultra)
+		if (!IsUltraOrAbove(State.Preset))
 		{
 			State.bExperimentalNaniteSkinnedMeshes = false;
 			State.bExperimentalNaniteFoliage = false;
@@ -270,10 +279,10 @@ void FCyberSettingsOptions::SetValueIndex(ECyberSettingOption Option, FCyberSett
 	case ECyberSettingOption::WindowMode: State.WindowMode = Index; break;
 	case ECyberSettingOption::FieldOfView: State.FieldOfView = GetFieldOfViews()[Index]; break;
 	case ECyberSettingOption::ExperimentalNaniteSkinnedMeshes:
-		State.bExperimentalNaniteSkinnedMeshes = Index == 1 && State.Preset == ECyberQualityPreset::Ultra;
+		State.bExperimentalNaniteSkinnedMeshes = Index == 1 && IsUltraOrAbove(State.Preset);
 		break;
 	case ECyberSettingOption::ExperimentalNaniteFoliage:
-		State.bExperimentalNaniteFoliage = Index == 1 && State.Preset == ECyberQualityPreset::Ultra;
+		State.bExperimentalNaniteFoliage = Index == 1 && IsUltraOrAbove(State.Preset);
 		break;
 	default:
 		break;
@@ -292,7 +301,12 @@ bool FCyberSettingsOptions::NeedsRestart(ECyberSettingOption Option)
 
 bool FCyberSettingsOptions::IsAvailable(ECyberSettingOption Option, const FCyberSettingsState& State)
 {
-	return !IsExperimental(Option) || State.Preset == ECyberQualityPreset::Ultra;
+	return !IsExperimental(Option) || IsUltraOrAbove(State.Preset);
+}
+
+bool FCyberSettingsOptions::IsUltraOrAbove(ECyberQualityPreset Preset)
+{
+	return Preset == ECyberQualityPreset::Ultra || Preset == ECyberQualityPreset::Cinematic;
 }
 
 bool FCyberSettingsOptions::IsNaniteActive(const FCyberFeatureSettings& Features)

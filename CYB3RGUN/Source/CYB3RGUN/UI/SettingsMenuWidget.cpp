@@ -164,7 +164,14 @@ void USettingsMenuWidget::StepOption(ECyberSettingOption Option, int32 Direction
 	const int32 Index = (FCyberSettingsOptions::GetValueIndex(Option, Pending) + Direction + Count) % Count;
 	FCyberSettingsOptions::SetValueIndex(Option, Pending, Index);
 
-	SetStatus(LOCTEXT("Unapplied", "Changes are not applied yet."));
+	if (Option == ECyberSettingOption::Preset && Pending.Preset == ECyberQualityPreset::Cinematic)
+	{
+		SetStatus(LOCTEXT("CinematicNote", "Cinematic uses the engine's film quality level, meant for screenshots and video capture, not for play."));
+	}
+	else
+	{
+		SetStatus(LOCTEXT("Unapplied", "Changes are not applied yet."));
+	}
 	RefreshRows();
 }
 
@@ -218,10 +225,12 @@ void USettingsMenuWidget::RefreshRows()
 		const bool bAvailable = FCyberSettingsOptions::IsAvailable(Option, Pending);
 		Row->SetVisibility(bAvailable ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 
-		FText Value = FCyberSettingsOptions::GetValueLabel(Option, FCyberSettingsOptions::GetValueIndex(Option, Pending));
+		const int32 ValueIndex = FCyberSettingsOptions::GetValueIndex(Option, Pending);
+		FText Value = FCyberSettingsOptions::GetValueDisplayLabel(Option, ValueIndex);
 		if (Option == ECyberSettingOption::Preset && Pending.Features != UCyberGameUserSettings::GetPresetFeatures(Pending.Preset))
 		{
-			Value = FText::Format(LOCTEXT("Custom", "{0} (custom)"), Value);
+			// the plain label keeps the row short; the capture note only fits on an unmodified preset
+			Value = FText::Format(LOCTEXT("Custom", "{0} (custom)"), FCyberSettingsOptions::GetValueLabel(Option, ValueIndex));
 		}
 		if (Option == ECyberSettingOption::Nanite && Pending.Features.bNanite && !FCyberSettingsOptions::IsNaniteActive(Pending.Features))
 		{
