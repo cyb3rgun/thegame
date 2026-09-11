@@ -5,9 +5,12 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 ## Simulator Core
 
 - [ ] Ballistics model, camera and scenario agnostic
-- [ ] Fire control (trigger modes, refire, magazine)
+- [x] Fire control (trigger modes, refire, magazine) as weapon data (G04)
 - [ ] Hit scoring service shared by all scenarios (G02)
 - [x] One screen space aiming path from the crosshair for mouse, light gun and hardware (G03)
+- [x] Style meter as the moral system: clean shooting raises it, a hit on a hostage or bystander collapses it (G04)
+- [x] Combo multiplier, controlled pairs, headshots that kill at once, accuracy in the run statistics (G04)
+- [x] Hit stop on a kill, directional camera kick in three strengths, kill screen effect, all values in the style data asset (G04)
 - [ ] Session statistics (hits, misses, reaction times)
 - [ ] Scenario package format: GameMode, data assets, input context (G02)
 
@@ -29,6 +32,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Door module: hostile telegraph, rises from a crouch before it is shootable (G02)
 - [x] Door module: the telegraph is a pistol draw on a skeletal body, the crouch is gone (G03)
 - [x] Door module: night version Lvl_DoorRange_Night with moonlight, warm lanterns, volumetric fog and a graded post process (G03)
+- [x] Door module: rare hostage taker, a small exposed zone frees the hostage, a hit on the hostage is the full penalty (G04)
 - [ ] Door module: Western dressing (saloon doors)
 - [ ] Door module: Zombie dressing
 - [x] Encounter module: data driven waves with time, kill and signal triggers run by a director (G02)
@@ -37,6 +41,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Rail module: spline route driven by its own distance clock, beats, holds and segment hand over (G03)
 - [x] Rail cover: hold to take cover, the ride waits, no firing, enemy hits do not land (G03)
 - [x] Rail test lit for night with route lanterns, fog and the door range grade (G03)
+- [x] Rail reload in cover: entering cover starts it, leaving early leaves it unfinished (G04)
+- [x] Rail hostage taker set piece beat with rescue, hostage hit and escape outcomes (G04)
 - [ ] Rail branch selection beyond the first next segment
 - [ ] Rail fail state when the rider goes down
 - [ ] Rail camera turns toward the action of a beat
@@ -46,13 +52,16 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Pistol placeholder from the first person template hooked to scoring (G02)
 - [x] Point blank shots register: a blocked muzzle path starts the projectile at the view origin (G03)
 - [x] Muzzle flash and impact sparks with short lived lights on the projectile weapons and the rail aim, tunable under Shot Feedback (G03)
-- [ ] Weapon data asset for damage and refire, the rail aim component still carries pistol values
+- [x] Pistol and scattergun with magazine, reload, empty click, switching and their own handling (G04)
+- [x] Impact decals on world surfaces (G04)
+- [x] Weapon data asset for damage and refire, the rail aim component still carries pistol values (G04)
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies
 - [ ] Torch fire light attracts enemies
 - [ ] Torch self destruction roll with heat bonus and hiss warning
 - [ ] Torch radial damage on detonation
+- [x] Overclock: charge from clean hits, held input, world dilation with a separate player scale, locked where precision counts (G04)
 - [ ] Overclock time dilation, diegetic, coupled to the HOLD trigger
 
 ## Enemies
@@ -77,6 +86,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Crosshair overlay WBP_RailCrosshair drawn at the aim position (G03)
 - [x] Settings menu WBP_SettingsMenu: preset, every graphics option, reset, apply, live frame rate, F10 in every level (G03)
 - [x] Measured cost per option and the GPU frame time in the settings menu readout (G03)
+- [x] Main menu with level selection, startup flow and a pause menu (G03)
+- [x] Style HUD: rank, meter, combo, style events, ammunition with the empty cue, Overclock charge (G04)
+- [x] End of run summaries add style, accuracy, best combo, controlled pairs, headshots, rescues and penalties (G04)
 - [ ] Settings menu key as a rebindable Enhanced Input action
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
