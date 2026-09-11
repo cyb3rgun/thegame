@@ -16,6 +16,12 @@ class CYB3RGUN_API UCyberSettingsSubsystem : public UGameInstanceSubsystem, publ
 {
 	GENERATED_BODY()
 
+	/** The engine was still initialising when the subsystem started, so the settings apply on the first tick */
+	bool bApplyOnFirstTick = false;
+
+	/** Applies the settings in full once the engine runs, and saves them in a standalone game */
+	void ApplyWhenEngineReady(class UCyberGameUserSettings* Settings);
+
 public:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;

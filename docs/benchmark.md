@@ -227,7 +227,20 @@ With both occlusion passes off, Lumen Lite costs what one would expect. The two 
 
 ## Recommended defaults
 
-These recommendations are not applied. The preset table in `UCyberGameUserSettings::GetPresetFeatures` keeps its original values, except that Low has Nanite off because of the crash above. Each change below is a default, so it waits for a decision (D-026).
+These defaults were adopted in G03-B03 (D-030) and are now the preset table in `UCyberGameUserSettings::GetPresetFeatures`. Where the decisions go further than the recommendations, the decisions win: Ultra runs at native resolution without upscaling (D-028), the engine's Cine level only lives in the Cinematic preset (D-029), and hardware detection stops at High on displays above 4 megapixels (D-031). None of the new presets has been measured yet; that belongs to the night run (D-032).
+
+### Applied preset table
+
+| Preset | Scalability | MegaLights | Global illumination | Virtual shadow maps | Volumetric fog | Anti aliasing | Nanite | Effects | View distance | Motion blur |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Low | 0 | Off | Off | Off | Off | TSR Performance | Off | Low | Near | Off |
+| Medium | 1 | Off | Lumen Lite | Low | Off | TSR Balanced | Off | Medium | Medium | Off |
+| High, the default | 2 | On | Lumen | High | Low | TSR Quality | Off | Epic | Epic | Off |
+| Epic | 3 | On | Lumen | Epic | Medium | TSR Quality | Off | Epic | Epic | Off |
+| Ultra | 3 | On | Lumen | Epic | Medium | TSR Native | On | Epic | Epic | Off |
+| Cinematic, capture only | 4, Cine | On | Lumen | Epic | High | TSR Native | On | Epic | Epic | On |
+
+Both experimental switches are off in every preset. Epic keeps Virtual Shadow Maps at Epic, following the verdict below that Epic only costs more than it gives beneath the Epic preset. Cinematic keeps motion blur because it is meant for footage. Saves from before this table reset to the new preset defaults once, through a settings version bump.
 
 ### Default preset
 

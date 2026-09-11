@@ -2,6 +2,7 @@
 
 #include "CyberSettingsSubsystem.h"
 #include "CyberGameUserSettings.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -18,17 +19,40 @@ void UCyberSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		return;
 	}
 
-	// a standalone game already applied everything at startup; play in the editor only applies the rendering side, never the window
-	if (GIsEditor)
+	// The engine applies the scalability groups saved in GameUserSettings.ini during its own start, and UGameUserSettings
+	// skips scalability while the engine initialises, so a preset changed by a settings migration or the first run
+	// hardware detection would otherwise run on the old groups for a whole session. The settings are applied once the
+	// engine is up; play in the editor only ever applies the rendering side, never the window.
+	if (GEngine && GEngine->IsInitialized())
 	{
-		Settings->ApplyNonResolutionSettings();
+		ApplyWhenEngineReady(Settings);
+	}
+	else
+	{
+		bApplyOnFirstTick = true;
+	}
+}
+
+void UCyberSettingsSubsystem::ApplyWhenEngineReady(UCyberGameUserSettings* Settings)
+{
+	Settings->ApplyNonResolutionSettings();
+
+	// a standalone game saves right away, so the saved groups, the preset and the settings version stay in step
+	if (!GIsEditor)
+	{
+		Settings->SaveSettings();
 	}
 }
 
 void UCyberSettingsSubsystem::Tick(float DeltaTime)
 {
-	if (const UCyberGameUserSettings* Settings = UCyberGameUserSettings::Get())
+	if (UCyberGameUserSettings* Settings = UCyberGameUserSettings::Get())
 	{
+		if (bApplyOnFirstTick)
+		{
+			bApplyOnFirstTick = false;
+			ApplyWhenEngineReady(Settings);
+		}
 		Settings->ApplyFieldOfView(GetTickableGameObjectWorld());
 	}
 }

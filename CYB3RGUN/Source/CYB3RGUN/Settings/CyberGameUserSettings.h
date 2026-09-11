@@ -69,6 +69,12 @@ public:
 
 	static FString GetPresetName(ECyberQualityPreset Preset);
 
+	/** Hardware detection stops at High on displays above 4 megapixels (D-031); the player can still raise it */
+	static ECyberQualityPreset CapPresetForDisplay(ECyberQualityPreset Preset, const FIntPoint& Display);
+
+	/** Where a fresh start and Reset to defaults begin: the capped detected preset, or High before any detection */
+	ECyberQualityPreset GetStartingPreset() const;
+
 	/** Selects a preset and resets every feature to its defaults. Leaves the experimental options off below Ultra and Cinematic. */
 	void SetQualityPreset(ECyberQualityPreset Preset);
 

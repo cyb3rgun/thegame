@@ -14,8 +14,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogCyberSettings, Log, All);
 
 namespace CyberSettings
 {
-	/** Bump when the saved layout changes; older saves reset to defaults */
-	constexpr int32 CurrentVersion = 1;
+	/** Bump when the saved layout or the preset table changes; older saves reset to the preset defaults. 2: G03-B03 presets */
+	constexpr int32 CurrentVersion = 2;
+
+	/** Above this many desktop pixels hardware detection stops at High (D-031) */
+	constexpr int64 LargeDisplayPixels = 4000000;
 
 	/** Startup only engine switches live in this engine config section */
 	const TCHAR* StartupSection = TEXT("ConsoleVariables");
@@ -98,32 +101,36 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.VirtualShadowMaps = ECyberShadowQuality::Low;
 		F.VolumetricFog = ECyberFogQuality::Off;
 		F.AntiAliasing = ECyberAntiAliasing::TSRBalanced;
-		F.bNanite = true;
+		// Nanite stays off until real production geometry exists: on the placeholder content it only costs time
+		F.bNanite = false;
 		F.EffectsQuality = 1;
 		F.ViewDistanceQuality = 1;
 		F.bMotionBlur = false;
 		break;
 	case ECyberQualityPreset::High:
-		F.bMegaLights = false;
+		// the default preset (D-030, run 4 in docs/benchmark.md): MegaLights improves the 1 percent low, TSR Quality
+		// is cheaper than native without anti aliasing, effects and view distance Epic cost nothing measurable
+		F.bMegaLights = true;
 		F.GlobalIllumination = ECyberGIMode::Lumen;
 		F.VirtualShadowMaps = ECyberShadowQuality::High;
 		F.VolumetricFog = ECyberFogQuality::Low;
 		F.AntiAliasing = ECyberAntiAliasing::TSRQuality;
-		F.bNanite = true;
-		F.EffectsQuality = 2;
-		F.ViewDistanceQuality = 2;
-		F.bMotionBlur = true;
+		F.bNanite = false;
+		F.EffectsQuality = 3;
+		F.ViewDistanceQuality = 3;
+		F.bMotionBlur = false;
 		break;
 	case ECyberQualityPreset::Epic:
 		F.bMegaLights = true;
 		F.GlobalIllumination = ECyberGIMode::Lumen;
 		F.VirtualShadowMaps = ECyberShadowQuality::Epic;
 		F.VolumetricFog = ECyberFogQuality::Medium;
-		F.AntiAliasing = ECyberAntiAliasing::TSRNative;
-		F.bNanite = true;
+		// TSR Native costs 6.5 ms more than Quality at 5120 x 1440; native resolution is left to Ultra
+		F.AntiAliasing = ECyberAntiAliasing::TSRQuality;
+		F.bNanite = false;
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
-		F.bMotionBlur = true;
+		F.bMotionBlur = false;
 		break;
 	case ECyberQualityPreset::Ultra:
 		// maximum game quality (D-028): everything on, native resolution without upscaling, Nanite with Virtual
@@ -170,6 +177,23 @@ int32 UCyberGameUserSettings::GetPresetScalabilityLevel(ECyberQualityPreset Pres
 	}
 }
 
+ECyberQualityPreset UCyberGameUserSettings::CapPresetForDisplay(ECyberQualityPreset Preset, const FIntPoint& Display)
+{
+	// the engine benchmark rates the GPU and knows nothing about the display: on the 7.4 megapixel development
+	// display it picked Epic, which ran at 36 fps while High ran at 74 (D-031)
+	const int64 Pixels = static_cast<int64>(Display.X) * static_cast<int64>(Display.Y);
+	if (Pixels > CyberSettings::LargeDisplayPixels && static_cast<int32>(Preset) > static_cast<int32>(ECyberQualityPreset::High))
+	{
+		return ECyberQualityPreset::High;
+	}
+	return Preset;
+}
+
+ECyberQualityPreset UCyberGameUserSettings::GetStartingPreset() const
+{
+	return bHardwareDetectionDone ? CapPresetForDisplay(DetectedPreset, GetDesktopResolution()) : ECyberQualityPreset::High;
+}
+
 FString UCyberGameUserSettings::GetPresetName(ECyberQualityPreset Preset)
 {
 	return FCyberSettingsOptions::GetValueLabel(ECyberSettingOption::Preset, static_cast<int32>(Preset)).ToString();
@@ -179,7 +203,7 @@ void UCyberGameUserSettings::SetToDefaults()
 {
 	Super::SetToDefaults();
 
-	QualityPreset = bHardwareDetectionDone ? DetectedPreset : ECyberQualityPreset::High;
+	QualityPreset = GetStartingPreset();
 	Features = GetPresetFeatures(QualityPreset);
 	FieldOfView = 90.0f;
 	bExperimentalNaniteSkinnedMeshes = false;
@@ -194,8 +218,13 @@ void UCyberGameUserSettings::ValidateSettings()
 
 	if (CyberSettingsVersion != CyberSettings::CurrentVersion)
 	{
-		UE_LOG(LogCyberSettings, Log, TEXT("Settings version %d is outdated, resetting CYB3RGUN settings"), CyberSettingsVersion);
-		QualityPreset = bHardwareDetectionDone ? DetectedPreset : ECyberQualityPreset::High;
+		// a detection taken before the display cap existed is capped now, so the new defaults start where they should
+		if (bHardwareDetectionDone)
+		{
+			DetectedPreset = CapPresetForDisplay(DetectedPreset, GetDesktopResolution());
+		}
+		QualityPreset = GetStartingPreset();
+		UE_LOG(LogCyberSettings, Log, TEXT("Settings version %d is outdated, resetting CYB3RGUN settings to the %s preset defaults"), CyberSettingsVersion, *GetPresetName(QualityPreset));
 		Features = GetPresetFeatures(QualityPreset);
 		FieldOfView = 90.0f;
 		bExperimentalNaniteSkinnedMeshes = false;
@@ -401,7 +430,7 @@ void UCyberGameUserSettings::SetState(const FCyberSettingsState& State, bool bAp
 FCyberSettingsState UCyberGameUserSettings::GetDefaultState() const
 {
 	FCyberSettingsState State = GetState();
-	State.Preset = bHardwareDetectionDone ? DetectedPreset : ECyberQualityPreset::High;
+	State.Preset = GetStartingPreset();
 	State.Features = GetPresetFeatures(State.Preset);
 	State.FrameRateLimit = 0.0f;
 	State.bVSync = false;
@@ -428,12 +457,15 @@ ECyberQualityPreset UCyberGameUserSettings::RunHardwareDetection()
 	}
 	const int32 Level = FMath::Clamp(FMath::RoundToInt(static_cast<float>(Sum) / UE_ARRAY_COUNT(Groups)), 0, 3);
 
-	DetectedPreset = static_cast<ECyberQualityPreset>(Level);
+	const ECyberQualityPreset Rated = static_cast<ECyberQualityPreset>(Level);
+	const FIntPoint Display = GetDesktopResolution();
+	DetectedPreset = CapPresetForDisplay(Rated, Display);
 	bHardwareDetectionDone = true;
 
-	UE_LOG(LogCyberSettings, Log, TEXT("Hardware detection: CPU index %.1f, GPU index %.1f, groups view %d aa %d shadow %d gi %d reflection %d post %d texture %d effects %d foliage %d shading %d, preset %s"),
+	UE_LOG(LogCyberSettings, Log, TEXT("Hardware detection: CPU index %.1f, GPU index %.1f, groups view %d aa %d shadow %d gi %d reflection %d post %d texture %d effects %d foliage %d shading %d, rated %s, display %d x %d, preset %s%s"),
 		LastCPUBenchmarkResult, LastGPUBenchmarkResult, Q.ViewDistanceQuality, Q.AntiAliasingQuality, Q.ShadowQuality, Q.GlobalIlluminationQuality,
-		Q.ReflectionQuality, Q.PostProcessQuality, Q.TextureQuality, Q.EffectsQuality, Q.FoliageQuality, Q.ShadingQuality, *GetPresetName(DetectedPreset));
+		Q.ReflectionQuality, Q.PostProcessQuality, Q.TextureQuality, Q.EffectsQuality, Q.FoliageQuality, Q.ShadingQuality, *GetPresetName(Rated),
+		Display.X, Display.Y, *GetPresetName(DetectedPreset), DetectedPreset != Rated ? TEXT(" (capped for a display above 4 megapixels)") : TEXT(""));
 
 	return DetectedPreset;
 }
