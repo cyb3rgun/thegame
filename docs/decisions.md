@@ -2,6 +2,22 @@
 
 Numbered newest first.
 
+## D-046 Feel is tuned by measured values in a data asset
+
+Hit stop, camera shake and slow motion are balanced through measured values in a data asset, never through constants scattered in code, so they can be tuned without a rebuild.
+
+## D-045 Cover is the reload trigger
+
+As in the arcade tradition, cover is where the weapon reloads. Reloading is a decision made under fire, not a button pressed in safety, and it gives the rail module its rhythm.
+
+## D-044 The style meter is the moral system
+
+Clean, disciplined shooting scores highest, and hitting a hostage or bystander collapses the meter instantly. The rule that innocents are never targets stops being a penalty line and becomes the core scoring loop.
+
+## D-043 Gun fu is built from mechanics only
+
+The gun fu style is built from mechanics, never from another work's expression. Genre, mood, palette, a shooting stance and the real Center Axis Relock technique are unprotected and free to use. Names, logos, characters, dialogue, specific set designs and any named hotel from an existing film are not, and never enter code, assets, filenames or marketing text. This is a house rule, not a preference.
+
 ## D-032 Long tests run at night
 
 Benchmarks and other long running tests never run during a working session. They are collected and executed in a dedicated night run briefing. Any piece that would occupy the machine for more than about a minute must be split out and named as such.
