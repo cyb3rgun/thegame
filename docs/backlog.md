@@ -27,6 +27,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Door module: draw timing bonus, waiting for the draw scores higher (G02)
 - [x] Door module: draw bonus decays with the closing window, a shot on a shutting door earns less (G02)
 - [x] Door module: hostile telegraph, rises from a crouch before it is shootable (G02)
+- [x] Door module: the telegraph is a pistol draw on a skeletal body, the crouch is gone (G03)
+- [x] Door module: night version Lvl_DoorRange_Night with moonlight, warm lanterns, volumetric fog and a graded post process (G03)
 - [ ] Door module: Western dressing (saloon doors)
 - [ ] Door module: Zombie dressing
 - [x] Encounter module: data driven waves with time, kill and signal triggers run by a director (G02)
@@ -34,6 +36,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] On rails module (open option): guided flight or drive with mass targets
 - [x] Rail module: spline route driven by its own distance clock, beats, holds and segment hand over (G03)
 - [x] Rail cover: hold to take cover, the ride waits, no firing, enemy hits do not land (G03)
+- [x] Rail test lit for night with route lanterns, fog and the door range grade (G03)
 - [ ] Rail branch selection beyond the first next segment
 - [ ] Rail fail state when the rider goes down
 - [ ] Rail camera turns toward the action of a beat
@@ -42,6 +45,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 
 - [x] Pistol placeholder from the first person template hooked to scoring (G02)
 - [x] Point blank shots register: a blocked muzzle path starts the projectile at the view origin (G03)
+- [x] Muzzle flash and impact sparks with short lived lights on the projectile weapons and the rail aim, tunable under Shot Feedback (G03)
 - [ ] Weapon data asset for damage and refire, the rail aim component still carries pistol values
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
@@ -56,6 +60,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Placeholder occupants: red spike hostile, green snowman friendly, distinct silhouettes (G02)
 - [x] Enemy base class with one damage entry point, data driven definitions and StateTree behaviour (G02)
 - [x] Undead shambler and sprinter placeholders built from engine shapes (G02)
+- [x] Skeletal bodies on the mannequin for door occupants, shambler and sprinter, friend and foe told apart by posture, scale and material (G03)
 - [ ] Player death and respawn on encounter levels
 - [ ] Mass Entity switch for crowd sized enemy counts
 - [ ] Undead standard horde
@@ -97,6 +102,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Resolution scale up to 200 percent with supersampling, Ultra and Cinematic (G03)
 - [x] GPU, driver and resolution in every benchmark result line (G03)
 - [x] Night benchmark prepared: Bench.Suite night and tools/night_benchmark.ps1, not run (G03)
+- [x] Blockout materials: M_Surface and its instances in Core/Materials on floors, walls, doors, crates and posts (G03)
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
