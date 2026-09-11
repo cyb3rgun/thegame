@@ -51,7 +51,8 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Settings",
 			"CYB3RGUN/UI",
 			"CYB3RGUN/Benchmark",
-			"CYB3RGUN/VFX"
+			"CYB3RGUN/VFX",
+			"CYB3RGUN/Menu"
 		});
 
 		// Uncomment if you are using Slate UI
