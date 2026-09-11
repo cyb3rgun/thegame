@@ -2,6 +2,7 @@
 
 #include "DoorRangeHUD.h"
 #include "DoorRangeGameMode.h"
+#include "CyberText.h"
 #include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -206,17 +207,17 @@ void UDoorRangeHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void UDoorRangeHUD::HandleScoreChanged(int32 Score, int32 Delta)
 {
-	SetTextSafe(ScoreText, FText::Format(LOCTEXT("ScoreFormat", "SCORE {0}"), FText::AsNumber(Score)));
+	SetTextSafe(ScoreText, FText::Format(LOCTEXT("ScoreFormat", "SCORE {0}"), FCyberText::Int(Score)));
 }
 
 void UDoorRangeHUD::HandleWaveChanged(int32 Wave, int32 WaveCount)
 {
-	SetTextSafe(WaveText, FText::Format(LOCTEXT("WaveFormat", "WAVE {0} / {1}"), FText::AsNumber(Wave), FText::AsNumber(WaveCount)));
+	SetTextSafe(WaveText, FText::Format(LOCTEXT("WaveFormat", "WAVE {0} / {1}"), FCyberText::Int(Wave), FCyberText::Int(WaveCount)));
 }
 
 void UDoorRangeHUD::HandleHostilesChanged(int32 Remaining, int32 Total)
 {
-	SetTextSafe(HostilesText, FText::Format(LOCTEXT("HostilesFormat", "HOSTILES LEFT {0} / {1}"), FText::AsNumber(Remaining), FText::AsNumber(Total)));
+	SetTextSafe(HostilesText, FText::Format(LOCTEXT("HostilesFormat", "HOSTILES LEFT {0} / {1}"), FCyberText::Int(Remaining), FCyberText::Int(Total)));
 }
 
 void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSlot* SourceSlot)
@@ -224,22 +225,22 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 	switch (Event)
 	{
 	case EDoorRangeEvent::HostileHit:
-		ShowEvent(FText::Format(LOCTEXT("HostileHit", "HOSTILE DOWN  +{0}"), FText::AsNumber(Delta)), ColorGood);
+		ShowEvent(FText::Format(LOCTEXT("HostileHit", "HOSTILE DOWN  +{0}"), FCyberText::Int(Delta)), ColorGood);
 		break;
 	case EDoorRangeEvent::FriendlyHit:
-		ShowEvent(FText::Format(LOCTEXT("FriendlyHit", "FRIENDLY HIT  {0}"), FText::AsNumber(Delta)), ColorBad);
+		ShowEvent(FText::Format(LOCTEXT("FriendlyHit", "FRIENDLY HIT  {0}"), FCyberText::Int(Delta)), ColorBad);
 		break;
 	case EDoorRangeEvent::HostileEscaped:
-		ShowEvent(FText::Format(LOCTEXT("HostileEscaped", "HOSTILE ESCAPED  {0}"), FText::AsNumber(Delta)), ColorWarn);
+		ShowEvent(FText::Format(LOCTEXT("HostileEscaped", "HOSTILE ESCAPED  {0}"), FCyberText::Int(Delta)), ColorWarn);
 		break;
 	case EDoorRangeEvent::HostageRescued:
-		ShowEvent(FText::Format(LOCTEXT("HostageRescued", "HOSTAGE FREED  +{0}"), FText::AsNumber(Delta)), ColorGood);
+		ShowEvent(FText::Format(LOCTEXT("HostageRescued", "HOSTAGE FREED  +{0}"), FCyberText::Int(Delta)), ColorGood);
 		break;
 	case EDoorRangeEvent::HostageHit:
-		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FText::AsNumber(Delta)), ColorBad);
+		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FCyberText::Int(Delta)), ColorBad);
 		break;
 	case EDoorRangeEvent::WaveStarted:
-		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FText::AsNumber(Delta)), ColorNeutral);
+		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FCyberText::Int(Delta)), ColorNeutral);
 		if (SummaryPanel)
 		{
 			SummaryPanel->SetVisibility(ESlateVisibility::Collapsed);
@@ -254,8 +255,8 @@ void UDoorRangeHUD::HandleRangeFinished(const FDoorRangeStats& Stats)
 {
 	const FText RangeSummary = FText::Format(
 		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nHostiles escaped {3}\nFriendlies hit {4}\nHostages freed {5}, hit {6}"),
-		FText::AsNumber(Stats.FinalScore), FText::AsNumber(Stats.HostilesHit), FText::AsNumber(Stats.HostilesTotal),
-		FText::AsNumber(Stats.HostilesEscaped), FText::AsNumber(Stats.FriendliesHit), FText::AsNumber(Stats.HostagesRescued), FText::AsNumber(Stats.HostagesHit));
+		FCyberText::Int(Stats.FinalScore), FCyberText::Int(Stats.HostilesHit), FCyberText::Int(Stats.HostilesTotal),
+		FCyberText::Int(Stats.HostilesEscaped), FCyberText::Int(Stats.FriendliesHit), FCyberText::Int(Stats.HostagesRescued), FCyberText::Int(Stats.HostagesHit));
 
 	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), RangeSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
 	UStyleHUDWidget::LogSummary(Summary);

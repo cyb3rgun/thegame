@@ -3,6 +3,7 @@
 #include "EncounterHUD.h"
 #include "EncounterDirector.h"
 #include "CyberEnemy.h"
+#include "CyberText.h"
 #include "EnemyDefinition.h"
 #include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -202,8 +203,8 @@ void UEncounterHUD::HandleWaveStarted(int32 Wave, int32 WaveCount, FText WaveNam
 		return;
 	}
 
-	SetTextSafe(WaveText, FText::Format(LOCTEXT("WaveFormat", "WAVE {0} / {1}  {2}"), FText::AsNumber(Wave), FText::AsNumber(WaveCount), WaveName));
-	ShowEvent(FText::Format(LOCTEXT("WaveEvent", "WAVE {0}  {1}"), FText::AsNumber(Wave), WaveName), EncounterColorNeutral);
+	SetTextSafe(WaveText, FText::Format(LOCTEXT("WaveFormat", "WAVE {0} / {1}  {2}"), FCyberText::Int(Wave), FCyberText::Int(WaveCount), WaveName));
+	ShowEvent(FText::Format(LOCTEXT("WaveEvent", "WAVE {0}  {1}"), FCyberText::Int(Wave), WaveName), EncounterColorNeutral);
 	if (SummaryPanel)
 	{
 		SummaryPanel->SetVisibility(ESlateVisibility::Collapsed);
@@ -212,8 +213,8 @@ void UEncounterHUD::HandleWaveStarted(int32 Wave, int32 WaveCount, FText WaveNam
 
 void UEncounterHUD::HandleCountsChanged(int32 Alive, int32 Kills, int32 Total)
 {
-	SetTextSafe(AliveText, FText::Format(LOCTEXT("AliveFormat", "ALIVE {0}"), FText::AsNumber(Alive)));
-	SetTextSafe(KillsText, FText::Format(LOCTEXT("KillsFormat", "KILLS {0} / {1}"), FText::AsNumber(Kills), FText::AsNumber(Total)));
+	SetTextSafe(AliveText, FText::Format(LOCTEXT("AliveFormat", "ALIVE {0}"), FCyberText::Int(Alive)));
+	SetTextSafe(KillsText, FText::Format(LOCTEXT("KillsFormat", "KILLS {0} / {1}"), FCyberText::Int(Kills), FCyberText::Int(Total)));
 }
 
 void UEncounterHUD::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
@@ -224,7 +225,7 @@ void UEncounterHUD::HandleEnemyKilled(ACyberEnemy* Enemy, int32 Kills)
 
 void UEncounterHUD::HandleFinished(int32 Kills, float Seconds)
 {
-	const FText EncounterSummary = FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FText::AsNumber(Kills), FText::AsNumber(FMath::RoundToInt(Seconds)));
+	const FText EncounterSummary = FText::Format(LOCTEXT("SummaryFormat", "ENCOUNTER COMPLETE\n\nKills {0}\nTime {1} s"), FCyberText::Int(Kills), FCyberText::Int(FMath::RoundToInt(Seconds)));
 	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), EncounterSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
 	UStyleHUDWidget::LogSummary(Summary);
 	ShowSummary(Summary);

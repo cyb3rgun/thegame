@@ -3,6 +3,7 @@
 #include "StyleHUDWidget.h"
 #include "CombatFeelSubsystem.h"
 #include "CyberMenuStyle.h"
+#include "CyberText.h"
 #include "StyleSettings.h"
 #include "WeaponStatus.h"
 #include "Blueprint/WidgetTree.h"
@@ -95,8 +96,8 @@ FText UStyleHUDWidget::FormatRunSummary(APlayerController* Player)
 
 	const FStyleRunStats& Stats = Style->GetStats();
 	return FText::Format(LOCTEXT("RunSummary", "STYLE {0}   BEST RANK {1}\nAccuracy {2}%   Best combo {3}\nControlled pairs {4}   Headshots {5}\nRescues {6}   Penalties {7}"),
-		FText::AsNumber(Stats.StylePoints), UStyleSettings::Get(Player)->GetRankLabel(Stats.PeakMeter), FText::AsNumber(FMath::RoundToInt(Stats.GetAccuracy() * 100.0f)),
-		FText::AsNumber(Stats.BestCombo), FText::AsNumber(Stats.ControlledPairs), FText::AsNumber(Stats.Headshots), FText::AsNumber(Stats.Rescues), FText::AsNumber(Stats.Penalties));
+		FCyberText::Int(Stats.StylePoints), UStyleSettings::Get(Player)->GetRankLabel(Stats.PeakMeter), FCyberText::Int(FMath::RoundToInt(Stats.GetAccuracy() * 100.0f)),
+		FCyberText::Int(Stats.BestCombo), FCyberText::Int(Stats.ControlledPairs), FCyberText::Int(Stats.Headshots), FCyberText::Int(Stats.Rescues), FCyberText::Int(Stats.Penalties));
 }
 
 void UStyleHUDWidget::LogSummary(const FText& Summary)
@@ -234,9 +235,7 @@ void UStyleHUDWidget::HandleStyleEvent(EStyleEvent Event, int32 Points, AActor* 
 		return;
 	}
 
-	FNumberFormattingOptions Signed;
-	Signed.SetAlwaysSign(true);
-	const FText Part = Points != 0 ? FText::Format(LOCTEXT("EventPoints", "{0} {1}"), Label, FText::AsNumber(Points, &Signed)) : Label;
+	const FText Part = Points != 0 ? FText::Format(LOCTEXT("EventPoints", "{0} {1}"), Label, FCyberText::Signed(Points)) : Label;
 
 	// the events of one shot arrive in the same frame and share the line
 	const double Now = FPlatformTime::Seconds();
@@ -280,11 +279,8 @@ void UStyleHUDWidget::UpdateStyle(double WallNow)
 	const float Pop = FMath::Clamp(1.0f - static_cast<float>(WallNow - RankPopAt) / 0.25f, 0.0f, 1.0f);
 	RankText->SetRenderScale(FVector2D(1.0f + 0.15f * Pop));
 
-	FNumberFormattingOptions OneDecimal;
-	OneDecimal.SetMinimumFractionalDigits(1);
-	OneDecimal.SetMaximumFractionalDigits(1);
-	StyleText->SetText(FText::Format(LOCTEXT("StylePoints", "STYLE {0}"), FText::AsNumber(Style->GetStats().StylePoints)));
-	ComboText->SetText(FText::Format(LOCTEXT("Combo", "x{0}  COMBO {1}"), FText::AsNumber(Style->GetMultiplier(), &OneDecimal), FText::AsNumber(Style->GetCombo())));
+	StyleText->SetText(FText::Format(LOCTEXT("StylePoints", "STYLE {0}"), FCyberText::Int(Style->GetStats().StylePoints)));
+	ComboText->SetText(FText::Format(LOCTEXT("Combo", "x{0}  COMBO {1}"), FCyberText::Fixed(Style->GetMultiplier(), 1), FCyberText::Int(Style->GetCombo())));
 
 	const float EventAge = static_cast<float>(WallNow - EventShownAt);
 	EventText->SetRenderOpacity(FMath::Clamp(1.0f - (EventAge - EventHoldSeconds) / 0.5f, 0.0f, 1.0f));
@@ -308,7 +304,7 @@ void UStyleHUDWidget::UpdateWeapon(double RealTime)
 	}
 
 	WeaponText->SetVisibility(ESlateVisibility::HitTestInvisible);
-	WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FText::AsNumber(Status.Rounds), FText::AsNumber(Status.MagazineSize)));
+	WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FCyberText::Int(Status.Rounds), FCyberText::Int(Status.MagazineSize)));
 	const FLinearColor WeaponColor = Status.Rounds == 0 ? StyleHudLook::Alarm : (Status.bSwitching ? FCyberMenuStyle::DimTextColor : FCyberMenuStyle::TextColor);
 	WeaponText->SetColorAndOpacity(FSlateColor(WeaponColor));
 
@@ -358,7 +354,7 @@ void UStyleHUDWidget::UpdateOverclock(double WallNow)
 	}
 	else
 	{
-		OverclockText->SetText(FText::Format(LOCTEXT("OverclockCharge", "OVERCLOCK {0}%"), FText::AsNumber(FMath::RoundToInt(Feel->GetOverclockFraction() * 100.0f))));
+		OverclockText->SetText(FText::Format(LOCTEXT("OverclockCharge", "OVERCLOCK {0}%"), FCyberText::Int(FMath::RoundToInt(Feel->GetOverclockFraction() * 100.0f))));
 		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor));
 		OverclockText->SetRenderOpacity(1.0f);
 	}

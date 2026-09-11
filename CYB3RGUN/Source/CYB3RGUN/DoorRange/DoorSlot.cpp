@@ -151,7 +151,6 @@ ADoorSlot::ADoorSlot()
 void ADoorSlot::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	AttachHostileSet();
 	ApplyLookMaterials();
 	ApplyBodyScale();
 }
@@ -179,7 +178,6 @@ void ADoorSlot::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AttachHostileSet();
 	ApplyLookMaterials();
 
 	HideOccupant();
@@ -314,23 +312,26 @@ void ADoorSlot::ApplyHostileLayout(bool bTaker)
 	HostileRoot->SetRelativeScale3D(FVector(Scale));
 }
 
-void ADoorSlot::AttachHostileSet()
+int32 ADoorSlot::RepairHostileSet(bool bFix)
 {
-	// slots placed in a level before the hostile root existed load with their parts still on the occupant root
+	// slots placed in a level before the hostile root existed saved their parts on the occupant root. DoorRange.RepairSlots fix
+	// moves them in the editor so the level is saved right; nothing repairs them at run time
 	USceneComponent* const Parts[] = { HostileMesh, HostileBody, HostileArms, HostileHead };
-	int32 Moved = 0;
+	int32 Stale = 0;
 	for (USceneComponent* Part : Parts)
 	{
 		if (Part && Part->GetAttachParent() != HostileRoot)
 		{
-			Part->AttachToComponent(HostileRoot, FAttachmentTransformRules::KeepRelativeTransform);
-			++Moved;
+			++Stale;
+			if (bFix)
+			{
+				Modify();
+				Part->Modify();
+				Part->AttachToComponent(HostileRoot, FAttachmentTransformRules::KeepRelativeTransform);
+			}
 		}
 	}
-	if (Moved > 0)
-	{
-		UE_LOG(LogDoorSlot, Log, TEXT("%s: %d hostile parts moved under the hostile root"), *GetName(), Moved);
-	}
+	return Stale;
 }
 
 float ADoorSlot::GetExposureFraction() const

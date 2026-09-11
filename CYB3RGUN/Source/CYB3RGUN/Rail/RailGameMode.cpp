@@ -2,6 +2,7 @@
 
 #include "RailGameMode.h"
 #include "RailAimComponent.h"
+#include "CyberText.h"
 #include "RailCrosshairWidget.h"
 #include "RailPawn.h"
 #include "StyleHUDWidget.h"
@@ -223,9 +224,9 @@ void ARailGameMode::HandleRideFinished(float TotalDistance, float Seconds)
 		HostagesRescued, HostagesHit, HostagesLost);
 
 	const FText RouteSummary = FText::Format(LOCTEXT("RouteComplete", "ROUTE COMPLETE\n\nDistance {0} m\nTime {1} s\nKills {2}\nHits {3} / {4}\nHostages freed {5} / {6}"),
-		FText::AsNumber(FMath::RoundToInt(TotalDistance / 100.0f)), FText::AsNumber(FMath::RoundToInt(Seconds)),
-		FText::AsNumber(TotalKills), FText::AsNumber(Hits), FText::AsNumber(Shots),
-		FText::AsNumber(HostagesRescued), FText::AsNumber(HostagesRescued + HostagesHit + HostagesLost));
+		FCyberText::Int(FMath::RoundToInt(TotalDistance / 100.0f)), FCyberText::Int(FMath::RoundToInt(Seconds)),
+		FCyberText::Int(TotalKills), FCyberText::Int(Hits), FCyberText::Int(Shots),
+		FCyberText::Int(HostagesRescued), FCyberText::Int(HostagesRescued + HostagesHit + HostagesLost));
 	const FText Summary = FText::Format(LOCTEXT("RouteWithStyle", "{0}\n\n{1}"), RouteSummary, UStyleHUDWidget::FormatRunSummary(GetWorld()->GetFirstPlayerController()));
 	UStyleHUDWidget::LogSummary(Summary);
 

@@ -4,6 +4,7 @@
 #include "DoorRangeGameMode.h"
 #include "DoorSlot.h"
 #include "DoorRangeSettings.h"
+#include "EngineUtils.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -214,6 +215,27 @@ static FAutoConsoleCommandWithWorld GDoorRangeStatusCommand(
 		{
 			UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Status: no door range game mode in this world"));
 		}
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GDoorRangeRepairSlotsCommand(
+	TEXT("DoorRange.RepairSlots"),
+	TEXT("Counts door slot hostile parts saved outside the hostile root. With the argument fix it moves them and marks the level for saving."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		const bool bFix = Args.Num() > 0 && Args[0].Equals(TEXT("fix"), ESearchCase::IgnoreCase);
+		int32 Slots = 0;
+		int32 Stale = 0;
+		for (TActorIterator<ADoorSlot> It(World); It; ++It)
+		{
+			const int32 SlotStale = It->RepairHostileSet(bFix);
+			if (SlotStale > 0)
+			{
+				UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.RepairSlots: %s has %d hostile parts outside the hostile root"), *It->GetName(), SlotStale);
+			}
+			Stale += SlotStale;
+			++Slots;
+		}
+		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.RepairSlots: %d slots in %s, %d stale hostile parts, %s"), Slots, *GetNameSafe(World), Stale, bFix ? TEXT("moved") : TEXT("checked only"));
 	}));
 
 static FAutoConsoleCommandWithWorld GDoorRangeRestartCommand(

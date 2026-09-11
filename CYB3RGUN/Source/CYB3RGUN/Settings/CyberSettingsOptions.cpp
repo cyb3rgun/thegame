@@ -2,6 +2,7 @@
 
 #include "CyberSettingsOptions.h"
 #include "CyberGameUserSettings.h"
+#include "CyberText.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 #define LOCTEXT_NAMESPACE "CyberSettingsOptions"
@@ -201,7 +202,7 @@ FText FCyberSettingsOptions::GetValueLabel(ECyberSettingOption Option, int32 Ind
 	case ECyberSettingOption::FrameRateCap:
 	{
 		const float Cap = GetFrameRateCaps()[Index];
-		return Cap <= 0.0f ? LOCTEXT("Unlimited", "Unlimited") : FText::AsNumber(FMath::RoundToInt(Cap));
+		return Cap <= 0.0f ? LOCTEXT("Unlimited", "Unlimited") : FCyberText::Int(FMath::RoundToInt(Cap));
 	}
 	case ECyberSettingOption::Resolution:
 	{

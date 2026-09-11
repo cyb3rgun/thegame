@@ -69,9 +69,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
 	int32 ControlledPairBonus = 80;
 
-	/** Seconds between two hits on one target that still make a controlled pair */
+	/** Seconds between two hits on one target that still make a controlled pair. The pistol cycles in 0.18 s, so the window
+	 *  asks for a deliberate double tap, while steady single shots about 0.3 s apart no longer count as a pair */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0.05, ClampMax = 2.0, Units = "s"))
-	float ControlledPairWindow = 0.4f;
+	float ControlledPairWindow = 0.25f;
 
 	/** Points for freeing a hostage */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
@@ -125,12 +126,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0))
 	float MeterAfterPenalty = 0.0f;
 
-	/** Seconds without a clean action before the meter starts to drain */
+	/** Seconds without a clean action before the meter starts to drain. Longer than the pause between door range waves, so the
+	 *  meter carries from one wave into the next */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0, Units = "s"))
-	float MeterDecayDelay = 2.5f;
+	float MeterDecayDelay = 4.0f;
 
+	/** Drain once the hold has run out. A full meter takes more than a minute to empty, a lull costs a little, not the rank */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0))
-	float MeterDecayPerSecond = 4.0f;
+	float MeterDecayPerSecond = 1.5f;
 
 	/** Named bands of the meter, lowest threshold first */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter")

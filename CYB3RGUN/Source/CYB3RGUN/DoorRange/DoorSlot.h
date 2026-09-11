@@ -249,6 +249,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetOccupantHeadPoint() const;
 
+	/** Counts the hostile parts that are not under the hostile root: slots saved before it existed carry them on the occupant
+	 *  root. With bFix it moves them there and marks the slot modified, so the level can be saved with the right attachment. */
+	int32 RepairHostileSet(bool bFix);
+
 	/** World position of a hostage taker's hostage, its chest */
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetHostageAimPoint() const;
@@ -295,6 +299,4 @@ protected:
 	/** Moves the hostile set behind the hostage for a hostage taker, or back to the front */
 	void ApplyHostileLayout(bool bTaker);
 
-	/** Puts the hostile body and its volumes under the hostile root, also on slots saved before it existed */
-	void AttachHostileSet();
 };
