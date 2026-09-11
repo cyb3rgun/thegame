@@ -2,6 +2,34 @@
 
 Numbered newest first.
 
+## D-057 In game numbers use invariant formatting
+
+All numbers shown in the game use invariant formatting. The editor's German locale rendered the style multiplier as "x1,0"; a number the player reads must never depend on the machine's locale.
+
+## D-056 The 3R mark is the in game manufacturer
+
+The 3R mark identifies the in game manufacturer of our own weapons. It appears on the weapon itself, in the weapon menu beside the name, and as world dressing. The CYB3RGUN mark is the product brand, the 3R mark is the fiction's brand, and neither ever substitutes for the other.
+
+## D-051 The holographic HUD is diegetic
+
+The holographic treatment is diegetic: the weapon projects the HUD, so it flickers, carries scanlines and glitches under damage. It is a property of the fiction, not a filter laid over the screen.
+
+## D-050 Disarming is the highest skill shot
+
+Hitting the weapon or the weapon arm removes the threat without killing, and it scores above a kill, because the product's rule is that force is the last option.
+
+## D-049 Hit location matters
+
+A shot resolves per bone, with a damage multiplier and a distinct reaction per zone. A simulator where every hit does the same thing is not a simulator.
+
+## D-048 The crosshair is the logo
+
+The ring of the logo is the reticle and the arc around it is the gauge, so the player looks at the brand for the whole session without a logo pasted anywhere. It keeps the arcade shrinking reticle: the ring tightens and shifts from cyan to red while a hostile draws.
+
+## D-047 One brand colour, defined once
+
+The brand colour is the logo cyan, hex 009FE3, defined once as a project wide parameter and never typed as a literal. Magenta is the counter colour, and red is reserved for danger and penalties. One source of truth makes a rebrand a single edit.
+
 ## D-046 Feel is tuned by measured values in a data asset
 
 Hit stop, camera shake and slow motion are balanced through measured values in a data asset, never through constants scattered in code, so they can be tuned without a rebuild.
@@ -17,6 +45,30 @@ Clean, disciplined shooting scores highest, and hitting a hostage or bystander c
 ## D-043 Gun fu is built from mechanics only
 
 The gun fu style is built from mechanics, never from another work's expression. Genre, mood, palette, a shooting stance and the real Center Axis Relock technique are unprotected and free to use. Names, logos, characters, dialogue, specific set designs and any named hotel from an existing film are not, and never enter code, assets, filenames or marketing text. This is a house rule, not a preference.
+
+## D-038 The menu is a real scene
+
+The menu is a real scene, not a widget on a black screen: a lit 3D background with a slow camera move, the settings menu reachable from it, and the same post process treatment as the game.
+
+## D-037 Level selection is data
+
+Level selection runs through a data asset listing playable entries, not hard coded map names, so adding a scenario later is content work and not a code change.
+
+## D-036 The game boots into a main menu
+
+The game boots into a main menu, never into a level. A product that drops the player into a test map is not a product. The menu is the first thing anyone sees, so it carries the brand.
+
+## D-035 Friend or foe by posture, scale and material
+
+Silhouette still carries the friend or foe distinction (D-013). With bodies instead of shapes, the distinction moves to posture, scale and material, never colour alone.
+
+## D-034 Mannequin bodies replace placeholder primitives
+
+Placeholder primitives are replaced by the Epic mannequin skeletal mesh already present in the project. A real body with a skeleton reads as a game and a cone does not. It is the Epic standard skeleton, so any future animation source retargets onto it.
+
+## D-033 No purchased assets
+
+Everything comes from the engine, the project or free Epic content. The look must come from lighting, materials and post processing first, because that is where the biggest visual gain sits and it costs nothing.
 
 ## D-032 Long tests run at night
 
@@ -41,6 +93,18 @@ Ultra is a game preset, not a film preset. Ultra means maximum game quality: eve
 ## D-027 The Nanite gate stands
 
 Nanite only runs while Virtual Shadow Maps are on. Two of three processes crashed in the D3D12 renderer and every surviving lap hitched above 200 ms. It is a fix for a reproducible engine crash, revisited after an engine update.
+
+## D-026 Feature decisions come from measurements
+
+Feature decisions are made from measurements taken on this machine, never from documentation alone. Every feature gets a benchmark number before it becomes a default.
+
+## D-025 Heavy rendering features ship behind player options
+
+Every heavy rendering feature ships behind a player facing option. Nothing is excluded from the build because it is Beta; it is exposed on the highest preset and can be switched off. Options are what settings menus are for, and a proper menu also reads as a finished product.
+
+## D-024 Input asset prefixes join the conventions
+
+The asset prefixes IA_ (Input Action) and IMC_ (Input Mapping Context) join the conventions table. They are the engine standard and were already followed in practice.
 
 ## D-023 Rendering baseline
 
