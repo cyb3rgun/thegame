@@ -2,6 +2,30 @@
 
 Numbered newest first.
 
+## D-032 Long tests run at night
+
+Benchmarks and other long running tests never run during a working session. They are collected and executed in a dedicated night run briefing. Any piece that would occupy the machine for more than about a minute must be split out and named as such.
+
+## D-031 Hardware detection caps at High on large displays
+
+Hardware detection caps at High for displays above 4 megapixels, because detection placed the 7.4 megapixel development display on the old Epic at 36 fps while High delivers 74. The player can raise it at any time.
+
+## D-030 Defaults follow the measurements
+
+Defaults follow the measurements, never documentation or opinion.
+
+## D-029 Cinematic preset for capture
+
+A separate Cinematic preset carries the engine's Cine scalability level, clearly labelled as intended for screenshots and video capture rather than play. Nothing is removed, it is only named honestly.
+
+## D-028 Ultra is a game preset
+
+Ultra is a game preset, not a film preset. Ultra means maximum game quality: everything on, native resolution, no upscaling, Nanite on, Virtual Shadow Maps Epic, Lumen, MegaLights, fog and effects at their highest playable setting. The engine's Cine scalability level does not belong in a preset a player selects.
+
+## D-027 The Nanite gate stands
+
+Nanite only runs while Virtual Shadow Maps are on. Two of three processes crashed in the D3D12 renderer and every surviving lap hitched above 200 ms. It is a fix for a reproducible engine crash, revisited after an engine update.
+
 ## D-023 Rendering baseline
 
 Rendering baseline for later application: MegaLights (production ready in 5.8), Lumen Lite, TSR, Nanite for static geometry only. Nanite Skeletal Mesh and Nanite Foliage stay off, both are Beta with documented packaged build crashes. Not applied in this piece.
