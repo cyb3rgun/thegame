@@ -14,7 +14,9 @@ enum class EDoorOccupant : uint8
 {
 	Empty,
 	Hostile,
-	Friendly
+	Friendly,
+	/** A hostile machine behind a hostage, only a strip of it shows */
+	HostageTaker
 };
 
 /** Lifecycle of a single door slot. */
@@ -37,7 +39,9 @@ enum class EDoorRangeEvent : uint8
 	HostileDrawn,
 	WaveStarted,
 	WaveEnded,
-	RangeFinished
+	RangeFinished,
+	HostageRescued,
+	HostageHit
 };
 
 /** Pacing and mix for one wave. Later waves usually get shorter windows and more hostiles. */
@@ -73,6 +77,10 @@ struct FDoorWaveSettings
 	/** Maximum doors open at the same time */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ClampMin = 1, ClampMax = 12))
 	int32 VisibleDoors = 3;
+
+	/** Chance that this wave holds one hostage taker. It takes the place of a friendly, or of an empty door when there is none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float HostageTakerChance = 0.35f;
 };
 
 /** Everything a door slot needs to know for one opening. */
@@ -86,6 +94,10 @@ struct FDoorOpenParams
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UMaterialInterface> OccupantMaterial = nullptr;
+
+	/** Material on the hostage when the occupant is a hostage taker */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UMaterialInterface> HostageMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float OpenDuration = 0.4f;
@@ -138,6 +150,12 @@ struct FDoorRangeStats
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 FriendliesHit = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 HostagesRescued = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 HostagesHit = 0;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 WavesPlayed = 0;

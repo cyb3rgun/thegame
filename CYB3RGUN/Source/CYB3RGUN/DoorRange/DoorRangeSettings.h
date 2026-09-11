@@ -37,6 +37,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timing", meta = (ClampMin = 0.05, Units = "s"))
 	float CloseDuration = 0.4f;
 
+	/** A hostage taker stays up this many times the wave's exposure window, its small zone takes a careful shot */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timing", meta = (ClampMin = 0.5, ClampMax = 4.0))
+	float HostageTakerExposureScale = 1.5f;
+
 	/** Pause between waves */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timing", meta = (ClampMin = 0.0, Units = "s"))
 	float TimeBetweenWaves = 3.0f;
@@ -56,6 +60,10 @@ public:
 	/** Points lost when a hostile closes without being hit */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
 	int32 MissedHostilePenalty = 50;
+
+	/** Points for freeing a hostage, on top of the hostile hit */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
+	int32 HostageRescueScore = 250;
 
 	/** Material put on every slot of the hostile occupant body */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Occupants")

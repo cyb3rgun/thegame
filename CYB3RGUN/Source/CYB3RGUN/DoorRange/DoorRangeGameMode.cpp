@@ -176,8 +176,8 @@ void ADoorRangeGameMode::StartWave(int32 WaveNumber)
 	CurrentWave = WaveNumber;
 	BuildWaveQueue(Wave);
 
-	UE_LOG(LogDoorRange, Log, TEXT("Wave %d of %d starts: %d openings, %d hostiles, exposure %.2fs, cadence %.2fs"),
-		CurrentWave, GetWaveCount(), Wave.Openings, HostilesTotalThisWave, Wave.ExposureWindow, Wave.TimeBetweenOpenings);
+	UE_LOG(LogDoorRange, Log, TEXT("Wave %d of %d starts: %d openings, %d hostiles of which %d hostage takers, exposure %.2fs, cadence %.2fs"),
+		CurrentWave, GetWaveCount(), Wave.Openings, HostilesTotalThisWave, HostageTakersThisWave, Wave.ExposureWindow, Wave.TimeBetweenOpenings);
 
 	OnWaveChanged.Broadcast(CurrentWave, GetWaveCount());
 	OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
@@ -207,15 +207,31 @@ void ADoorRangeGameMode::BuildWaveQueue(const FDoorWaveSettings& Wave)
 		WaveQueue.Add(EDoorOccupant::Friendly);
 	}
 
+	// a rare hostage taker takes the place of one friendly, or of an empty door when the wave has none
+	HostageTakersThisWave = 0;
+	if (FMath::FRand() < Wave.HostageTakerChance)
+	{
+		int32 Index = WaveQueue.Find(EDoorOccupant::Friendly);
+		if (Index == INDEX_NONE)
+		{
+			Index = WaveQueue.Find(EDoorOccupant::Empty);
+		}
+		if (Index != INDEX_NONE)
+		{
+			WaveQueue[Index] = EDoorOccupant::HostageTaker;
+			HostageTakersThisWave = 1;
+		}
+	}
+
 	// Fisher-Yates shuffle
 	for (int32 i = WaveQueue.Num() - 1; i > 0; --i)
 	{
 		WaveQueue.Swap(i, FMath::RandRange(0, i));
 	}
 
-	HostilesTotalThisWave = Hostiles;
-	HostilesRemainingThisWave = Hostiles;
-	Stats.HostilesTotal += Hostiles;
+	HostilesTotalThisWave = Hostiles + HostageTakersThisWave;
+	HostilesRemainingThisWave = HostilesTotalThisWave;
+	Stats.HostilesTotal += HostilesTotalThisWave;
 }
 
 void ADoorRangeGameMode::TryOpenDoor()
@@ -266,6 +282,11 @@ void ADoorRangeGameMode::TryOpenDoor()
 	case EDoorOccupant::Friendly:
 		Params.OccupantMaterial = Cfg->FriendlyMaterial;
 		break;
+	case EDoorOccupant::HostageTaker:
+		Params.OccupantMaterial = Cfg->HostileMaterial;
+		Params.HostageMaterial = Cfg->FriendlyMaterial;
+		Params.ExposureWindow *= Cfg->HostageTakerExposureScale;
+		break;
 	default:
 		break;
 	}
@@ -299,12 +320,32 @@ void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, 
 		PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
 		break;
 	}
+	case EDoorOccupant::HostageTaker:
+	{
+		// the taker is down and its hostage free: a hostile hit and the rescue on top
+		const int32 Delta = Cfg->HitHostileScore + Cfg->HostageRescueScore;
+		++Stats.HostilesHit;
+		++Stats.HostagesRescued;
+		AddScore(Delta, FString::Printf(TEXT("Hostage freed on %s"), *Slot->GetName()));
+		OnRangeEvent.Broadcast(EDoorRangeEvent::HostageRescued, Delta, Slot);
+		PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
+		break;
+	}
 	case EDoorOccupant::Friendly:
 	{
+		// a hostage is hit like a friendly, the full penalty, and counted on its own
+		const bool bHostage = Slot->GetOccupant() == EDoorOccupant::HostageTaker;
 		const int32 Delta = -Cfg->HitFriendlyPenalty;
-		++Stats.FriendliesHit;
-		AddScore(Delta, FString::Printf(TEXT("Friendly hit on %s"), *Slot->GetName()));
-		OnRangeEvent.Broadcast(EDoorRangeEvent::FriendlyHit, Delta, Slot);
+		if (bHostage)
+		{
+			++Stats.HostagesHit;
+		}
+		else
+		{
+			++Stats.FriendliesHit;
+		}
+		AddScore(Delta, FString::Printf(TEXT("%s hit on %s"), bHostage ? TEXT("Hostage") : TEXT("Friendly"), *Slot->GetName()));
+		OnRangeEvent.Broadcast(bHostage ? EDoorRangeEvent::HostageHit : EDoorRangeEvent::FriendlyHit, Delta, Slot);
 		PlayEventSound(EDoorRangeEvent::FriendlyHit, Slot);
 		break;
 	}
@@ -317,15 +358,22 @@ void ADoorRangeGameMode::HandleSlotClosed(ADoorSlot* Slot, EDoorOccupant Occupan
 {
 	OpenDoors = FMath::Max(OpenDoors - 1, 0);
 
-	if (bRangeActive && Occupant == EDoorOccupant::Hostile && !bWasHit)
+	const bool bTaker = Occupant == EDoorOccupant::HostageTaker;
+	if (bRangeActive && (Occupant == EDoorOccupant::Hostile || bTaker) && !bWasHit)
 	{
 		const int32 Delta = -GetSettings()->MissedHostilePenalty;
 		++Stats.HostilesEscaped;
 		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
-		AddScore(Delta, FString::Printf(TEXT("Hostile escaped from %s"), *Slot->GetName()));
+		AddScore(Delta, FString::Printf(TEXT("%s escaped from %s"), bTaker ? TEXT("Hostage taker") : TEXT("Hostile"), *Slot->GetName()));
 		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
 		OnRangeEvent.Broadcast(EDoorRangeEvent::HostileEscaped, Delta, Slot);
 		PlayEventSound(EDoorRangeEvent::HostileEscaped, Slot);
+	}
+	else if (bRangeActive && bTaker)
+	{
+		// a hostage taker leaves the count when its door shuts, freed or with its hostage hit
+		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
+		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
 	}
 
 	if (bRangeActive && WaveQueue.IsEmpty() && OpenDoors == 0)
@@ -361,8 +409,8 @@ void ADoorRangeGameMode::FinishRange()
 	bRangeComplete = true;
 	Stats.FinalScore = Score;
 
-	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, escaped %d, friendlies hit %d, waves %d"),
-		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.WavesPlayed);
+	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, escaped %d, friendlies hit %d, hostages freed %d, hostages hit %d, waves %d"),
+		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.HostagesRescued, Stats.HostagesHit, Stats.WavesPlayed);
 
 	OnRangeEvent.Broadcast(EDoorRangeEvent::RangeFinished, Score, nullptr);
 	OnRangeFinished.Broadcast(Stats);

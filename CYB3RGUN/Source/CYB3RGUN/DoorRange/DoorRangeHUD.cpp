@@ -231,6 +231,12 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 	case EDoorRangeEvent::HostileEscaped:
 		ShowEvent(FText::Format(LOCTEXT("HostileEscaped", "HOSTILE ESCAPED  {0}"), FText::AsNumber(Delta)), ColorWarn);
 		break;
+	case EDoorRangeEvent::HostageRescued:
+		ShowEvent(FText::Format(LOCTEXT("HostageRescued", "HOSTAGE FREED  +{0}"), FText::AsNumber(Delta)), ColorGood);
+		break;
+	case EDoorRangeEvent::HostageHit:
+		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FText::AsNumber(Delta)), ColorBad);
+		break;
 	case EDoorRangeEvent::WaveStarted:
 		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FText::AsNumber(Delta)), ColorNeutral);
 		if (SummaryPanel)
@@ -246,9 +252,9 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 void UDoorRangeHUD::HandleRangeFinished(const FDoorRangeStats& Stats)
 {
 	const FText Summary = FText::Format(
-		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nHostiles escaped {3}\nFriendlies hit {4}"),
+		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nHostiles escaped {3}\nFriendlies hit {4}\nHostages freed {5}, hit {6}"),
 		FText::AsNumber(Stats.FinalScore), FText::AsNumber(Stats.HostilesHit), FText::AsNumber(Stats.HostilesTotal),
-		FText::AsNumber(Stats.HostilesEscaped), FText::AsNumber(Stats.FriendliesHit));
+		FText::AsNumber(Stats.HostilesEscaped), FText::AsNumber(Stats.FriendliesHit), FText::AsNumber(Stats.HostagesRescued), FText::AsNumber(Stats.HostagesHit));
 
 	SetTextSafe(SummaryText, Summary);
 	if (SummaryPanel)

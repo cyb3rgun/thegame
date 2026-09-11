@@ -14,6 +14,7 @@ class USkeletalMeshComponent;
 class UAnimSequenceBase;
 class UMaterialInterface;
 class USoundBase;
+class UStyleScoringComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDoorSlotHitDelegate, ADoorSlot*, Slot, EDoorOccupant, Occupant, float, ExposureFraction);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDoorSlotClosedDelegate, ADoorSlot*, Slot, EDoorOccupant, Occupant, bool, bWasHit);
@@ -64,6 +65,10 @@ class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* OccupantRoot;
 
+	/** Carries the hostile body, its pistol and its hit volumes. A hostage taker moves it behind the hostage. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USceneComponent* HostileRoot;
+
 	/** Visible hostile body */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* HostileMesh;
@@ -105,6 +110,14 @@ protected:
 	/** Size of the friendly body, smaller than the hostile so size reads as well */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
 	float FriendlyBodyScale = 0.9f;
+
+	/** Where a hostage taker stands against its hostage: behind it and to its gun side, so only a strip of it shows */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (Units = "cm"))
+	FVector TakerOffset = FVector(-30.0f, 20.0f, 0.0f);
+
+	/** Size of a hostage taker's body, close to the hostage's so it can hide behind it */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
+	float TakerBodyScale = 0.88f;
 
 	/** Played across the telegraph and stretched to its length: the hostile draws its pistol */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies")
@@ -164,6 +177,10 @@ protected:
 
 	bool bHitRegistered = false;
 	float HitReactionElapsed = 0.0f;
+
+	/** How a hostage taker's door went: the taker is down, or the hostage was hit */
+	bool bTakerDown = false;
+	bool bHostageDown = false;
 
 	/** World time the hit registered, a follow-up hit shortly after still reaches the style record */
 	double HitRegisteredAt = 0.0;
@@ -232,6 +249,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetOccupantHeadPoint() const;
 
+	/** World position of a hostage taker's hostage, its chest */
+	UFUNCTION(BlueprintPure, Category="Door")
+	FVector GetHostageAimPoint() const;
+
 	//~ Begin IDoorRangeTarget
 	virtual bool NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy) override;
 	//~ End IDoorRangeTarget
@@ -261,4 +282,19 @@ protected:
 	void ApplyHitReaction(float ReactionAlpha);
 	void PlaySlotSound(USoundBase* Sound, float Pitch) const;
 	bool IsOccupantComponent(const UPrimitiveComponent* Component) const;
+
+	/** A shot on a hostage taker's door: the taker's showing strip frees the hostage, the hostage is the full penalty */
+	bool NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScoringComponent* Style);
+
+	/** Plays the hit animation on one body */
+	void PlayHitOn(USkeletalMeshComponent* Body);
+
+	/** Shuts the door once the controlled pair window after a hit has passed */
+	void CloseAfterHit();
+
+	/** Moves the hostile set behind the hostage for a hostage taker, or back to the front */
+	void ApplyHostileLayout(bool bTaker);
+
+	/** Puts the hostile body and its volumes under the hostile root, also on slots saved before it existed */
+	void AttachHostileSet();
 };

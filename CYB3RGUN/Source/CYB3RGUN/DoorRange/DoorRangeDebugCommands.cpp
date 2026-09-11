@@ -26,6 +26,7 @@ namespace DoorRangeDebug
 		bool bHead = false;
 		bool bPair = false;
 		bool bMiss = false;
+		bool bHostage = false;
 	};
 
 	ADoorRangeGameMode* GetRange(UWorld* World)
@@ -34,7 +35,7 @@ namespace DoorRangeDebug
 	}
 
 	/** Turns the local player toward a slot that currently shows the wanted occupant. Returns the slot or null. */
-	ADoorSlot* AimAt(UWorld* World, EDoorOccupant Wanted, bool bHead)
+	ADoorSlot* AimAt(UWorld* World, EDoorOccupant Wanted, bool bHead, bool bHostage = false)
 	{
 		ADoorRangeGameMode* Range = GetRange(World);
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
@@ -48,7 +49,7 @@ namespace DoorRangeDebug
 			if (Slot && Slot->GetOccupant() == Wanted && Slot->IsDrawn())
 			{
 				const FVector Eye = PC->GetPawn()->GetPawnViewLocation();
-				const FVector Point = bHead ? Slot->GetOccupantHeadPoint() : Slot->GetOccupantAimPoint();
+				const FVector Point = bHostage ? Slot->GetHostageAimPoint() : (bHead ? Slot->GetOccupantHeadPoint() : Slot->GetOccupantAimPoint());
 				PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(Eye, Point));
 				return Slot;
 			}
@@ -89,6 +90,10 @@ namespace DoorRangeDebug
 			{
 				return EDoorOccupant::Friendly;
 			}
+			if (Arg.Equals(TEXT("Taker"), ESearchCase::IgnoreCase))
+			{
+				return EDoorOccupant::HostageTaker;
+			}
 		}
 		return EDoorOccupant::Hostile;
 	}
@@ -102,6 +107,7 @@ namespace DoorRangeDebug
 			Options.bHead |= Arg.Equals(TEXT("Head"), ESearchCase::IgnoreCase);
 			Options.bPair |= Arg.Equals(TEXT("Pair"), ESearchCase::IgnoreCase);
 			Options.bMiss |= Arg.Equals(TEXT("Miss"), ESearchCase::IgnoreCase);
+			Options.bHostage |= Arg.Equals(TEXT("Hostage"), ESearchCase::IgnoreCase);
 		}
 		return Options;
 	}
@@ -109,7 +115,7 @@ namespace DoorRangeDebug
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 	TEXT("DoorRange.Fire"),
-	TEXT("Aims the local player at a drawn occupant and fires once. Arguments in any order: Hostile (default) or Friendly, Head to aim at the head, Pair for a second shot three tenths of a second later, past the refire and inside the pair window, Miss to fire into the sky. Without a matching target it fires straight ahead."),
+	TEXT("Aims the local player at a drawn occupant and fires once. Arguments in any order: Hostile (default), Friendly or Taker for a hostage taker, Hostage to aim at a taker's hostage, Head to aim at the head, Pair for a second shot three tenths of a second later, past the refire and inside the pair window, Miss to fire into the sky. Without a matching target it fires straight ahead."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		const DoorRangeDebug::FFireOptions Options = DoorRangeDebug::ParseOptions(Args);
@@ -120,10 +126,10 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 		}
 		else
 		{
-			Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead);
+			Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead, Options.bHostage);
 		}
-		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Fire: target %s%s%s"), Target ? *Target->GetName() : (Options.bMiss ? TEXT("the sky") : TEXT("none, firing ahead")),
-			Options.bHead ? TEXT(", head") : TEXT(""), Options.bPair ? TEXT(", pair") : TEXT(""));
+		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Fire: target %s%s%s%s"), Target ? *Target->GetName() : (Options.bMiss ? TEXT("the sky") : TEXT("none, firing ahead")),
+			Options.bHead ? TEXT(", head") : TEXT(""), Options.bPair ? TEXT(", pair") : TEXT(""), Options.bHostage ? TEXT(", hostage") : TEXT(""));
 
 		// weapons aim through the screen space path (D-019), which reads the view the player last saw.
 		// The snap needs a few camera updates before the crosshair shows the target, so the trigger waits for them
@@ -149,17 +155,17 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeAimCommand(
 	TEXT("DoorRange.Aim"),
-	TEXT("Aims the local player at a drawn occupant without firing. Arguments: Hostile (default) or Friendly, Head to aim at the head."),
+	TEXT("Aims the local player at a drawn occupant without firing. Arguments: Hostile (default), Friendly or Taker, Head to aim at the head, Hostage to aim at a taker's hostage."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		const DoorRangeDebug::FFireOptions Options = DoorRangeDebug::ParseOptions(Args);
-		ADoorSlot* Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead);
+		ADoorSlot* Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead, Options.bHostage);
 		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Aim: target %s"), Target ? *Target->GetName() : TEXT("none"));
 	}));
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeOpenCommand(
 	TEXT("DoorRange.Open"),
-	TEXT("Opens a free door right away with the given occupant, outside the wave's own roll. Argument: Hostile (default) or Friendly."),
+	TEXT("Opens a free door right away with the given occupant, outside the wave's own roll. Argument: Hostile (default), Friendly or Taker."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		ADoorRangeGameMode* Range = DoorRangeDebug::GetRange(World);
@@ -179,9 +185,10 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeOpenCommand(
 				FDoorOpenParams Params;
 				Params.Occupant = Occupant;
 				Params.OccupantMaterial = Occupant == EDoorOccupant::Friendly ? Cfg->FriendlyMaterial : Cfg->HostileMaterial;
+				Params.HostageMaterial = Cfg->FriendlyMaterial;
 				Params.OpenDuration = Cfg->OpenDuration;
 				Params.CloseDuration = Cfg->CloseDuration;
-				Params.ExposureWindow = Wave.ExposureWindow;
+				Params.ExposureWindow = Wave.ExposureWindow * (Occupant == EDoorOccupant::HostageTaker ? Cfg->HostageTakerExposureScale : 1.0f);
 				Params.TelegraphDuration = Wave.TelegraphDuration;
 				Slot->Open(Params);
 				UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Open: %s opens with occupant %d"), *Slot->GetName(), static_cast<int32>(Occupant));
@@ -199,9 +206,9 @@ static FAutoConsoleCommandWithWorld GDoorRangeStatusCommand(
 		if (ADoorRangeGameMode* Range = DoorRangeDebug::GetRange(World))
 		{
 			const FDoorRangeStats& Stats = Range->GetStats();
-			UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Status: score %d, wave %d/%d, hostiles left %d/%d, hit %d, escaped %d, friendlies hit %d, active %d, complete %d"),
+			UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Status: score %d, wave %d/%d, hostiles left %d/%d, hit %d, escaped %d, friendlies hit %d, hostages freed %d, hostages hit %d, active %d, complete %d"),
 				Range->GetScore(), Range->GetCurrentWave(), Range->GetWaveCount(), Range->GetHostilesRemaining(), Range->GetHostilesTotalThisWave(),
-				Stats.HostilesHit, Stats.HostilesEscaped, Stats.FriendliesHit, Range->IsRangeActive() ? 1 : 0, Range->IsRangeComplete() ? 1 : 0);
+				Stats.HostilesHit, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.HostagesRescued, Stats.HostagesHit, Range->IsRangeActive() ? 1 : 0, Range->IsRangeComplete() ? 1 : 0);
 		}
 		else
 		{

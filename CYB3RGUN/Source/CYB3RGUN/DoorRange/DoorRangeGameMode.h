@@ -63,6 +63,9 @@ protected:
 	int32 CurrentWave = 0;
 	int32 HostilesTotalThisWave = 0;
 	int32 HostilesRemainingThisWave = 0;
+
+	/** Hostage takers in the current wave, counted among its hostiles */
+	int32 HostageTakersThisWave = 0;
 	int32 OpenDoors = 0;
 	bool bRangeActive = false;
 	bool bRangeComplete = false;

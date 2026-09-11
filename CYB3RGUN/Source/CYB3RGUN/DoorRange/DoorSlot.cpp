@@ -14,6 +14,8 @@
 #include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogDoorSlot, Log, All);
+
 namespace
 {
 	UStaticMeshComponent* MakeShape(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh, const FVector& Location, const FVector& Scale)
@@ -59,6 +61,17 @@ namespace
 	void SetShapeActive(UStaticMeshComponent* Component, bool bActive)
 	{
 		Component->SetCollisionEnabled(bActive ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+	}
+
+	void PaintBody(USkeletalMeshComponent* Body, UMaterialInterface* Material)
+	{
+		if (Body && Material)
+		{
+			for (int32 Index = 0; Index < Body->GetNumMaterials(); ++Index)
+			{
+				Body->SetMaterial(Index, Material);
+			}
+		}
 	}
 }
 
@@ -111,18 +124,21 @@ ADoorSlot::ADoorSlot()
 	OccupantRoot = CreateDefaultSubobject<USceneComponent>(TEXT("OccupantRoot"));
 	OccupantRoot->SetupAttachment(SpawnPoint);
 
+	HostileRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HostileRoot"));
+	HostileRoot->SetupAttachment(OccupantRoot);
+
 	// Hostile: the taller mannequin with a pistol in the right hand. The volumes wrap the aiming
 	// pose: torso and legs, the arms held out towards the player, the head.
-	HostileMesh = MakeBody(this, OccupantRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
+	HostileMesh = MakeBody(this, HostileRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
 	HostileWeapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HostileWeapon"));
 	HostileWeapon->SetupAttachment(HostileMesh, FName("HandGrip_R"));
 	HostileWeapon->SetSkeletalMeshAsset(PistolMesh.Object);
 	HostileWeapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HostileWeapon->SetGenerateOverlapEvents(false);
 	HostileWeapon->SetVisibility(false);
-	HostileBody = MakeHitVolume(this, OccupantRoot, TEXT("HostileBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 78.0f), FVector(0.42f, 0.42f, 1.56f));
-	HostileArms = MakeHitVolume(this, OccupantRoot, TEXT("HostileArms"), CubeMesh.Object, FVector(30.0f, 0.0f, 148.0f), FVector(0.6f, 0.3f, 0.16f));
-	HostileHead = MakeHitVolume(this, OccupantRoot, TEXT("HostileHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 176.0f), FVector(0.3f, 0.3f, 0.32f));
+	HostileBody = MakeHitVolume(this, HostileRoot, TEXT("HostileBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 78.0f), FVector(0.42f, 0.42f, 1.56f));
+	HostileArms = MakeHitVolume(this, HostileRoot, TEXT("HostileArms"), CubeMesh.Object, FVector(30.0f, 0.0f, 148.0f), FVector(0.6f, 0.3f, 0.16f));
+	HostileHead = MakeHitVolume(this, HostileRoot, TEXT("HostileHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 176.0f), FVector(0.3f, 0.3f, 0.32f));
 
 	// Friendly: the smaller mannequin, empty hands, at ease.
 	FriendlyMesh = MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh.Object);
@@ -135,6 +151,7 @@ ADoorSlot::ADoorSlot()
 void ADoorSlot::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	AttachHostileSet();
 	ApplyLookMaterials();
 	ApplyBodyScale();
 }
@@ -162,6 +179,7 @@ void ADoorSlot::BeginPlay()
 {
 	Super::BeginPlay();
 
+	AttachHostileSet();
 	ApplyLookMaterials();
 
 	HideOccupant();
@@ -187,6 +205,8 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 	DrawnAt = 0.0f;
 	HitReactionElapsed = 0.0f;
 	bReportNextClose = true;
+	bTakerDown = false;
+	bHostageDown = false;
 	GetWorldTimerManager().ClearTimer(HitCloseTimer);
 
 	if (Params.Occupant != EDoorOccupant::Empty)
@@ -201,6 +221,12 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 	}
 	else if (Params.Occupant == EDoorOccupant::Friendly)
 	{
+		PlayBodyLoop(FriendlyMesh, FriendlyIdleAnimation);
+	}
+	else if (Params.Occupant == EDoorOccupant::HostageTaker)
+	{
+		// the taker already aims past its hostage, there is no draw to wait for
+		PlayBodyLoop(HostileMesh, HostileAimAnimation);
 		PlayBodyLoop(FriendlyMesh, FriendlyIdleAnimation);
 	}
 	ApplyHitReaction(0.0f);
@@ -232,19 +258,40 @@ bool ADoorSlot::RegisterHit()
 		return false;
 	}
 
+	// a hostage taker's door only knows who was hit from the shot itself, see NotifyHostageShot
+	if (Params.Occupant == EDoorOccupant::HostageTaker)
+	{
+		return false;
+	}
+
 	bHitRegistered = true;
 	HitRegisteredAt = GetWorld()->GetTimeSeconds();
 	HitReactionElapsed = 0.0f;
 
-	USkeletalMeshComponent* Body = GetShownBody();
+	PlayHitOn(GetShownBody());
+
+	const float ExposureFraction = GetExposureFraction();
+	OnSlotHit.Broadcast(this, Params.Occupant, ExposureFraction);
+
+	CloseAfterHit();
+	return true;
+}
+
+void ADoorSlot::PlayHitOn(USkeletalMeshComponent* Body)
+{
 	if (Body && HitAnimation)
 	{
 		Body->PlayAnimation(HitAnimation, false);
 		Body->SetPlayRate(HitAnimationRate);
 	}
+}
 
-	const float ExposureFraction = GetExposureFraction();
-	OnSlotHit.Broadcast(this, Params.Occupant, ExposureFraction);
+void ADoorSlot::CloseAfterHit()
+{
+	if (GetWorldTimerManager().IsTimerActive(HitCloseTimer))
+	{
+		return;
+	}
 
 	// the occupant falls, and the door swings shut once the controlled pair window has passed, so the
 	// second shot of a pair is not stopped by the closing panel
@@ -257,8 +304,33 @@ bool ADoorSlot::RegisterHit()
 	{
 		ForceClose();
 	}
+}
 
-	return true;
+void ADoorSlot::ApplyHostileLayout(bool bTaker)
+{
+	// a hostage taker is the hostile body brought down to the hostage's size and moved behind it, hit volumes and all
+	const float Scale = bTaker ? TakerBodyScale / FMath::Max(HostileBodyScale, 0.01f) : 1.0f;
+	HostileRoot->SetRelativeLocation(bTaker ? TakerOffset : FVector::ZeroVector);
+	HostileRoot->SetRelativeScale3D(FVector(Scale));
+}
+
+void ADoorSlot::AttachHostileSet()
+{
+	// slots placed in a level before the hostile root existed load with their parts still on the occupant root
+	USceneComponent* const Parts[] = { HostileMesh, HostileBody, HostileArms, HostileHead };
+	int32 Moved = 0;
+	for (USceneComponent* Part : Parts)
+	{
+		if (Part && Part->GetAttachParent() != HostileRoot)
+		{
+			Part->AttachToComponent(HostileRoot, FAttachmentTransformRules::KeepRelativeTransform);
+			++Moved;
+		}
+	}
+	if (Moved > 0)
+	{
+		UE_LOG(LogDoorSlot, Log, TEXT("%s: %d hostile parts moved under the hostile root"), *GetName(), Moved);
+	}
 }
 
 float ADoorSlot::GetExposureFraction() const
@@ -281,13 +353,36 @@ float ADoorSlot::GetExposureFraction() const
 
 FVector ADoorSlot::GetOccupantAimPoint() const
 {
+	// a hostage taker is only hit where it shows past its hostage
+	if (Params.Occupant == EDoorOccupant::HostageTaker)
+	{
+		return GetOccupantHeadPoint();
+	}
+
 	const float Height = Params.Occupant == EDoorOccupant::Hostile ? 125.0f : 100.0f;
 	return SpawnPoint->GetComponentLocation() + FVector(0.0f, 0.0f, Height);
 }
 
 FVector ADoorSlot::GetOccupantHeadPoint() const
 {
-	return (Params.Occupant == EDoorOccupant::Friendly ? FriendlyHead : HostileHead)->GetComponentLocation();
+	switch (Params.Occupant)
+	{
+	case EDoorOccupant::Friendly:
+		return FriendlyHead->GetComponentLocation();
+	case EDoorOccupant::HostageTaker:
+	{
+		// the side of the taker's head that shows past the hostage, half its radius out from the centre
+		const FVector Side = GetActorRightVector() * FMath::Sign(TakerOffset.Y);
+		return HostileHead->GetComponentLocation() + Side * HostileHead->Bounds.BoxExtent.X * 0.5f;
+	}
+	default:
+		return HostileHead->GetComponentLocation();
+	}
+}
+
+FVector ADoorSlot::GetHostageAimPoint() const
+{
+	return FriendlyBody->GetComponentLocation() + FVector(0.0f, 0.0f, 35.0f);
 }
 
 bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy)
@@ -299,6 +394,11 @@ bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& Hit
 	}
 
 	UStyleScoringComponent* Style = UStyleScoringComponent::ForController(InstigatedBy);
+
+	if (Params.Occupant == EDoorOccupant::HostageTaker)
+	{
+		return NotifyHostageShot(HitComponent, Style);
+	}
 
 	// a second shot on a hostile that is already going down scores nothing on the door, but it is a hit
 	// for the style record and can complete a controlled pair
@@ -329,6 +429,70 @@ bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& Hit
 			Style->RecordNonTargetHit(this);
 		}
 	}
+	return true;
+}
+
+bool ADoorSlot::NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScoringComponent* Style)
+{
+	if (State == EDoorState::Closed || !bDrawn)
+	{
+		return false;
+	}
+
+	const float ExposureFraction = GetExposureFraction();
+
+	UE_LOG(LogDoorSlot, Log, TEXT("%s: hostage taker door shot on %s"), *GetName(), *GetNameSafe(HitComponent));
+
+	// the hostage counts whenever it is hit: a freed hostage still stands in the line of fire until the door shuts
+	if (HitComponent == FriendlyBody || HitComponent == FriendlyHead)
+	{
+		if (bHostageDown)
+		{
+			return false;
+		}
+
+		bHostageDown = true;
+		bHitRegistered = true;
+		HitRegisteredAt = GetWorld()->GetTimeSeconds();
+		PlayHitOn(FriendlyMesh);
+		if (Style)
+		{
+			Style->RecordNonTargetHit(this);
+		}
+		OnSlotHit.Broadcast(this, EDoorOccupant::Friendly, ExposureFraction);
+		CloseAfterHit();
+		return true;
+	}
+
+	// with the hostage down there is nothing left to save on this door
+	if (bHostageDown)
+	{
+		return false;
+	}
+
+	// a second shot on a taker that is already going down still reaches the style record and can complete a pair
+	if (bTakerDown)
+	{
+		const bool bFollowUp = GetWorld()->GetTimeSeconds() - HitRegisteredAt <= UStyleSettings::Get(this)->ControlledPairWindow;
+		if (bFollowUp && Style)
+		{
+			Style->RecordTargetHit(this, false, false);
+		}
+		return bFollowUp;
+	}
+
+	// whatever shows of the taker beside its hostage is the zone: it goes down at once and the hostage is free
+	bTakerDown = true;
+	bHitRegistered = true;
+	HitRegisteredAt = GetWorld()->GetTimeSeconds();
+	PlayHitOn(HostileMesh);
+	if (Style)
+	{
+		Style->RecordTargetHit(this, HitComponent == HostileHead, true);
+		Style->RecordRescue(this);
+	}
+	OnSlotHit.Broadcast(this, EDoorOccupant::HostageTaker, ExposureFraction);
+	CloseAfterHit();
 	return true;
 }
 
@@ -458,8 +622,11 @@ void ADoorSlot::ApplyPanelAlpha(float Alpha)
 
 void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Material)
 {
-	const bool bHostile = Occupant == EDoorOccupant::Hostile;
-	const bool bFriendly = Occupant == EDoorOccupant::Friendly;
+	const bool bTaker = Occupant == EDoorOccupant::HostageTaker;
+	const bool bHostile = Occupant == EDoorOccupant::Hostile || bTaker;
+	const bool bFriendly = Occupant == EDoorOccupant::Friendly || bTaker;
+
+	ApplyHostileLayout(bTaker);
 
 	SetShapeActive(HostileBody, bHostile);
 	SetShapeActive(HostileArms, bHostile);
@@ -470,13 +637,14 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 	HostileMesh->SetVisibility(bHostile, true);
 	FriendlyMesh->SetVisibility(bFriendly);
 
-	USkeletalMeshComponent* Body = bHostile ? HostileMesh : (bFriendly ? FriendlyMesh : nullptr);
-	if (Body && Material)
+	// a hostage taker wears the hostile look and its hostage the friendly one
+	if (bHostile)
 	{
-		for (int32 Index = 0; Index < Body->GetNumMaterials(); ++Index)
-		{
-			Body->SetMaterial(Index, Material);
-		}
+		PaintBody(HostileMesh, Material);
+	}
+	if (bFriendly)
+	{
+		PaintBody(FriendlyMesh, bTaker ? Params.HostageMaterial.Get() : Material);
 	}
 }
 
@@ -489,6 +657,7 @@ void ADoorSlot::HideOccupant()
 	HostileMesh->SetVisibility(false, true);
 	FriendlyMesh->SetVisibility(false);
 	ApplyHitReaction(0.0f);
+	ApplyHostileLayout(false);
 }
 
 void ADoorSlot::ApplyBodyScale()
@@ -535,6 +704,8 @@ USkeletalMeshComponent* ADoorSlot::GetShownBody() const
 		return HostileMesh;
 	case EDoorOccupant::Friendly:
 		return FriendlyMesh;
+	case EDoorOccupant::HostageTaker:
+		return HostileMesh;
 	default:
 		return nullptr;
 	}
