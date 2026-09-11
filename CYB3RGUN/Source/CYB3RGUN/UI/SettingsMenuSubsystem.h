@@ -12,7 +12,7 @@ class FSettingsMenuInputProcessor;
 /**
  *  F10 or the gamepad menu button toggles the settings menu in every level, whatever controller the level uses:
  *  the key is read by a Slate input pre processor, not by a level's input mapping. While the menu is open
- *  the game pauses and the mouse cursor shows.
+ *  a gameplay level pauses and the mouse cursor shows. Opened over a menu screen, closing it returns there.
  */
 UCLASS(Config=Game)
 class CYB3RGUN_API USettingsMenuSubsystem : public UGameInstanceSubsystem

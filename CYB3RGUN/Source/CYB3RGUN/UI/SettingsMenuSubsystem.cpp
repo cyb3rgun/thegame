@@ -2,6 +2,7 @@
 
 #include "SettingsMenuSubsystem.h"
 #include "SettingsMenuWidget.h"
+#include "GameMenuSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -114,6 +115,13 @@ void USettingsMenuSubsystem::OpenMenu()
 	}
 	Menu->AddToViewport(1000);
 
+	// over a menu screen, that screen steps aside and comes back when the settings close
+	UGameMenuSubsystem* GameMenu = GameInstance->GetSubsystem<UGameMenuSubsystem>();
+	if (GameMenu && GameMenu->HasScreens())
+	{
+		GameMenu->SuspendTop();
+	}
+
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(Menu->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -121,9 +129,11 @@ void USettingsMenuSubsystem::OpenMenu()
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
 
-	// the world waits while the player reads the menu, so a rail ride or a wave does not run on without them
+	// the world waits while the player reads the menu, so a rail ride or a wave does not run on without them,
+	// only the main menu's background keeps moving
 	UWorld* World = GameInstance->GetWorld();
-	bPausedByMenu = World && !UGameplayStatics::IsGamePaused(World) && UGameplayStatics::SetGamePaused(World, true);
+	const bool bMayPause = !GameMenu || GameMenu->IsGameplayWorld();
+	bPausedByMenu = bMayPause && World && !UGameplayStatics::IsGamePaused(World) && UGameplayStatics::SetGamePaused(World, true);
 
 	UE_LOG(LogSettingsMenu, Log, TEXT("Settings menu opened with %s"), *WidgetClass->GetName());
 }
@@ -139,7 +149,13 @@ void USettingsMenuSubsystem::CloseMenu()
 	Menu = nullptr;
 
 	UGameInstance* GameInstance = GetGameInstance();
-	if (APlayerController* PC = GameInstance ? GameInstance->GetFirstLocalPlayerController() : nullptr)
+	UGameMenuSubsystem* GameMenu = GameInstance ? GameInstance->GetSubsystem<UGameMenuSubsystem>() : nullptr;
+	if (GameMenu && GameMenu->HasScreens())
+	{
+		// back to the menu screen the settings were opened from
+		GameMenu->ResumeTop();
+	}
+	else if (APlayerController* PC = GameInstance ? GameInstance->GetFirstLocalPlayerController() : nullptr)
 	{
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->SetShowMouseCursor(false);

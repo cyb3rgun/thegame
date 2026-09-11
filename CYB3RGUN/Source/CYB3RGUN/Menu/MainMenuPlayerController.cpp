@@ -1,7 +1,9 @@
 // CYB3RGUN THEGAME. The player controller of the main menu: a cursor, and the menu camera as the view.
 
 #include "MainMenuPlayerController.h"
+#include "GameMenuSubsystem.h"
 #include "MenuCameraRig.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -45,4 +47,11 @@ void AMainMenuPlayerController::BeginPlay()
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	// the front end opens on the title screen, which brings its own input mode and focus
+	UGameInstance* GameInstance = GetGameInstance();
+	if (UGameMenuSubsystem* GameMenu = GameInstance ? GameInstance->GetSubsystem<UGameMenuSubsystem>() : nullptr)
+	{
+		GameMenu->ShowMainMenu();
+	}
 }

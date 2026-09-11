@@ -8,7 +8,7 @@
 
 /**
  *  Controls nothing in the world. Shows the mouse cursor and looks through the menu camera rig placed in the
- *  level, or through one it spawns at the level origin when the level has none.
+ *  level, or through one it spawns at the level origin when the level has none, and opens the main menu.
  */
 UCLASS()
 class CYB3RGUN_API AMainMenuPlayerController : public APlayerController
