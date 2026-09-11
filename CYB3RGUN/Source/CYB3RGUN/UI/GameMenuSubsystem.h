@@ -14,9 +14,10 @@ struct FKeyEvent;
 
 /**
  *  Keeps the open menu screens as a stack: the main menu at the bottom in the menu level with the level
- *  selection on top of it. Escape and the gamepad back button leave the top screen but never the root main
- *  menu, so Escape never quits the game (D-036). The settings menu (F10) opens over any screen and returns to
- *  it. Keys are read by a Slate input pre processor, like the settings menu.
+ *  selection on top of it, or the pause menu alone in a gameplay level. Escape and the gamepad back button
+ *  leave the top screen but never the root main menu, so Escape never quits the game (D-036). In a gameplay
+ *  level with no screen open, Escape or the gamepad view button opens the pause menu. The settings menu (F10)
+ *  opens over any screen and returns to it. Keys are read by a Slate input pre processor, like the settings menu.
  */
 UCLASS(Config=Game)
 class CYB3RGUN_API UGameMenuSubsystem : public UGameInstanceSubsystem
@@ -31,6 +32,9 @@ protected:
 
 	UPROPERTY(Config)
 	TSoftClassPtr<UCyberMenuScreen> LevelSelectClass;
+
+	UPROPERTY(Config)
+	TSoftClassPtr<UCyberMenuScreen> PauseMenuClass;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCyberMenuScreen>> Stack;
@@ -49,6 +53,10 @@ public:
 
 	void OpenLevelSelect();
 
+	/** Opens the pause menu over a gameplay level and pauses the level */
+	UFUNCTION(BlueprintCallable, Category="Menu")
+	void OpenPauseMenu();
+
 	/** Opens the settings menu over the current screen */
 	UFUNCTION(BlueprintCallable, Category="Menu")
 	void OpenSettings();
@@ -58,6 +66,9 @@ public:
 	bool Back();
 
 	void StartLevel(const UPlayableLevelDefinition* Level);
+
+	UFUNCTION(BlueprintCallable, Category="Menu")
+	void ReturnToMainMenu();
 
 	/** The only way out of the game, the main menu's Quit button */
 	void QuitGame();

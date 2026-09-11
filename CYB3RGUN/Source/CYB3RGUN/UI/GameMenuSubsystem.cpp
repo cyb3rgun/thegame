@@ -5,6 +5,7 @@
 #include "LevelSelectWidget.h"
 #include "MainMenuGameMode.h"
 #include "MainMenuWidget.h"
+#include "PauseMenuWidget.h"
 #include "PlayableLevelDefinition.h"
 #include "SettingsMenuSubsystem.h"
 #include "Blueprint/UserWidget.h"
@@ -16,6 +17,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
+#include "GameMapsSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -24,7 +26,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGameMenu, Log, All);
 
-/** Reads Escape and the gamepad back button before any widget or level input sees them */
+/** Reads Escape, the gamepad back button and the pause key before any widget or level input sees them */
 class FGameMenuInputProcessor : public IInputProcessor
 {
 public:
@@ -197,6 +199,23 @@ void UGameMenuSubsystem::OpenLevelSelect()
 	PushScreen(LevelSelectClass, ULevelSelectWidget::StaticClass());
 }
 
+void UGameMenuSubsystem::OpenPauseMenu()
+{
+	if (HasScreens() || !IsGameplayWorld())
+	{
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	if (!PushScreen(PauseMenuClass, UPauseMenuWidget::StaticClass()))
+	{
+		return;
+	}
+	// the level waits while the pause menu shows, a rail ride or a wave does not run on without the player
+	bPausedByMenu = World && !UGameplayStatics::IsGamePaused(World) && UGameplayStatics::SetGamePaused(World, true);
+}
+
 void UGameMenuSubsystem::OpenSettings()
 {
 	const UGameInstance* GameInstance = GetGameInstance();
@@ -262,6 +281,22 @@ void UGameMenuSubsystem::StartLevel(const UPlayableLevelDefinition* Level)
 	ClearStack();
 	ApplyGameInput();
 	UGameplayStatics::OpenLevelBySoftObjectPtr(World, Level->Map);
+}
+
+void UGameMenuSubsystem::ReturnToMainMenu()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	const FSoftObjectPath MenuMap(UGameMapsSettings::GetGameDefaultMap());
+	if (!World || MenuMap.IsNull())
+	{
+		return;
+	}
+
+	UE_LOG(LogGameMenu, Log, TEXT("Returning to the main menu, map %s"), *MenuMap.ToString());
+	ClearStack();
+	ApplyGameInput();
+	UGameplayStatics::OpenLevelBySoftObjectPtr(World, TSoftObjectPtr<UWorld>(MenuMap));
 }
 
 void UGameMenuSubsystem::QuitGame()
@@ -331,6 +366,13 @@ bool UGameMenuSubsystem::HandleKey(const FKeyEvent& KeyEvent)
 		}
 		return false;
 	}
+
+	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Left)
+	{
+		// outside a gameplay level Escape does nothing, it never quits
+		OpenPauseMenu();
+		return true;
+	}
 	return false;
 }
 
@@ -345,6 +387,18 @@ static FAutoConsoleCommandWithWorld GGameMenuBackCommand(
 		if (UGameMenuSubsystem* Subsystem = GameInstance ? GameInstance->GetSubsystem<UGameMenuSubsystem>() : nullptr)
 		{
 			Subsystem->Back();
+		}
+	}));
+
+static FAutoConsoleCommandWithWorld GGameMenuPauseCommand(
+	TEXT("Menu.Pause"),
+	TEXT("Opens the pause menu in a gameplay level, like Escape."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		if (UGameMenuSubsystem* Subsystem = GameInstance ? GameInstance->GetSubsystem<UGameMenuSubsystem>() : nullptr)
+		{
+			Subsystem->OpenPauseMenu();
 		}
 	}));
 

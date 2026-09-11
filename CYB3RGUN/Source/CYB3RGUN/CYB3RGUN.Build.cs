@@ -25,7 +25,8 @@ public class CYB3RGUN : ModuleRules
 			"RHI",
 			"RenderCore",
 			"Niagara",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"EngineSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
