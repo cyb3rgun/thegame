@@ -17,13 +17,21 @@ class UWidgetTree;
 /** What every menu screen shares, so the main menu, the level selection and the pause menu read as one front end */
 struct CYB3RGUN_API FCyberMenuStyle
 {
-	static const FLinearColor AccentColor;
-	static const FLinearColor TextColor;
-	static const FLinearColor DimTextColor;
-	static const FLinearColor PanelColor;
-	static const FLinearColor VeilColor;
-	static const FLinearColor ButtonIdleColor;
-	static const FLinearColor ButtonActiveColor;
+	/** The colours come from the brand style (UBrandStyle): brand, counter and danger from MPC_Brand, the neutrals from the
+	 *  style asset. Nothing here types a colour (D-047). */
+	static FLinearColor BrandColor();
+	static FLinearColor CounterColor();
+	static FLinearColor DangerColor();
+	static FLinearColor TextColor();
+	static FLinearColor DimTextColor();
+	static FLinearColor PanelColor();
+	static FLinearColor PanelSolidColor();
+	static FLinearColor VeilColor();
+	static FLinearColor ButtonIdleColor();
+	static FLinearColor ButtonActiveColor();
+	static FLinearColor TrackColor();
+	static FLinearColor ShadowColor();
+	static FLinearColor PlaceholderColor();
 
 	static FSlateFontInfo MakeFont(int32 Size, const FName& Typeface = TEXT("Bold"), int32 LetterSpacing = 0);
 

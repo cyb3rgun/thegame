@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. The shared look of the front end.
 
 #include "CyberMenuStyle.h"
+#include "BrandStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Components/Button.h"
@@ -12,13 +13,24 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 
-const FLinearColor FCyberMenuStyle::AccentColor(1.0f, 0.42f, 0.14f, 1.0f);
-const FLinearColor FCyberMenuStyle::TextColor(0.93f, 0.94f, 0.96f, 1.0f);
-const FLinearColor FCyberMenuStyle::DimTextColor(0.56f, 0.6f, 0.66f, 1.0f);
-const FLinearColor FCyberMenuStyle::PanelColor(0.008f, 0.01f, 0.016f, 0.8f);
-const FLinearColor FCyberMenuStyle::VeilColor(0.0f, 0.0f, 0.0f, 0.6f);
-const FLinearColor FCyberMenuStyle::ButtonIdleColor(0.06f, 0.065f, 0.08f, 0.7f);
-const FLinearColor FCyberMenuStyle::ButtonActiveColor(0.85f, 0.28f, 0.08f, 0.95f);
+FLinearColor FCyberMenuStyle::BrandColor() { return UBrandStyle::Get().GetBrand(); }
+FLinearColor FCyberMenuStyle::CounterColor() { return UBrandStyle::Get().GetCounter(); }
+FLinearColor FCyberMenuStyle::DangerColor() { return UBrandStyle::Get().GetDanger(); }
+FLinearColor FCyberMenuStyle::TextColor() { return UBrandStyle::Get().Text; }
+FLinearColor FCyberMenuStyle::DimTextColor() { return UBrandStyle::Get().DimText; }
+FLinearColor FCyberMenuStyle::PanelColor() { return UBrandStyle::Get().Panel; }
+FLinearColor FCyberMenuStyle::PanelSolidColor() { return UBrandStyle::Get().PanelSolid; }
+FLinearColor FCyberMenuStyle::VeilColor() { return UBrandStyle::Get().Veil; }
+FLinearColor FCyberMenuStyle::ButtonIdleColor() { return UBrandStyle::Get().ButtonIdle; }
+FLinearColor FCyberMenuStyle::TrackColor() { return UBrandStyle::Get().Track; }
+FLinearColor FCyberMenuStyle::ShadowColor() { return UBrandStyle::Get().Shadow; }
+FLinearColor FCyberMenuStyle::PlaceholderColor() { return UBrandStyle::Get().Placeholder; }
+
+FLinearColor FCyberMenuStyle::ButtonActiveColor()
+{
+	const UBrandStyle& Style = UBrandStyle::Get();
+	return Style.GetBrand().CopyWithNewOpacity(Style.ButtonActiveOpacity);
+}
 
 FSlateFontInfo FCyberMenuStyle::MakeFont(int32 Size, const FName& Typeface, int32 LetterSpacing)
 {
@@ -53,7 +65,7 @@ UButton* FCyberMenuStyle::MakePlainButton(UWidgetTree* Tree, const FName& Name)
 
 	UButton* Button = Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
 	Button->SetStyle(Style);
-	Button->SetBackgroundColor(ButtonIdleColor);
+	Button->SetBackgroundColor(ButtonIdleColor());
 	return Button;
 }
 
@@ -61,7 +73,7 @@ UButton* FCyberMenuStyle::MakeButton(UWidgetTree* Tree, const FName& Name, const
 {
 	UButton* Button = MakePlainButton(Tree, Name);
 	const FName LabelName = Name.IsNone() ? FName(NAME_None) : FName(*(Name.ToString() + TEXT("Label")));
-	UTextBlock* LabelText = MakeText(Tree, LabelName, Label, Size, TextColor);
+	UTextBlock* LabelText = MakeText(Tree, LabelName, Label, Size, TextColor());
 	if (UButtonSlot* LabelSlot = Cast<UButtonSlot>(Button->AddChild(LabelText)))
 	{
 		LabelSlot->SetHorizontalAlignment(HAlign_Left);
@@ -93,7 +105,7 @@ void FCyberMenuStyle::UpdateHighlight(UButton* Button)
 	{
 		return;
 	}
-	const FLinearColor Wanted = Button->HasKeyboardFocus() ? ButtonActiveColor : ButtonIdleColor;
+	const FLinearColor Wanted = Button->HasKeyboardFocus() ? ButtonActiveColor() : ButtonIdleColor();
 	if (!Button->GetBackgroundColor().Equals(Wanted))
 	{
 		Button->SetBackgroundColor(Wanted);

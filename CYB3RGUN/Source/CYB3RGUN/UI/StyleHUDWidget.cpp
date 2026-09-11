@@ -26,17 +26,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogStyleHUD, Log, All);
 // a named namespace with unique names, unity builds merge this file with other HUDs that have their own helpers
 namespace StyleHudLook
 {
-	const FLinearColor Warm(1.0f, 0.7f, 0.1f, 1.0f);
-	const FLinearColor Alarm(1.0f, 0.22f, 0.2f, 1.0f);
-	const FLinearColor Cool(0.25f, 0.85f, 1.0f, 1.0f);
-	const FLinearColor Track(0.02f, 0.025f, 0.03f, 0.75f);
-
 	UTextBlock* MakeLine(UWidgetTree* Tree, const FName& Name, int32 Size, const FLinearColor& Color, ETextJustify::Type Justify)
 	{
 		UTextBlock* Block = FCyberMenuStyle::MakeText(Tree, Name, FText::GetEmpty(), Size, Color);
 		Block->SetJustification(Justify);
 		Block->SetShadowOffset(FVector2D(2.0f, 2.0f));
-		Block->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.85f));
+		Block->SetShadowColorAndOpacity(FCyberMenuStyle::ShadowColor());
 		return Block;
 	}
 
@@ -44,7 +39,7 @@ namespace StyleHudLook
 	{
 		UProgressBar* Bar = Tree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), Name);
 		FProgressBarStyle Style = Bar->GetWidgetStyle();
-		Style.BackgroundImage.TintColor = FSlateColor(Track);
+		Style.BackgroundImage.TintColor = FSlateColor(FCyberMenuStyle::TrackColor());
 		Bar->SetWidgetStyle(Style);
 		Bar->SetFillColorAndOpacity(Fill);
 		Bar->SetPercent(0.0f);
@@ -124,13 +119,13 @@ void UStyleHUDWidget::BuildLayout()
 
 	// top right, over the sky: rank, meter, style points, combo, the last style event, Overclock
 	UVerticalBox* StyleColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StyleColumn"));
-	RankText = StyleHudLook::MakeLine(WidgetTree, TEXT("RankText"), 34, FCyberMenuStyle::TextColor, ETextJustify::Right);
-	MeterBar = StyleHudLook::MakeBar(WidgetTree, TEXT("MeterBar"), FCyberMenuStyle::AccentColor);
-	StyleText = StyleHudLook::MakeLine(WidgetTree, TEXT("StyleText"), 20, FCyberMenuStyle::TextColor, ETextJustify::Right);
-	ComboText = StyleHudLook::MakeLine(WidgetTree, TEXT("ComboText"), 26, StyleHudLook::Warm, ETextJustify::Right);
-	EventText = StyleHudLook::MakeLine(WidgetTree, TEXT("EventText"), 18, FCyberMenuStyle::TextColor, ETextJustify::Right);
-	OverclockText = StyleHudLook::MakeLine(WidgetTree, TEXT("OverclockText"), 18, StyleHudLook::Cool, ETextJustify::Right);
-	OverclockBar = StyleHudLook::MakeBar(WidgetTree, TEXT("OverclockBar"), StyleHudLook::Cool);
+	RankText = StyleHudLook::MakeLine(WidgetTree, TEXT("RankText"), 34, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	MeterBar = StyleHudLook::MakeBar(WidgetTree, TEXT("MeterBar"), FCyberMenuStyle::BrandColor());
+	StyleText = StyleHudLook::MakeLine(WidgetTree, TEXT("StyleText"), 20, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	ComboText = StyleHudLook::MakeLine(WidgetTree, TEXT("ComboText"), 26, FCyberMenuStyle::BrandColor(), ETextJustify::Right);
+	EventText = StyleHudLook::MakeLine(WidgetTree, TEXT("EventText"), 18, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	OverclockText = StyleHudLook::MakeLine(WidgetTree, TEXT("OverclockText"), 18, FCyberMenuStyle::CounterColor(), ETextJustify::Right);
+	OverclockBar = StyleHudLook::MakeBar(WidgetTree, TEXT("OverclockBar"), FCyberMenuStyle::CounterColor());
 	StyleHudLook::AddLine(StyleColumn, RankText, HAlign_Right, 2.0f);
 	StyleHudLook::AddBar(WidgetTree, StyleColumn, MeterBar, 300.0f, 10.0f, HAlign_Right, 6.0f);
 	StyleHudLook::AddLine(StyleColumn, StyleText, HAlign_Right, 2.0f);
@@ -148,9 +143,9 @@ void UStyleHUDWidget::BuildLayout()
 
 	// bottom left, above the round counter of the shooter HUD: the weapon, its reload and the empty cue
 	UVerticalBox* WeaponColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("WeaponColumn"));
-	WeaponText = StyleHudLook::MakeLine(WidgetTree, TEXT("WeaponText"), 28, FCyberMenuStyle::TextColor, ETextJustify::Left);
-	ReloadBar = StyleHudLook::MakeBar(WidgetTree, TEXT("ReloadBar"), FCyberMenuStyle::AccentColor);
-	CueText = StyleHudLook::MakeLine(WidgetTree, TEXT("CueText"), 22, StyleHudLook::Alarm, ETextJustify::Left);
+	WeaponText = StyleHudLook::MakeLine(WidgetTree, TEXT("WeaponText"), 28, FCyberMenuStyle::TextColor(), ETextJustify::Left);
+	ReloadBar = StyleHudLook::MakeBar(WidgetTree, TEXT("ReloadBar"), FCyberMenuStyle::BrandColor());
+	CueText = StyleHudLook::MakeLine(WidgetTree, TEXT("CueText"), 22, FCyberMenuStyle::DangerColor(), ETextJustify::Left);
 	StyleHudLook::AddLine(WeaponColumn, WeaponText, HAlign_Left, 4.0f);
 	StyleHudLook::AddBar(WidgetTree, WeaponColumn, ReloadBar, 260.0f, 6.0f, HAlign_Left, 4.0f);
 	StyleHudLook::AddLine(WeaponColumn, CueText, HAlign_Left, 0.0f);
@@ -205,7 +200,7 @@ void UStyleHUDWidget::BindStyle()
 void UStyleHUDWidget::HandleStyleEvent(EStyleEvent Event, int32 Points, AActor* Target)
 {
 	FText Label;
-	FLinearColor Color = FCyberMenuStyle::TextColor;
+	FLinearColor Color = FCyberMenuStyle::TextColor();
 	switch (Event)
 	{
 	case EStyleEvent::Hit:
@@ -225,11 +220,11 @@ void UStyleHUDWidget::HandleStyleEvent(EStyleEvent Event, int32 Points, AActor* 
 		break;
 	case EStyleEvent::Miss:
 		Label = LOCTEXT("EventMiss", "MISS");
-		Color = FCyberMenuStyle::DimTextColor;
+		Color = FCyberMenuStyle::DimTextColor();
 		break;
 	case EStyleEvent::Penalty:
 		Label = LOCTEXT("EventPenalty", "PENALTY");
-		Color = StyleHudLook::Alarm;
+		Color = FCyberMenuStyle::DangerColor();
 		break;
 	default:
 		return;
@@ -275,7 +270,7 @@ void UStyleHUDWidget::UpdateStyle(double WallNow)
 	const float Fraction = Style->GetMeterFraction();
 	MeterBar->SetPercent(Fraction);
 	RankText->SetText(Style->GetRankLabel());
-	RankText->SetColorAndOpacity(FSlateColor(FMath::Lerp(FCyberMenuStyle::DimTextColor, FCyberMenuStyle::AccentColor, Fraction)));
+	RankText->SetColorAndOpacity(FSlateColor(FMath::Lerp(FCyberMenuStyle::DimTextColor(), FCyberMenuStyle::BrandColor(), Fraction)));
 	const float Pop = FMath::Clamp(1.0f - static_cast<float>(WallNow - RankPopAt) / 0.25f, 0.0f, 1.0f);
 	RankText->SetRenderScale(FVector2D(1.0f + 0.15f * Pop));
 
@@ -305,7 +300,7 @@ void UStyleHUDWidget::UpdateWeapon(double RealTime)
 
 	WeaponText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FCyberText::Int(Status.Rounds), FCyberText::Int(Status.MagazineSize)));
-	const FLinearColor WeaponColor = Status.Rounds == 0 ? StyleHudLook::Alarm : (Status.bSwitching ? FCyberMenuStyle::DimTextColor : FCyberMenuStyle::TextColor);
+	const FLinearColor WeaponColor = Status.Rounds == 0 ? FCyberMenuStyle::DangerColor() : (Status.bSwitching ? FCyberMenuStyle::DimTextColor() : FCyberMenuStyle::TextColor());
 	WeaponText->SetColorAndOpacity(FSlateColor(WeaponColor));
 
 	ReloadBar->SetVisibility(Status.bReloading ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
@@ -333,7 +328,7 @@ void UStyleHUDWidget::UpdateOverclock(double WallNow)
 	if (!Feel || !Feel->IsOverclockAllowed())
 	{
 		OverclockText->SetText(LOCTEXT("OverclockLocked", "OVERCLOCK LOCKED"));
-		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor));
+		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor()));
 		OverclockText->SetRenderOpacity(1.0f);
 		OverclockBar->SetPercent(0.0f);
 		return;
@@ -343,19 +338,19 @@ void UStyleHUDWidget::UpdateOverclock(double WallNow)
 	if (Feel->IsOverclockActive())
 	{
 		OverclockText->SetText(LOCTEXT("OverclockOn", "OVERCLOCK ON"));
-		OverclockText->SetColorAndOpacity(FSlateColor(StyleHudLook::Cool));
+		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::CounterColor()));
 		OverclockText->SetRenderOpacity(0.6f + 0.4f * FMath::Abs(FMath::Sin(static_cast<float>(WallNow) * 8.0f)));
 	}
 	else if (Feel->IsOverclockReady())
 	{
 		OverclockText->SetText(LOCTEXT("OverclockReady", "OVERCLOCK READY  E OR LB"));
-		OverclockText->SetColorAndOpacity(FSlateColor(StyleHudLook::Cool));
+		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::CounterColor()));
 		OverclockText->SetRenderOpacity(1.0f);
 	}
 	else
 	{
 		OverclockText->SetText(FText::Format(LOCTEXT("OverclockCharge", "OVERCLOCK {0}%"), FCyberText::Int(FMath::RoundToInt(Feel->GetOverclockFraction() * 100.0f))));
-		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor));
+		OverclockText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor()));
 		OverclockText->SetRenderOpacity(1.0f);
 	}
 }

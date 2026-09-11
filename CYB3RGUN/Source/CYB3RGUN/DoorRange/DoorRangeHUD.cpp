@@ -3,6 +3,7 @@
 #include "DoorRangeHUD.h"
 #include "DoorRangeGameMode.h"
 #include "CyberText.h"
+#include "CyberMenuStyle.h"
 #include "StyleHUDWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -16,12 +17,21 @@
 
 #define LOCTEXT_NAMESPACE "DoorRangeHUD"
 
-namespace
+// a named namespace with unique names, unity builds merge this file with other HUDs that have their own helpers
+namespace DoorRangeHudLook
 {
-	const FLinearColor ColorNeutral(0.95f, 0.95f, 0.95f, 1.0f);
-	const FLinearColor ColorGood(0.2f, 1.0f, 0.3f, 1.0f);
-	const FLinearColor ColorBad(1.0f, 0.2f, 0.2f, 1.0f);
-	const FLinearColor ColorWarn(1.0f, 0.7f, 0.1f, 1.0f);
+	FLinearColor Neutral() { return FCyberMenuStyle::TextColor(); }
+	FLinearColor Good() { return FCyberMenuStyle::BrandColor(); }
+	FLinearColor Bad() { return FCyberMenuStyle::DangerColor(); }
+	FLinearColor Warn() { return FCyberMenuStyle::CounterColor(); }
+
+	void Restyle(UTextBlock* Line, const FLinearColor& Color)
+	{
+		if (Line)
+		{
+			Line->SetColorAndOpacity(FSlateColor(Color));
+		}
+	}
 }
 
 TSharedRef<SWidget> UDoorRangeHUD::RebuildWidget()
@@ -47,24 +57,24 @@ void UDoorRangeHUD::BuildFallbackLayout()
 		Block->SetFont(Font);
 		Block->SetColorAndOpacity(FSlateColor(Color));
 		Block->SetShadowOffset(FVector2D(2.0f, 2.0f));
-		Block->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f));
+		Block->SetShadowColorAndOpacity(FCyberMenuStyle::ShadowColor());
 		return Block;
 	};
 
 	UVerticalBox* TopLeft = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("FallbackTopLeft"));
 	if (!ScoreText)
 	{
-		ScoreText = MakeText(TEXT("ScoreText"), 36, ColorNeutral);
+		ScoreText = MakeText(TEXT("ScoreText"), 36, DoorRangeHudLook::Neutral());
 		TopLeft->AddChildToVerticalBox(ScoreText);
 	}
 	if (!WaveText)
 	{
-		WaveText = MakeText(TEXT("WaveText"), 24, ColorNeutral);
+		WaveText = MakeText(TEXT("WaveText"), 24, DoorRangeHudLook::Neutral());
 		TopLeft->AddChildToVerticalBox(WaveText);
 	}
 	if (!HostilesText)
 	{
-		HostilesText = MakeText(TEXT("HostilesText"), 24, ColorWarn);
+		HostilesText = MakeText(TEXT("HostilesText"), 24, DoorRangeHudLook::Warn());
 		TopLeft->AddChildToVerticalBox(HostilesText);
 	}
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(TopLeft))
@@ -76,7 +86,7 @@ void UDoorRangeHUD::BuildFallbackLayout()
 
 	if (!EventText)
 	{
-		EventText = MakeText(TEXT("EventText"), 40, ColorNeutral);
+		EventText = MakeText(TEXT("EventText"), 40, DoorRangeHudLook::Neutral());
 		EventText->SetJustification(ETextJustify::Center);
 		if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(EventText))
 		{
@@ -89,9 +99,9 @@ void UDoorRangeHUD::BuildFallbackLayout()
 	if (!SummaryPanel)
 	{
 		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SummaryPanel"));
-		Border->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.75f));
+		Border->SetBrushColor(FCyberMenuStyle::PanelColor());
 		Border->SetPadding(FMargin(32.0f, 24.0f));
-		SummaryText = MakeText(TEXT("SummaryText"), 28, ColorNeutral);
+		SummaryText = MakeText(TEXT("SummaryText"), 28, DoorRangeHudLook::Neutral());
 		SummaryText->SetJustification(ETextJustify::Center);
 		Border->SetContent(SummaryText);
 		SummaryPanel = Border;
@@ -107,6 +117,16 @@ void UDoorRangeHUD::BuildFallbackLayout()
 void UDoorRangeHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// the Blueprint layout bakes its own colours, the brand style decides them
+	DoorRangeHudLook::Restyle(ScoreText, DoorRangeHudLook::Neutral());
+	DoorRangeHudLook::Restyle(WaveText, DoorRangeHudLook::Neutral());
+	DoorRangeHudLook::Restyle(HostilesText, DoorRangeHudLook::Warn());
+	DoorRangeHudLook::Restyle(SummaryText, DoorRangeHudLook::Neutral());
+	if (UBorder* Panel = Cast<UBorder>(SummaryPanel))
+	{
+		Panel->SetBrushColor(FCyberMenuStyle::PanelColor());
+	}
 
 	if (EventText)
 	{
@@ -225,22 +245,22 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 	switch (Event)
 	{
 	case EDoorRangeEvent::HostileHit:
-		ShowEvent(FText::Format(LOCTEXT("HostileHit", "HOSTILE DOWN  +{0}"), FCyberText::Int(Delta)), ColorGood);
+		ShowEvent(FText::Format(LOCTEXT("HostileHit", "HOSTILE DOWN  +{0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Good());
 		break;
 	case EDoorRangeEvent::FriendlyHit:
-		ShowEvent(FText::Format(LOCTEXT("FriendlyHit", "FRIENDLY HIT  {0}"), FCyberText::Int(Delta)), ColorBad);
+		ShowEvent(FText::Format(LOCTEXT("FriendlyHit", "FRIENDLY HIT  {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Bad());
 		break;
 	case EDoorRangeEvent::HostileEscaped:
-		ShowEvent(FText::Format(LOCTEXT("HostileEscaped", "HOSTILE ESCAPED  {0}"), FCyberText::Int(Delta)), ColorWarn);
+		ShowEvent(FText::Format(LOCTEXT("HostileEscaped", "HOSTILE ESCAPED  {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Warn());
 		break;
 	case EDoorRangeEvent::HostageRescued:
-		ShowEvent(FText::Format(LOCTEXT("HostageRescued", "HOSTAGE FREED  +{0}"), FCyberText::Int(Delta)), ColorGood);
+		ShowEvent(FText::Format(LOCTEXT("HostageRescued", "HOSTAGE FREED  +{0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Good());
 		break;
 	case EDoorRangeEvent::HostageHit:
-		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FCyberText::Int(Delta)), ColorBad);
+		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Bad());
 		break;
 	case EDoorRangeEvent::WaveStarted:
-		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FCyberText::Int(Delta)), ColorNeutral);
+		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Neutral());
 		if (SummaryPanel)
 		{
 			SummaryPanel->SetVisibility(ESlateVisibility::Collapsed);

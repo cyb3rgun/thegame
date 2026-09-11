@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. The graphics settings menu.
 
 #include "SettingsMenuWidget.h"
+#include "CyberMenuStyle.h"
 #include "SettingsMenuRow.h"
 #include "SettingsMenuSubsystem.h"
 #include "SettingsMeasuredCosts.h"
@@ -24,14 +25,6 @@
 #include "Styling/CoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "SettingsMenu"
-
-namespace
-{
-	const FLinearColor MenuTitleColor(1.0f, 1.0f, 1.0f, 1.0f);
-	const FLinearColor MenuFrameRateColor(0.3f, 1.0f, 0.4f, 1.0f);
-	const FLinearColor MenuStatusColor(1.0f, 0.8f, 0.3f, 1.0f);
-	const FLinearColor MenuNoteColor(0.55f, 0.6f, 0.68f, 1.0f);
-}
 
 TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 {
@@ -59,12 +52,12 @@ void USettingsMenuWidget::BuildLayout()
 	auto MakeButton = [this, &MakeText](const FName& Name, const FText& Text)
 	{
 		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
-		Button->AddChild(MakeText(*(Name.ToString() + TEXT("Text")), 20, FLinearColor::White, Text));
+		Button->AddChild(MakeText(*(Name.ToString() + TEXT("Text")), 20, FCyberMenuStyle::TextColor(), Text));
 		return Button;
 	};
 
 	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MenuPanel"));
-	Panel->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.03f, 0.92f));
+	Panel->SetBrushColor(FCyberMenuStyle::PanelSolidColor());
 	Panel->SetPadding(FMargin(36.0f, 28.0f));
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
 	{
@@ -78,12 +71,12 @@ void USettingsMenuWidget::BuildLayout()
 
 	// header: title on the left, live frame rate on the right
 	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Header"));
-	Header->AddChildToHorizontalBox(MakeText(TEXT("Title"), 30, MenuTitleColor, LOCTEXT("Title", "SETTINGS")));
+	Header->AddChildToHorizontalBox(MakeText(TEXT("Title"), 30, FCyberMenuStyle::TextColor(), LOCTEXT("Title", "SETTINGS")));
 	if (UHorizontalBoxSlot* SpacerSlot = Header->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("HeaderSpacer"))))
 	{
 		SpacerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	}
-	FrameRateText = MakeText(TEXT("FrameRate"), 22, MenuFrameRateColor, FText::GetEmpty());
+	FrameRateText = MakeText(TEXT("FrameRate"), 22, FCyberMenuStyle::BrandColor(), FText::GetEmpty());
 	if (UHorizontalBoxSlot* RateSlot = Header->AddChildToHorizontalBox(FrameRateText))
 	{
 		RateSlot->SetVerticalAlignment(VAlign_Center);
@@ -102,7 +95,7 @@ void USettingsMenuWidget::BuildLayout()
 	// where the grey cost figures next to the options come from
 	NoteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CostNote"));
 	NoteText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
-	NoteText->SetColorAndOpacity(FSlateColor(MenuNoteColor));
+	NoteText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor()));
 	NoteText->SetText(FSettingsMeasuredCosts::GetSourceNote());
 	if (UVerticalBoxSlot* NoteSlot = Column->AddChildToVerticalBox(NoteText))
 	{
@@ -120,7 +113,7 @@ void USettingsMenuWidget::BuildLayout()
 		Rows.Add(Row);
 	}
 
-	StatusText = MakeText(TEXT("Status"), 18, MenuStatusColor, FText::GetEmpty());
+	StatusText = MakeText(TEXT("Status"), 18, FCyberMenuStyle::CounterColor(), FText::GetEmpty());
 	if (UVerticalBoxSlot* StatusSlot = Column->AddChildToVerticalBox(StatusText))
 	{
 		StatusSlot->SetPadding(FMargin(0.0f, 14.0f, 0.0f, 10.0f));

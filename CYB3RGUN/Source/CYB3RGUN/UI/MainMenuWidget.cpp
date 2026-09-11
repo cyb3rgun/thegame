@@ -21,7 +21,7 @@ void UMainMenuWidget::BuildLayout()
 
 	// a dark band on the left keeps the text readable, the rest of the screen belongs to the night range
 	UBorder* Band = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Band"));
-	Band->SetBrushColor(FCyberMenuStyle::PanelColor);
+	Band->SetBrushColor(FCyberMenuStyle::PanelColor());
 	Band->SetPadding(FMargin(96.0f, 0.0f, 64.0f, 0.0f));
 	Band->SetVerticalAlignment(VAlign_Center);
 	if (UCanvasPanelSlot* BandSlot = Canvas->AddChildToCanvas(Band))
@@ -33,11 +33,11 @@ void UMainMenuWidget::BuildLayout()
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainColumn"));
 	Band->SetContent(Column);
 
-	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "CYB3RGUN"), 96, FCyberMenuStyle::TextColor);
+	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "CYB3RGUN"), 96, FCyberMenuStyle::TextColor());
 	Title->SetFont(FCyberMenuStyle::MakeFont(96, TEXT("Bold"), 120));
 	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(0.0f));
 
-	UTextBlock* Tagline = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Tagline"), LOCTEXT("Tagline", "NO TRIGGER, NO SHOT."), 22, FCyberMenuStyle::AccentColor);
+	UTextBlock* Tagline = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Tagline"), LOCTEXT("Tagline", "NO TRIGGER, NO SHOT."), 22, FCyberMenuStyle::BrandColor());
 	Tagline->SetFont(FCyberMenuStyle::MakeFont(22, TEXT("Bold"), 320));
 	FCyberMenuStyle::AddToColumn(Column, Tagline, FMargin(4.0f, 0.0f, 0.0f, 64.0f));
 
@@ -52,7 +52,7 @@ void UMainMenuWidget::BuildLayout()
 	SettingsButton->OnClicked.AddUniqueDynamic(this, &UMainMenuWidget::HandleSettings);
 	QuitButton->OnClicked.AddUniqueDynamic(this, &UMainMenuWidget::HandleQuit);
 
-	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Arrow keys or stick to move, Enter or A to choose"), 14, FCyberMenuStyle::DimTextColor, TEXT("Regular"));
+	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Arrow keys or stick to move, Enter or A to choose"), 14, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
 	FCyberMenuStyle::AddToColumn(Column, Hint, FMargin(0.0f, 48.0f, 0.0f, 0.0f));
 }
 

@@ -21,7 +21,7 @@ void UPauseMenuWidget::BuildLayout()
 
 	// the frozen level stays visible behind a veil, the panel sits in the middle
 	UBorder* Veil = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Veil"));
-	Veil->SetBrushColor(FCyberMenuStyle::VeilColor);
+	Veil->SetBrushColor(FCyberMenuStyle::VeilColor());
 	Veil->SetHorizontalAlignment(HAlign_Center);
 	Veil->SetVerticalAlignment(VAlign_Center);
 	if (UCanvasPanelSlot* VeilSlot = Canvas->AddChildToCanvas(Veil))
@@ -31,14 +31,14 @@ void UPauseMenuWidget::BuildLayout()
 	}
 
 	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Panel"));
-	Panel->SetBrushColor(FCyberMenuStyle::PanelColor);
+	Panel->SetBrushColor(FCyberMenuStyle::PanelColor());
 	Panel->SetPadding(FMargin(56.0f, 44.0f));
 	Veil->SetContent(Panel);
 
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PauseColumn"));
 	Panel->SetContent(Column);
 
-	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "PAUSED"), 48, FCyberMenuStyle::TextColor);
+	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "PAUSED"), 48, FCyberMenuStyle::TextColor());
 	Title->SetFont(FCyberMenuStyle::MakeFont(48, TEXT("Bold"), 200));
 	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(0.0f, 0.0f, 0.0f, 32.0f));
 
@@ -53,7 +53,7 @@ void UPauseMenuWidget::BuildLayout()
 	SettingsButton->OnClicked.AddUniqueDynamic(this, &UPauseMenuWidget::HandleSettings);
 	MainMenuButton->OnClicked.AddUniqueDynamic(this, &UPauseMenuWidget::HandleMainMenu);
 
-	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Esc or B to resume"), 14, FCyberMenuStyle::DimTextColor, TEXT("Regular"));
+	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Esc or B to resume"), 14, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
 	FCyberMenuStyle::AddToColumn(Column, Hint, FMargin(0.0f, 24.0f, 0.0f, 0.0f));
 }
 
