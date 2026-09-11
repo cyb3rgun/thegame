@@ -1,4 +1,4 @@
-// CYB3RGUN THEGAME. One option row of the settings menu: label, previous, value, next.
+// CYB3RGUN THEGAME. One option row of the settings menu: label, previous, value, next, measured cost.
 
 #pragma once
 
@@ -26,6 +26,9 @@ protected:
 	TObjectPtr<UTextBlock> ValueText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CostText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UButton> PrevButton;
 
 	UPROPERTY(Transient)
@@ -37,7 +40,8 @@ protected:
 public:
 
 	void Setup(USettingsMenuWidget* InMenu, ECyberSettingOption InOption);
-	void Refresh(const FText& Label, const FText& Value, bool bExperimental);
+	/** Cost is the measured cost of the shown value, empty when there is none */
+	void Refresh(const FText& Label, const FText& Value, bool bExperimental, const FText& Cost);
 
 	ECyberSettingOption GetOption() const { return Option; }
 	UButton* GetNextButton() const { return NextButton; }

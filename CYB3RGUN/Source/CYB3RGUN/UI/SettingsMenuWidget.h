@@ -36,6 +36,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatusText;
 
+	/** Says where the measured cost figures come from */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> NoteText;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> ResetButton;
 
@@ -51,6 +55,7 @@ protected:
 
 	FCyberSettingsState Pending;
 	float FrameAccumulator = 0.0f;
+	float GpuAccumulator = 0.0f;
 	int32 FrameCount = 0;
 
 public:

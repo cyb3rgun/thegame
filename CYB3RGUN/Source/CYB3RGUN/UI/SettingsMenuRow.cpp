@@ -15,6 +15,7 @@ namespace
 	const FLinearColor RowLabelColor(0.85f, 0.85f, 0.85f, 1.0f);
 	const FLinearColor RowValueColor(1.0f, 1.0f, 1.0f, 1.0f);
 	const FLinearColor RowExperimentalColor(1.0f, 0.55f, 0.15f, 1.0f);
+	const FLinearColor RowCostColor(0.55f, 0.6f, 0.68f, 1.0f);
 }
 
 TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
@@ -66,6 +67,17 @@ TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
 		NextButton = MakeButton(TEXT("Next"), TEXT(">"));
 		Row->AddChildToHorizontalBox(NextButton);
 
+		// measured cost of the shown value, right aligned so the figures line up
+		USizeBox* CostBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CostBox"));
+		CostBox->SetWidthOverride(150.0f);
+		CostText = MakeText(TEXT("Cost"), 16, RowCostColor);
+		CostText->SetJustification(ETextJustify::Right);
+		CostBox->AddChild(CostText);
+		if (UHorizontalBoxSlot* CostSlot = Row->AddChildToHorizontalBox(CostBox))
+		{
+			CostSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
 		PrevButton->OnClicked.AddUniqueDynamic(this, &USettingsMenuRow::HandlePrev);
 		NextButton->OnClicked.AddUniqueDynamic(this, &USettingsMenuRow::HandleNext);
 	}
@@ -78,8 +90,12 @@ void USettingsMenuRow::Setup(USettingsMenuWidget* InMenu, ECyberSettingOption In
 	Option = InOption;
 }
 
-void USettingsMenuRow::Refresh(const FText& Label, const FText& Value, bool bExperimental)
+void USettingsMenuRow::Refresh(const FText& Label, const FText& Value, bool bExperimental, const FText& Cost)
 {
+	if (CostText)
+	{
+		CostText->SetText(Cost);
+	}
 	if (LabelText)
 	{
 		LabelText->SetText(Label);

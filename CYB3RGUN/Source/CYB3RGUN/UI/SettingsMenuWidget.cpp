@@ -3,6 +3,7 @@
 #include "SettingsMenuWidget.h"
 #include "SettingsMenuRow.h"
 #include "SettingsMenuSubsystem.h"
+#include "SettingsMeasuredCosts.h"
 #include "CyberGameUserSettings.h"
 #include "CyberSettingsOptions.h"
 #include "Blueprint/WidgetTree.h"
@@ -17,6 +18,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "DynamicRHI.h"
 #include "Engine/GameInstance.h"
 #include "Misc/App.h"
 #include "Styling/CoreStyle.h"
@@ -28,6 +30,7 @@ namespace
 	const FLinearColor MenuTitleColor(1.0f, 1.0f, 1.0f, 1.0f);
 	const FLinearColor MenuFrameRateColor(0.3f, 1.0f, 0.4f, 1.0f);
 	const FLinearColor MenuStatusColor(1.0f, 0.8f, 0.3f, 1.0f);
+	const FLinearColor MenuNoteColor(0.55f, 0.6f, 0.68f, 1.0f);
 }
 
 TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
@@ -95,6 +98,16 @@ void USettingsMenuWidget::BuildLayout()
 	RowBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RowBox"));
 	Scroll->AddChild(RowBox);
 	Column->AddChildToVerticalBox(Scroll);
+
+	// where the grey cost figures next to the options come from
+	NoteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CostNote"));
+	NoteText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+	NoteText->SetColorAndOpacity(FSlateColor(MenuNoteColor));
+	NoteText->SetText(FSettingsMeasuredCosts::GetSourceNote());
+	if (UVerticalBoxSlot* NoteSlot = Column->AddChildToVerticalBox(NoteText))
+	{
+		NoteSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+	}
 
 	for (int32 i = 0; i < static_cast<int32>(ECyberSettingOption::Count); ++i)
 	{
@@ -227,16 +240,20 @@ void USettingsMenuWidget::RefreshRows()
 
 		const int32 ValueIndex = FCyberSettingsOptions::GetValueIndex(Option, Pending);
 		FText Value = FCyberSettingsOptions::GetValueDisplayLabel(Option, ValueIndex);
+		FText Cost = FSettingsMeasuredCosts::Describe(Option, ValueIndex);
 		if (Option == ECyberSettingOption::Preset && Pending.Features != UCyberGameUserSettings::GetPresetFeatures(Pending.Preset))
 		{
 			// the plain label keeps the row short; the capture note only fits on an unmodified preset
 			Value = FText::Format(LOCTEXT("Custom", "{0} (custom)"), FCyberSettingsOptions::GetValueLabel(Option, ValueIndex));
+			// a measured preset time no longer describes a customised preset
+			Cost = FText::GetEmpty();
 		}
 		if (Option == ECyberSettingOption::Nanite && Pending.Features.bNanite && !FCyberSettingsOptions::IsNaniteActive(Pending.Features))
 		{
 			Value = LOCTEXT("NaniteNeedsVsm", "On, needs virtual shadows");
+			Cost = FText::GetEmpty();
 		}
-		Row->Refresh(FCyberSettingsOptions::GetOptionLabel(Option), Value, FCyberSettingsOptions::IsExperimental(Option));
+		Row->Refresh(FCyberSettingsOptions::GetOptionLabel(Option), Value, FCyberSettingsOptions::IsExperimental(Option), Cost);
 	}
 }
 
@@ -254,12 +271,16 @@ void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 
 	// real frame time, unaffected by pause or time dilation
 	FrameAccumulator += static_cast<float>(FApp::GetDeltaTime());
+	GpuAccumulator += static_cast<float>(FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles(0)));
 	++FrameCount;
 	if (FrameAccumulator >= FrameRateUpdateSeconds && FrameRateText)
 	{
+		// frames per second and frame time over the last quarter second, plus the GPU's share of the frame
 		const float Ms = 1000.0f * FrameAccumulator / FrameCount;
-		FrameRateText->SetText(FText::FromString(FString::Printf(TEXT("%d FPS   %.1f ms"), FMath::RoundToInt(1000.0f / FMath::Max(Ms, 0.01f)), Ms)));
+		const float GpuMs = GpuAccumulator / FrameCount;
+		FrameRateText->SetText(FText::FromString(FString::Printf(TEXT("%d FPS   %.1f ms   GPU %.1f ms"), FMath::RoundToInt(1000.0f / FMath::Max(Ms, 0.01f)), Ms, GpuMs)));
 		FrameAccumulator = 0.0f;
+		GpuAccumulator = 0.0f;
 		FrameCount = 0;
 	}
 }
