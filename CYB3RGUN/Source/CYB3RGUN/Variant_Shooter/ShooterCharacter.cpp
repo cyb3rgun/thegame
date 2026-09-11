@@ -15,6 +15,11 @@
 #include "ShooterGameMode.h"
 #include "RailAimComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/LocalPlayer.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "UObject/ConstructorHelpers.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -24,6 +29,10 @@ AShooterCharacter::AShooterCharacter()
 	// create the screen space aim component, first person style with the crosshair in the centre
 	AimComponent = CreateDefaultSubobject<URailAimComponent>(TEXT("Aim"));
 	AimComponent->SetInputMode(ERailAimInputMode::ScreenCenter);
+
+	// reload lives in the project's input folder, the Blueprint may still override it
+	static ConstructorHelpers::FObjectFinder<UInputAction> ReloadInput(TEXT("/Game/CYB3RGUN/Core/Input/IA_Reload.IA_Reload"));
+	ReloadAction = ReloadInput.Object;
 
 	// configure movement
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
@@ -62,6 +71,12 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		// Switch weapon
 		EnhancedInputComponent->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::DoSwitchWeapon);
+
+		// Reload
+		if (ReloadAction)
+		{
+			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AShooterCharacter::DoReload);
+		}
 	}
 
 }
@@ -348,4 +363,62 @@ bool AShooterCharacter::IsDead() const
 void AShooterCharacter::SetTeam(uint8 Team)
 {
 	TeamByte = Team;
+}
+
+void AShooterCharacter::DoReload()
+{
+	if (CurrentWeapon && !IsDead())
+	{
+		CurrentWeapon->StartReload();
+	}
+}
+
+void AShooterCharacter::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	UEnhancedInputLocalPlayerSubsystem* Subsystem = PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr;
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	// reload on R and the gamepad's left face button, switching also on Q and the mouse wheel
+	if (!CombatMappingContext)
+	{
+		CombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("CombatMappingContext"));
+		if (ReloadAction)
+		{
+			CombatMappingContext->MapKey(ReloadAction, EKeys::R);
+			CombatMappingContext->MapKey(ReloadAction, EKeys::Gamepad_FaceButton_Left);
+		}
+		if (SwitchWeaponAction)
+		{
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::Q);
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollUp);
+			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollDown);
+		}
+	}
+	Subsystem->AddMappingContext(CombatMappingContext, 1);
+}
+
+bool AShooterCharacter::GetWeaponStatus(FWeaponStatus& OutStatus) const
+{
+	if (!CurrentWeapon)
+	{
+		return false;
+	}
+
+	OutStatus.WeaponName = CurrentWeapon->GetDisplayName();
+	OutStatus.Rounds = CurrentWeapon->GetBulletCount();
+	OutStatus.MagazineSize = CurrentWeapon->GetMagazineSize();
+	OutStatus.bReloading = CurrentWeapon->IsReloading();
+	OutStatus.ReloadProgress = CurrentWeapon->GetReloadProgress();
+	OutStatus.bSwitching = CurrentWeapon->IsEquipping();
+	OutStatus.LastDryFireTime = CurrentWeapon->GetLastDryFireTime();
+	OutStatus.ReloadHint = NSLOCTEXT("ShooterCharacter", "ReloadHint", "R OR X TO RELOAD");
+	OutStatus.WeaponIndex = OwnedWeapons.Find(CurrentWeapon.Get());
+	OutStatus.WeaponCount = OwnedWeapons.Num();
+	return true;
 }

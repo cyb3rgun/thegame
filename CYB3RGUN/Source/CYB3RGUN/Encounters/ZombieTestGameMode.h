@@ -24,9 +24,13 @@ class CYB3RGUN_API AZombieTestGameMode : public AGameModeBase, public IStyleScen
 
 protected:
 
-	/** Weapon handed to the player at spawn */
+	/** Weapon handed to the player at spawn, the one in hand at the start */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
 	TSubclassOf<AShooterWeapon> StartingWeaponClass;
+
+	/** Further weapons handed out before the starting weapon, reached with the switch action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
+	TArray<TSubclassOf<AShooterWeapon>> AdditionalWeaponClasses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
 	TSubclassOf<UEncounterHUD> EncounterHUDClass;

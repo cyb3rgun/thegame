@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "CYB3RGUNCharacter.h"
 #include "ShooterWeaponHolder.h"
+#include "WeaponStatus.h"
 #include "ShooterCharacter.generated.h"
 
 class AShooterWeapon;
 class UInputAction;
+class UInputMappingContext;
 class UInputComponent;
 class UPawnNoiseEmitterComponent;
 class URailAimComponent;
@@ -22,7 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent
  *  Manages health and death
  */
 UCLASS(abstract)
-class CYB3RGUN_API AShooterCharacter : public ACYB3RGUNCharacter, public IShooterWeaponHolder
+class CYB3RGUN_API AShooterCharacter : public ACYB3RGUNCharacter, public IShooterWeaponHolder, public IWeaponStatusSource
 {
 	GENERATED_BODY()
 	
@@ -43,6 +45,14 @@ protected:
 	/** Switch weapon input action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* SwitchWeaponAction;
+
+	/** Reload input action, a key or gamepad button with a real duration */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* ReloadAction;
+
+	/** Keys for reload and switching, built at runtime next to the template's own contexts */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
 	/** Name of the first person mesh weapon socket */
 	UPROPERTY(EditAnywhere, Category ="Weapons")
@@ -140,6 +150,21 @@ public:
 	/** Handles switch weapon input */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
+
+	/** Handles reload input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoReload();
+
+	//~ Begin IWeaponStatusSource
+	virtual bool GetWeaponStatus(FWeaponStatus& OutStatus) const override;
+	//~ End IWeaponStatusSource
+
+protected:
+
+	/** Adds the combat keys when a local player takes this character */
+	virtual void PawnClientRestart() override;
+
+public:
 
 public:
 

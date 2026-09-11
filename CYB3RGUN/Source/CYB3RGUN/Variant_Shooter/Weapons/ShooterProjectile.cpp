@@ -233,3 +233,8 @@ void AShooterProjectile::ResolveStyleMiss()
 		Style->EndShotResolution();
 	}
 }
+
+void AShooterProjectile::SetCollisionRadius(float Radius)
+{
+	CollisionComponent->SetSphereRadius(Radius);
+}

@@ -65,9 +65,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Occupants")
 	TObjectPtr<UMaterialInterface> FriendlyMaterial;
 
-	/** Weapon handed to the player when the range starts */
+	/** Weapon handed to the player when the range starts, the one in hand at the start */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	TSubclassOf<AShooterWeapon> StartingWeaponClass;
+
+	/** Further weapons handed out before the starting weapon, reached with the switch action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	TArray<TSubclassOf<AShooterWeapon>> AdditionalWeaponClasses;
 
 	/** Played at the slot when a hostile is hit */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feedback")

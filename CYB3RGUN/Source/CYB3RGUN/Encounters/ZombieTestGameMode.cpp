@@ -88,6 +88,15 @@ void AZombieTestGameMode::SetupPlayer()
 
 	if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(Pawn))
 	{
+		// the extra weapons first, so the starting weapon ends up in hand
+		for (const TSubclassOf<AShooterWeapon>& Extra : AdditionalWeaponClasses)
+		{
+			if (Extra)
+			{
+				Holder->AddWeaponClass(Extra);
+				UE_LOG(LogZombieTest, Log, TEXT("Granted weapon %s"), *GetNameSafe(Extra));
+			}
+		}
 		if (StartingWeaponClass)
 		{
 			Holder->AddWeaponClass(StartingWeaponClass);

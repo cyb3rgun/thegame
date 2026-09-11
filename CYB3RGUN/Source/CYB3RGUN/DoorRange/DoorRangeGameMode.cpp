@@ -95,6 +95,15 @@ void ADoorRangeGameMode::GrantStartingWeapon()
 	{
 		if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(PC->GetPawn()))
 		{
+			// the extra weapons first, so the starting weapon ends up in hand
+			for (const TSubclassOf<AShooterWeapon>& Extra : Cfg->AdditionalWeaponClasses)
+			{
+				if (Extra)
+				{
+					Holder->AddWeaponClass(Extra);
+					UE_LOG(LogDoorRange, Log, TEXT("Granted weapon %s"), *GetNameSafe(Extra));
+				}
+			}
 			Holder->AddWeaponClass(Cfg->StartingWeaponClass);
 			UE_LOG(LogDoorRange, Log, TEXT("Granted starting weapon %s"), *GetNameSafe(Cfg->StartingWeaponClass));
 		}

@@ -126,4 +126,10 @@ public:
 	/** Marks this projectile as a player's shot for the style record. It resolves where it lands, or as a miss after MissTimeout. */
 	void MarkAsStyleShot(float MissTimeout);
 
+	/** Sets the damage this projectile deals, from the firing weapon's definition */
+	void SetHitDamage(float Damage) { HitDamage = Damage; }
+
+	/** Sets the radius of the collision sweep, from the firing weapon's definition */
+	void SetCollisionRadius(float Radius);
+
 };
