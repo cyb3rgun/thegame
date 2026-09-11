@@ -94,6 +94,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 0;
 		F.ViewDistanceQuality = 0;
 		F.bMotionBlur = false;
+		F.ResolutionScale = 100;
 		break;
 	case ECyberQualityPreset::Medium:
 		F.bMegaLights = false;
@@ -106,6 +107,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 1;
 		F.ViewDistanceQuality = 1;
 		F.bMotionBlur = false;
+		F.ResolutionScale = 100;
 		break;
 	case ECyberQualityPreset::High:
 		// the default preset (D-030, run 4 in docs/benchmark.md): MegaLights improves the 1 percent low, TSR Quality
@@ -119,6 +121,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = false;
+		F.ResolutionScale = 100;
 		break;
 	case ECyberQualityPreset::Epic:
 		F.bMegaLights = true;
@@ -131,6 +134,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = false;
+		F.ResolutionScale = 100;
 		break;
 	case ECyberQualityPreset::Ultra:
 		// maximum game quality (D-028): everything on, native resolution without upscaling, Nanite with Virtual
@@ -144,6 +148,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = false;
+		F.ResolutionScale = 100;
 		break;
 	case ECyberQualityPreset::Cinematic:
 	default:
@@ -157,6 +162,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = true;
+		F.ResolutionScale = 100;
 		break;
 	}
 	return F;
@@ -235,8 +241,10 @@ void UCyberGameUserSettings::ValidateSettings()
 	FieldOfView = FMath::Clamp(FieldOfView, 60.0f, 120.0f);
 	Features.EffectsQuality = FMath::Clamp(Features.EffectsQuality, 0, 3);
 	Features.ViewDistanceQuality = FMath::Clamp(Features.ViewDistanceQuality, 0, 3);
+	Features.ResolutionScale = FMath::Clamp(Features.ResolutionScale, 100, 200);
 	if (!FCyberSettingsOptions::IsUltraOrAbove(QualityPreset))
 	{
+		Features.ResolutionScale = 100;
 		bExperimentalNaniteSkinnedMeshes = false;
 		bExperimentalNaniteFoliage = false;
 	}
@@ -349,10 +357,12 @@ void UCyberGameUserSettings::ApplyFeatureCVars()
 		SetInt(TEXT("r.VolumetricFog.GridSizeZ"), SizeZ[Level]);
 	}
 
-	// anti aliasing and upscaling: TSR at an internal resolution, or nothing at all
+	// anti aliasing and upscaling: TSR at an internal resolution, or nothing at all. The resolution scale multiplies
+	// that percentage, so Ultra at TSR Native and 200 percent renders twice the display resolution per axis
 	static const float ScreenPercentage[] = { 100.0f, 100.0f, 66.7f, 58.0f, 50.0f };
+	const float Scale = FMath::Clamp(F.ResolutionScale, 100, 200) / 100.0f;
 	SetInt(TEXT("r.AntiAliasingMethod"), F.AntiAliasing == ECyberAntiAliasing::Off ? 0 : 4);
-	SetFloat(TEXT("r.ScreenPercentage"), ScreenPercentage[FMath::Clamp(static_cast<int32>(F.AntiAliasing), 0, 4)]);
+	SetFloat(TEXT("r.ScreenPercentage"), FMath::Min(ScreenPercentage[FMath::Clamp(static_cast<int32>(F.AntiAliasing), 0, 4)] * Scale, 200.0f));
 
 	// Nanite only runs together with Virtual Shadow Maps, see FCyberSettingsOptions::IsNaniteActive
 	SetInt(TEXT("r.Nanite"), FCyberSettingsOptions::IsNaniteActive(F) ? 1 : 0);
@@ -406,6 +416,7 @@ void UCyberGameUserSettings::SetState(const FCyberSettingsState& State, bool bAp
 	Features = State.Features;
 	FieldOfView = FMath::Clamp(State.FieldOfView, 60.0f, 120.0f);
 	const bool bUltra = FCyberSettingsOptions::IsUltraOrAbove(QualityPreset);
+	Features.ResolutionScale = bUltra ? FMath::Clamp(Features.ResolutionScale, 100, 200) : 100;
 	bExperimentalNaniteSkinnedMeshes = bUltra && State.bExperimentalNaniteSkinnedMeshes;
 	bExperimentalNaniteFoliage = bUltra && State.bExperimentalNaniteFoliage;
 

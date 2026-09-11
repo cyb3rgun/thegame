@@ -94,11 +94,16 @@ struct FCyberFeatureSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	bool bMotionBlur = true;
 
+	/** Percent on top of the anti aliasing mode's internal resolution; above 100 renders more pixels than the display (supersampling). Ultra and Cinematic only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta = (ClampMin = 100, ClampMax = 200))
+	int32 ResolutionScale = 100;
+
 	bool operator==(const FCyberFeatureSettings& Other) const
 	{
 		return bMegaLights == Other.bMegaLights && GlobalIllumination == Other.GlobalIllumination && VirtualShadowMaps == Other.VirtualShadowMaps
 			&& VolumetricFog == Other.VolumetricFog && AntiAliasing == Other.AntiAliasing && bNanite == Other.bNanite
-			&& EffectsQuality == Other.EffectsQuality && ViewDistanceQuality == Other.ViewDistanceQuality && bMotionBlur == Other.bMotionBlur;
+			&& EffectsQuality == Other.EffectsQuality && ViewDistanceQuality == Other.ViewDistanceQuality && bMotionBlur == Other.bMotionBlur
+			&& ResolutionScale == Other.ResolutionScale;
 	}
 	bool operator!=(const FCyberFeatureSettings& Other) const { return !(*this == Other); }
 };
@@ -151,6 +156,7 @@ enum class ECyberSettingOption : uint8
 	VirtualShadowMaps,
 	VolumetricFog,
 	AntiAliasing,
+	ResolutionScale,
 	Nanite,
 	EffectsDensity,
 	ViewDistance,

@@ -47,6 +47,13 @@ const TArray<float>& FCyberSettingsOptions::GetFieldOfViews()
 	return Values;
 }
 
+const TArray<float>& FCyberSettingsOptions::GetResolutionScales()
+{
+	// TSR accepts at most twice the display resolution per axis (kMaxTSRResolutionFraction)
+	static const TArray<float> Scales = { 100.0f, 125.0f, 150.0f, 175.0f, 200.0f };
+	return Scales;
+}
+
 const TArray<FIntPoint>& FCyberSettingsOptions::GetResolutions()
 {
 	static TArray<FIntPoint> Resolutions;
@@ -79,6 +86,7 @@ FText FCyberSettingsOptions::GetOptionLabel(ECyberSettingOption Option)
 	case ECyberSettingOption::VirtualShadowMaps: return LOCTEXT("VSM", "Virtual shadow maps");
 	case ECyberSettingOption::VolumetricFog: return LOCTEXT("Fog", "Volumetric fog");
 	case ECyberSettingOption::AntiAliasing: return LOCTEXT("AA", "Anti aliasing and upscaling");
+	case ECyberSettingOption::ResolutionScale: return LOCTEXT("ResolutionScale", "Resolution scale");
 	case ECyberSettingOption::Nanite: return LOCTEXT("Nanite", "Nanite static meshes");
 	case ECyberSettingOption::EffectsDensity: return LOCTEXT("Effects", "Effects and particle density");
 	case ECyberSettingOption::ViewDistance: return LOCTEXT("ViewDistance", "View distance");
@@ -104,6 +112,7 @@ FString FCyberSettingsOptions::GetOptionName(ECyberSettingOption Option)
 	case ECyberSettingOption::VirtualShadowMaps: return TEXT("VSM");
 	case ECyberSettingOption::VolumetricFog: return TEXT("Fog");
 	case ECyberSettingOption::AntiAliasing: return TEXT("AA");
+	case ECyberSettingOption::ResolutionScale: return TEXT("ResScale");
 	case ECyberSettingOption::Nanite: return TEXT("Nanite");
 	case ECyberSettingOption::EffectsDensity: return TEXT("Effects");
 	case ECyberSettingOption::ViewDistance: return TEXT("ViewDistance");
@@ -129,6 +138,7 @@ FString FCyberSettingsOptions::GetDrivenCVars(ECyberSettingOption Option)
 	case ECyberSettingOption::VirtualShadowMaps: return TEXT("r.Shadow.Virtual.Enable, r.Shadow.Virtual.ResolutionLodBiasDirectional(Moving), r.Shadow.Virtual.ResolutionLodBiasLocal(Moving), r.Shadow.Virtual.SMRT.RayCountDirectional, r.Shadow.Virtual.SMRT.RayCountLocal, r.Shadow.Virtual.MaxPhysicalPages");
 	case ECyberSettingOption::VolumetricFog: return TEXT("r.VolumetricFog, r.VolumetricFog.GridPixelSize, r.VolumetricFog.GridSizeZ");
 	case ECyberSettingOption::AntiAliasing: return TEXT("r.AntiAliasingMethod, r.ScreenPercentage");
+	case ECyberSettingOption::ResolutionScale: return TEXT("r.ScreenPercentage, multiplied with the anti aliasing mode's percentage");
 	case ECyberSettingOption::Nanite: return TEXT("r.Nanite");
 	case ECyberSettingOption::EffectsDensity: return TEXT("sg.EffectsQuality");
 	case ECyberSettingOption::ViewDistance: return TEXT("sg.ViewDistanceQuality");
@@ -153,6 +163,7 @@ int32 FCyberSettingsOptions::GetValueCount(ECyberSettingOption Option)
 	case ECyberSettingOption::VirtualShadowMaps: return 5;
 	case ECyberSettingOption::VolumetricFog: return 4;
 	case ECyberSettingOption::AntiAliasing: return 5;
+	case ECyberSettingOption::ResolutionScale: return GetResolutionScales().Num();
 	case ECyberSettingOption::EffectsDensity: return 4;
 	case ECyberSettingOption::ViewDistance: return 4;
 	case ECyberSettingOption::FrameRateCap: return GetFrameRateCaps().Num();
@@ -199,6 +210,8 @@ FText FCyberSettingsOptions::GetValueLabel(ECyberSettingOption Option, int32 Ind
 	}
 	case ECyberSettingOption::FieldOfView:
 		return FText::FromString(FString::Printf(TEXT("%d deg"), FMath::RoundToInt(GetFieldOfViews()[Index])));
+	case ECyberSettingOption::ResolutionScale:
+		return FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(GetResolutionScales()[Index])));
 	default:
 		return OffOn(Index);
 	}
@@ -224,6 +237,7 @@ int32 FCyberSettingsOptions::GetValueIndex(ECyberSettingOption Option, const FCy
 	case ECyberSettingOption::VirtualShadowMaps: return static_cast<int32>(F.VirtualShadowMaps);
 	case ECyberSettingOption::VolumetricFog: return static_cast<int32>(F.VolumetricFog);
 	case ECyberSettingOption::AntiAliasing: return static_cast<int32>(F.AntiAliasing);
+	case ECyberSettingOption::ResolutionScale: return ClosestIndex(GetResolutionScales(), static_cast<float>(F.ResolutionScale));
 	case ECyberSettingOption::Nanite: return F.bNanite ? 1 : 0;
 	case ECyberSettingOption::EffectsDensity: return FMath::Clamp(F.EffectsQuality, 0, 3);
 	case ECyberSettingOption::ViewDistance: return FMath::Clamp(F.ViewDistanceQuality, 0, 3);
@@ -269,6 +283,9 @@ void FCyberSettingsOptions::SetValueIndex(ECyberSettingOption Option, FCyberSett
 	case ECyberSettingOption::VirtualShadowMaps: F.VirtualShadowMaps = static_cast<ECyberShadowQuality>(Index); break;
 	case ECyberSettingOption::VolumetricFog: F.VolumetricFog = static_cast<ECyberFogQuality>(Index); break;
 	case ECyberSettingOption::AntiAliasing: F.AntiAliasing = static_cast<ECyberAntiAliasing>(Index); break;
+	case ECyberSettingOption::ResolutionScale:
+		F.ResolutionScale = IsUltraOrAbove(State.Preset) ? FMath::RoundToInt(GetResolutionScales()[Index]) : 100;
+		break;
 	case ECyberSettingOption::Nanite: F.bNanite = Index == 1; break;
 	case ECyberSettingOption::EffectsDensity: F.EffectsQuality = Index; break;
 	case ECyberSettingOption::ViewDistance: F.ViewDistanceQuality = Index; break;
@@ -301,7 +318,8 @@ bool FCyberSettingsOptions::NeedsRestart(ECyberSettingOption Option)
 
 bool FCyberSettingsOptions::IsAvailable(ECyberSettingOption Option, const FCyberSettingsState& State)
 {
-	return !IsExperimental(Option) || IsUltraOrAbove(State.Preset);
+	const bool bUltraOnly = IsExperimental(Option) || Option == ECyberSettingOption::ResolutionScale;
+	return !bUltraOnly || IsUltraOrAbove(State.Preset);
 }
 
 bool FCyberSettingsOptions::IsUltraOrAbove(ECyberQualityPreset Preset)
@@ -334,7 +352,7 @@ bool FCyberSettingsOptions::ParseValue(ECyberSettingOption Option, const FString
 {
 	const FString Wanted = Value.Replace(TEXT(" "), TEXT(""));
 
-	// numbers mean the value itself for frame rate and field of view, and an index elsewhere
+	// numbers mean the value itself for frame rate, field of view and resolution scale, and an index elsewhere
 	if (Wanted.IsNumeric())
 	{
 		const float Number = FCString::Atof(*Wanted);
@@ -347,6 +365,11 @@ bool FCyberSettingsOptions::ParseValue(ECyberSettingOption Option, const FString
 		if (Option == ECyberSettingOption::FieldOfView)
 		{
 			OutIndex = ClosestIndex(GetFieldOfViews(), Number);
+			return true;
+		}
+		if (Option == ECyberSettingOption::ResolutionScale)
+		{
+			OutIndex = ClosestIndex(GetResolutionScales(), Number);
 			return true;
 		}
 		OutIndex = FMath::Clamp(FMath::RoundToInt(Number), 0, GetValueCount(Option) - 1);

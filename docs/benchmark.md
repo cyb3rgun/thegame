@@ -72,7 +72,8 @@ Results land in the log as `BENCH|...` lines and in `Saved/Benchmark/bench_resul
 | Global illumination | Off, Lumen Lite, Lumen | `r.DynamicGlobalIlluminationMethod`, `r.Lumen.DiffuseIndirect.Allow`, `r.Lumen.FinalGatherMethod`, `r.ReflectionMethod`, `r.Lumen.Reflections.Allow` |
 | Virtual shadow maps | Off, Low, Medium, High, Epic | `r.Shadow.Virtual.Enable`, `r.Shadow.Virtual.ResolutionLodBiasDirectional` and `...Moving`, `r.Shadow.Virtual.ResolutionLodBiasLocal` and `...Moving`, `r.Shadow.Virtual.SMRT.RayCountDirectional`, `r.Shadow.Virtual.SMRT.RayCountLocal`, `r.Shadow.Virtual.MaxPhysicalPages` |
 | Volumetric fog | Off, Low, Medium, High | `r.VolumetricFog`, `r.VolumetricFog.GridPixelSize`, `r.VolumetricFog.GridSizeZ` |
-| Anti aliasing and upscaling | Off, TSR Native, TSR Quality, TSR Balanced, TSR Performance | `r.AntiAliasingMethod` (0 or 4), `r.ScreenPercentage` (100, 100, 66.7, 58, 50) |
+| Anti aliasing and upscaling | Off, TSR Native, TSR Quality, TSR Balanced, TSR Performance | `r.AntiAliasingMethod` (0 or 4), `r.ScreenPercentage` (100, 100, 66.7, 58, 50) times the resolution scale |
+| Resolution scale | 100, 125, 150, 175, 200 percent, Ultra and Cinematic only | `r.ScreenPercentage`, the anti aliasing percentage times the scale, at most 200. Above 100 the engine renders more pixels than the display and scales down, which is supersampling; 200 is the TSR maximum |
 | Nanite static meshes | Off, On | `r.Nanite`, set to 1 only while Virtual Shadow Maps are on, see the observations |
 | Effects and particle density | Low, Medium, High, Epic | `sg.EffectsQuality` |
 | View distance | Near, Medium, Far, Epic | `sg.ViewDistanceQuality` |
@@ -240,7 +241,7 @@ These defaults were adopted in G03-B03 (D-030) and are now the preset table in `
 | Ultra | 3 | On | Lumen | Epic | Medium | TSR Native | On | Epic | Epic | Off |
 | Cinematic, capture only | 4, Cine | On | Lumen | Epic | High | TSR Native | On | Epic | Epic | On |
 
-Both experimental switches are off in every preset. Epic keeps Virtual Shadow Maps at Epic, following the verdict below that Epic only costs more than it gives beneath the Epic preset. Cinematic keeps motion blur because it is meant for footage. Saves from before this table reset to the new preset defaults once, through a settings version bump.
+Resolution scale is 100 percent in every preset and both experimental switches are off. Epic keeps Virtual Shadow Maps at Epic, following the verdict below that Epic only costs more than it gives beneath the Epic preset. Cinematic keeps motion blur because it is meant for footage. Saves from before this table reset to the new preset defaults once, through a settings version bump.
 
 ### Default preset
 

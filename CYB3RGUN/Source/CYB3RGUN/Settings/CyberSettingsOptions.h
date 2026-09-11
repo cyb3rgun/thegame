@@ -31,7 +31,7 @@ struct CYB3RGUN_API FCyberSettingsOptions
 	/** Selects a value. Selecting a preset resets every feature to that preset's defaults. */
 	static void SetValueIndex(ECyberSettingOption Option, FCyberSettingsState& State, int32 Index);
 
-	/** Experimental options are only offered on Ultra and Cinematic */
+	/** Experimental options and the resolution scale are only offered on Ultra and Cinematic */
 	static bool IsAvailable(ECyberSettingOption Option, const FCyberSettingsState& State);
 
 	/** Ultra and Cinematic, the presets above Epic */
@@ -55,4 +55,7 @@ struct CYB3RGUN_API FCyberSettingsOptions
 
 	static const TArray<float>& GetFrameRateCaps();
 	static const TArray<float>& GetFieldOfViews();
+
+	/** Resolution scale steps in percent, 100 is the anti aliasing mode's own resolution, 200 the TSR maximum */
+	static const TArray<float>& GetResolutionScales();
 };
