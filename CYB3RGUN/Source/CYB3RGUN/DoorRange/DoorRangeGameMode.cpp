@@ -71,7 +71,7 @@ void ADoorRangeGameMode::CreateHUD(APlayerController* Player)
 	if (!StyleHUD && Player && Player->IsLocalController())
 	{
 		StyleHUD = UStyleHUDWidget::CreateFor(Player);
-		ULogoCrosshairWidget::CreateFor(Player);
+		Crosshair = ULogoCrosshairWidget::CreateFor(Player);
 	}
 
 	if (HUD || !RangeHUDClass || !Player || !Player->IsLocalController())
@@ -166,6 +166,10 @@ void ADoorRangeGameMode::StartRange()
 	Stats = FDoorRangeStats();
 	bRangeComplete = false;
 	bRangeActive = true;
+	if (Crosshair)
+	{
+		Crosshair->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
 
 	OnScoreChanged.Broadcast(Score, 0);
 
@@ -417,6 +421,10 @@ void ADoorRangeGameMode::FinishRange()
 	bRangeActive = false;
 	bRangeComplete = true;
 	Stats.FinalScore = Score;
+	if (Crosshair)
+	{
+		Crosshair->SetVisibility(ESlateVisibility::Collapsed);
+	}
 
 	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, escaped %d, friendlies hit %d, hostages freed %d, hostages hit %d, waves %d"),
 		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.HostagesRescued, Stats.HostagesHit, Stats.WavesPlayed);
