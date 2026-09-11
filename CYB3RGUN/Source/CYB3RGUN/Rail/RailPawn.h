@@ -270,6 +270,7 @@ public:
 
 	//~ Begin IWeaponStatusSource
 	virtual bool GetWeaponStatus(FWeaponStatus& OutStatus) const override;
+	virtual void GetLoadout(TArray<FWeaponStatus>& OutLoadout) const override;
 	//~ End IWeaponStatusSource
 
 protected:

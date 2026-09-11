@@ -6,7 +6,10 @@
 #include "Engine/DataAsset.h"
 #include "WeaponDefinition.generated.h"
 
+class UMaterialInterface;
 class USoundBase;
+class UStaticMesh;
+class UTexture2D;
 
 /**
  *  One weapon's handling, shared by every shot path: the door range and zombie weapons read it through
@@ -89,6 +92,26 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sound")
 	TObjectPtr<USoundBase> EquipSound;
+
+	/** The mark of the weapon's maker, beside its name in the HUD and the loadout, printed on the weapon (D-056). Our own
+	 *  weapons carry the 3R house mark; the CYB3RGUN mark is the product's and never stands in for it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
+	TObjectPtr<UTexture2D> MakerMark;
+
+	/** The print on the first person weapon: a small plane with the mark, on a bone of the weapon mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
+	TObjectPtr<UStaticMesh> PrintMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
+	TObjectPtr<UMaterialInterface> PrintMaterial;
+
+	/** Bone or socket of the weapon mesh the print sits on */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
+	FName PrintBone;
+
+	/** Where the print sits, in the space of that bone */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
+	FTransform PrintTransform;
 
 	/** Damage share that lands at a distance, 1 up to the falloff start, down to the minimum at its end */
 	float GetDamageScale(float Distance) const;

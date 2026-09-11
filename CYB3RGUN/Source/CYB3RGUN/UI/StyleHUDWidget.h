@@ -65,6 +65,13 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WeaponText;
 
+	/** The maker's mark beside the weapon name (D-056) */
+	UPROPERTY(Transient)
+	TObjectPtr<class UImage> MakerMarkImage;
+
+	/** The mark the image shows now, so the brush is only rebuilt on a change of weapon */
+	TWeakObjectPtr<class UTexture2D> ShownMark;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UProgressBar> ReloadBar;
 

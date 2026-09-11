@@ -416,6 +416,7 @@ bool URailAimComponent::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	}
 
 	OutStatus.WeaponName = Weapon->DisplayName;
+	OutStatus.MakerMark = Weapon->MakerMark;
 	OutStatus.Rounds = Rounds.IsValidIndex(WeaponIndex) ? Rounds[WeaponIndex] : 0;
 	OutStatus.MagazineSize = Weapon->MagazineSize;
 	OutStatus.bReloading = bReloading;
@@ -425,6 +426,25 @@ bool URailAimComponent::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	OutStatus.WeaponIndex = WeaponIndex;
 	OutStatus.WeaponCount = Weapons.Num();
 	return true;
+}
+
+void URailAimComponent::GetLoadout(TArray<FWeaponStatus>& OutLoadout) const
+{
+	for (int32 Index = 0; Index < Weapons.Num(); ++Index)
+	{
+		const UWeaponDefinition* Weapon = Weapons[Index];
+		if (!Weapon)
+		{
+			continue;
+		}
+		FWeaponStatus& Entry = OutLoadout.AddDefaulted_GetRef();
+		Entry.WeaponName = Weapon->DisplayName;
+		Entry.MakerMark = Weapon->MakerMark;
+		Entry.Rounds = Rounds.IsValidIndex(Index) ? Rounds[Index] : 0;
+		Entry.MagazineSize = Weapon->MagazineSize;
+		Entry.WeaponIndex = Index;
+		Entry.WeaponCount = Weapons.Num();
+	}
 }
 
 void URailAimComponent::DryFire()

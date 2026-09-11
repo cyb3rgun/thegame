@@ -514,6 +514,11 @@ bool ARailPawn::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	return true;
 }
 
+void ARailPawn::GetLoadout(TArray<FWeaponStatus>& OutLoadout) const
+{
+	Aim->GetLoadout(OutLoadout);
+}
+
 void ARailPawn::OverclockPressed()
 {
 	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))

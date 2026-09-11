@@ -19,6 +19,9 @@ protected:
 
 	virtual void BuildLayout() override;
 
+	/** The weapons the pawn carries, each with its maker's mark, the one in hand highlighted */
+	void AddLoadout(class UVerticalBox* Column);
+
 	UFUNCTION()
 	void HandleResume();
 

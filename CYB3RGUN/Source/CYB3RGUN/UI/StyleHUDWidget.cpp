@@ -10,12 +10,16 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/World.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
@@ -145,7 +149,22 @@ void UStyleHUDWidget::BuildLayout()
 	WeaponText = StyleHudLook::MakeLine(WidgetTree, TEXT("WeaponText"), 28, FCyberMenuStyle::TextColor(), ETextJustify::Left);
 	ReloadBar = StyleHudLook::MakeBar(WidgetTree, TEXT("ReloadBar"), FCyberMenuStyle::BrandColor());
 	CueText = StyleHudLook::MakeLine(WidgetTree, TEXT("CueText"), 22, FCyberMenuStyle::DangerColor(), ETextJustify::Left);
-	StyleHudLook::AddLine(WeaponColumn, WeaponText, HAlign_Left, 4.0f);
+	// the maker's mark sits in front of the weapon name, in the neutral text colour: it is the maker's, not the product's (D-056)
+	UHorizontalBox* WeaponRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("WeaponRow"));
+	MakerMarkImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("MakerMark"));
+	MakerMarkImage->SetColorAndOpacity(FCyberMenuStyle::TextColor());
+	MakerMarkImage->SetDesiredSizeOverride(FVector2D(44.0f, 44.0f));
+	MakerMarkImage->SetVisibility(ESlateVisibility::Collapsed);
+	if (UHorizontalBoxSlot* MarkSlot = WeaponRow->AddChildToHorizontalBox(MakerMarkImage))
+	{
+		MarkSlot->SetVerticalAlignment(VAlign_Center);
+		MarkSlot->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
+	}
+	if (UHorizontalBoxSlot* NameSlot = WeaponRow->AddChildToHorizontalBox(WeaponText))
+	{
+		NameSlot->SetVerticalAlignment(VAlign_Center);
+	}
+	StyleHudLook::AddLine(WeaponColumn, WeaponRow, HAlign_Left, 4.0f);
 	StyleHudLook::AddBar(WidgetTree, WeaponColumn, ReloadBar, 260.0f, 6.0f, HAlign_Left, 4.0f);
 	StyleHudLook::AddLine(WeaponColumn, CueText, HAlign_Left, 0.0f);
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(WeaponColumn))
@@ -295,12 +314,23 @@ void UStyleHUDWidget::UpdateWeapon(double RealTime)
 	if (!Source || !Source->GetWeaponStatus(Status))
 	{
 		WeaponText->SetVisibility(ESlateVisibility::Collapsed);
+		MakerMarkImage->SetVisibility(ESlateVisibility::Collapsed);
 		ReloadBar->SetVisibility(ESlateVisibility::Collapsed);
 		CueText->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
 	WeaponText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (ShownMark.Get() != Status.MakerMark)
+	{
+		ShownMark = Status.MakerMark;
+		if (Status.MakerMark)
+		{
+			MakerMarkImage->SetBrushFromTexture(Status.MakerMark, false);
+			MakerMarkImage->SetDesiredSizeOverride(FVector2D(44.0f, 44.0f));
+		}
+	}
+	MakerMarkImage->SetVisibility(Status.MakerMark ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FCyberText::Int(Status.Rounds), FCyberText::Int(Status.MagazineSize)));
 	const FLinearColor WeaponColor = Status.Rounds == 0 ? FCyberMenuStyle::DangerColor() : (Status.bSwitching ? FCyberMenuStyle::DimTextColor() : FCyberMenuStyle::TextColor());
 	WeaponText->SetColorAndOpacity(FSlateColor(WeaponColor));

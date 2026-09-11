@@ -21,6 +21,7 @@
 #include "InputMappingContext.h"
 #include "UObject/ConstructorHelpers.h"
 #include "CombatFeelSubsystem.h"
+#include "WeaponDefinition.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -432,6 +433,7 @@ bool AShooterCharacter::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	}
 
 	OutStatus.WeaponName = CurrentWeapon->GetDisplayName();
+	OutStatus.MakerMark = CurrentWeapon->GetDefinition() ? CurrentWeapon->GetDefinition()->MakerMark : nullptr;
 	OutStatus.Rounds = CurrentWeapon->GetBulletCount();
 	OutStatus.MagazineSize = CurrentWeapon->GetMagazineSize();
 	OutStatus.bReloading = CurrentWeapon->IsReloading();
@@ -442,6 +444,25 @@ bool AShooterCharacter::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	OutStatus.WeaponIndex = OwnedWeapons.Find(CurrentWeapon.Get());
 	OutStatus.WeaponCount = OwnedWeapons.Num();
 	return true;
+}
+
+void AShooterCharacter::GetLoadout(TArray<FWeaponStatus>& OutLoadout) const
+{
+	for (int32 Index = 0; Index < OwnedWeapons.Num(); ++Index)
+	{
+		const AShooterWeapon* Weapon = OwnedWeapons[Index];
+		if (!Weapon)
+		{
+			continue;
+		}
+		FWeaponStatus& Entry = OutLoadout.AddDefaulted_GetRef();
+		Entry.WeaponName = Weapon->GetDisplayName();
+		Entry.MakerMark = Weapon->GetDefinition() ? Weapon->GetDefinition()->MakerMark : nullptr;
+		Entry.Rounds = Weapon->GetBulletCount();
+		Entry.MagazineSize = Weapon->GetMagazineSize();
+		Entry.WeaponIndex = Index;
+		Entry.WeaponCount = OwnedWeapons.Num();
+	}
 }
 
 void AShooterCharacter::OverclockPressed()

@@ -15,6 +15,10 @@ struct FWeaponStatus
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	FText WeaponName;
 
+	/** The maker's mark shown beside the name, the 3R house mark on our own weapons (D-056) */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<class UTexture2D> MakerMark = nullptr;
+
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	int32 Rounds = 0;
 
@@ -62,4 +66,7 @@ public:
 
 	/** False while the pawn holds no weapon */
 	virtual bool GetWeaponStatus(FWeaponStatus& OutStatus) const = 0;
+
+	/** Every weapon the pawn carries, in switching order, for the loadout in the pause menu */
+	virtual void GetLoadout(TArray<FWeaponStatus>& OutLoadout) const {}
 };

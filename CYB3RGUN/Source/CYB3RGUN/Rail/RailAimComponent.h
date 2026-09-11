@@ -188,6 +188,9 @@ public:
 	/** The weapon in hand for the HUD. False without carried weapons. */
 	bool GetWeaponStatus(FWeaponStatus& OutStatus) const;
 
+	/** Every carried weapon, in switching order */
+	void GetLoadout(TArray<FWeaponStatus>& OutLoadout) const;
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:

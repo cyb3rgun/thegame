@@ -21,6 +21,7 @@
 #include "TimerManager.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/Pawn.h"
 #include "CollisionQueryParams.h"
 
@@ -75,6 +76,24 @@ void AShooterWeapon::BeginPlay()
 
 	// attach the meshes to the owner
 	WeaponOwner->AttachWeaponMeshes(this);
+
+	// the maker's print on the first person weapon (D-056): a small plane that renders with the weapon, in its field of view
+	if (Definition && Definition->PrintMesh && GetFirstPersonMesh())
+	{
+		UStaticMeshComponent* Print = NewObject<UStaticMeshComponent>(this, TEXT("MakerPrint"));
+		Print->SetupAttachment(GetFirstPersonMesh(), Definition->PrintBone);
+		Print->SetRelativeTransform(Definition->PrintTransform);
+		Print->SetStaticMesh(Definition->PrintMesh);
+		if (Definition->PrintMaterial)
+		{
+			Print->SetMaterial(0, Definition->PrintMaterial);
+		}
+		Print->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Print->SetCastShadow(false);
+		Print->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+		Print->SetOnlyOwnerSee(true);
+		Print->RegisterComponent();
+	}
 }
 
 void AShooterWeapon::EndPlay(EEndPlayReason::Type EndPlayReason)
