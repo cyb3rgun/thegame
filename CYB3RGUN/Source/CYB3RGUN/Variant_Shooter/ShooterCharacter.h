@@ -50,6 +50,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* ReloadAction;
 
+	/** Held for Overclock: the world slows while the player keeps a faster scale */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* OverclockAction;
+
 	/** Keys for reload and switching, built at runtime next to the template's own contexts */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> CombatMappingContext;
@@ -154,6 +158,10 @@ public:
 	/** Handles reload input */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoReload();
+
+	/** Holds or releases Overclock, like the Overclock input */
+	void OverclockPressed();
+	void OverclockReleased();
 
 	//~ Begin IWeaponStatusSource
 	virtual bool GetWeaponStatus(FWeaponStatus& OutStatus) const override;

@@ -7,6 +7,7 @@
 #include "ShotFeedbackSettings.generated.h"
 
 class UNiagaraSystem;
+class UMaterialInterface;
 
 /**
  *  What a shot looks like: a muzzle flash with a short bright light where the shot leaves, sparks with a
@@ -62,6 +63,22 @@ public:
 	/** Distance the hit light sits off the surface, so it lights the surface instead of sitting inside it */
 	UPROPERTY(Config, EditAnywhere, Category="Impact", meta = (ClampMin = 0.0, Units = "cm"))
 	float ImpactLightOffset = 12.0f;
+
+	/** Mark left on world surfaces where a shot lands, a deferred decal material */
+	UPROPERTY(Config, EditAnywhere, Category="Impact")
+	TSoftObjectPtr<UMaterialInterface> ImpactDecalMaterial;
+
+	/** Width of the mark */
+	UPROPERTY(Config, EditAnywhere, Category="Impact", meta = (ClampMin = 0.0, Units = "cm"))
+	float ImpactDecalSize = 7.0f;
+
+	/** Seconds the mark stays before it starts to fade */
+	UPROPERTY(Config, EditAnywhere, Category="Impact", meta = (ClampMin = 0.0, Units = "s"))
+	float ImpactDecalLifetime = 12.0f;
+
+	/** Seconds the mark takes to fade */
+	UPROPERTY(Config, EditAnywhere, Category="Impact", meta = (ClampMin = 0.0, Units = "s"))
+	float ImpactDecalFadeSeconds = 2.0f;
 
 	static const UShotFeedbackSettings* Get() { return GetDefault<UShotFeedbackSettings>(); }
 };

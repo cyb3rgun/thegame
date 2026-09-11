@@ -110,8 +110,9 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 		Style->EndShotResolution();
 	}
 
-	// sparks and a brief light where the shot lands
+	// sparks, a brief light and a mark where the shot lands
 	UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
+	UShotFeedback::PlayImpactDecal(this, Hit);
 
 	// pass control to BP for any extra effects
 	BP_OnProjectileHit(Hit);

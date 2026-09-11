@@ -8,6 +8,7 @@
 #include "CoreGlobals.h"
 #include "Misc/App.h"
 #include "Sound/SoundBase.h"
+#include "CombatFeelSubsystem.h"
 #include "Camera/CameraComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
@@ -160,9 +161,9 @@ bool URailAimComponent::CanFire() const
 		return (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
 	}
 
-	// carried weapons keep the player's pace on real time, also while the world is slowed
+	// carried weapons run on the aim's own clock, see TickComponent
 	return !bReloading && EquipRemaining <= 0.0f && Rounds.IsValidIndex(WeaponIndex) && Rounds[WeaponIndex] > 0
-		&& (World->GetRealTimeSeconds() - LastShotRealTime) >= Weapon->RefireSeconds;
+		&& (AimClock - LastShotClock) >= Weapon->RefireSeconds;
 }
 
 bool URailAimComponent::Fire()
@@ -183,7 +184,7 @@ bool URailAimComponent::Fire()
 
 	UWorld* World = GetWorld();
 	LastShotTime = World->GetTimeSeconds();
-	LastShotRealTime = World->GetRealTimeSeconds();
+	LastShotClock = AimClock;
 	++ShotsFired;
 	if (Weapon)
 	{
@@ -210,6 +211,7 @@ bool URailAimComponent::Fire()
 	{
 		Damaged = ApplyShotHit(Hit, Weapon ? Weapon->Damage : Damage);
 		UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
+		UShotFeedback::PlayImpactDecal(this, Hit);
 	}
 
 	if (Damaged)
@@ -289,6 +291,7 @@ AActor* URailAimComponent::FirePellets(const UWeaponDefinition& Weapon)
 		AActor* PelletDamaged = ApplyShotHit(PelletHit, Weapon.Damage * Weapon.GetDamageScale(PelletHit.Distance));
 		FirstDamaged = FirstDamaged ? FirstDamaged : PelletDamaged;
 		UShotFeedback::PlayImpact(this, PelletHit.ImpactPoint, PelletHit.ImpactNormal);
+		UShotFeedback::PlayImpactDecal(this, PelletHit);
 	}
 	return FirstDamaged;
 }
@@ -313,18 +316,23 @@ void URailAimComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// reloads and switches run on real time, so they keep the player's pace while the world is slowed
-	const float RealDelta = static_cast<float>(FApp::GetDeltaTime());
+	// the aim runs on the rider's clock: the wall clock at the player's Overclock scale, so reloads, switches and refire
+	// keep the player's pace while the world is slowed. A long gap, a pause or a hitch, counts as one short frame
+	const double WallNow = FPlatformTime::Seconds();
+	const float WallDelta = LastTickWallSeconds > 0.0 ? static_cast<float>(FMath::Min(WallNow - LastTickWallSeconds, 0.1)) : 0.0f;
+	LastTickWallSeconds = WallNow;
+	const float ClockDelta = WallDelta * UCombatFeelSubsystem::GetPlayerTimeScale(this);
+	AimClock += ClockDelta;
 
 	if (EquipRemaining > 0.0f && GFrameCounter != EquipStartFrame)
 	{
-		EquipRemaining = FMath::Max(EquipRemaining - RealDelta, 0.0f);
+		EquipRemaining = FMath::Max(EquipRemaining - ClockDelta, 0.0f);
 	}
 
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
 	if (bReloading && Weapon && GFrameCounter != ReloadStartFrame)
 	{
-		ReloadElapsed += RealDelta;
+		ReloadElapsed += ClockDelta;
 		if (ReloadElapsed >= Weapon->ReloadSeconds)
 		{
 			bReloading = false;

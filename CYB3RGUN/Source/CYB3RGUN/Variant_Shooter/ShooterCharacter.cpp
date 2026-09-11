@@ -20,6 +20,7 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "UObject/ConstructorHelpers.h"
+#include "CombatFeelSubsystem.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -33,6 +34,8 @@ AShooterCharacter::AShooterCharacter()
 	// reload lives in the project's input folder, the Blueprint may still override it
 	static ConstructorHelpers::FObjectFinder<UInputAction> ReloadInput(TEXT("/Game/CYB3RGUN/Core/Input/IA_Reload.IA_Reload"));
 	ReloadAction = ReloadInput.Object;
+	static ConstructorHelpers::FObjectFinder<UInputAction> OverclockInput(TEXT("/Game/CYB3RGUN/Core/Input/IA_Overclock.IA_Overclock"));
+	OverclockAction = OverclockInput.Object;
 
 	// configure movement
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
@@ -76,6 +79,13 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		if (ReloadAction)
 		{
 			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AShooterCharacter::DoReload);
+		}
+
+		// Overclock, held
+		if (OverclockAction)
+		{
+			EnhancedInputComponent->BindAction(OverclockAction, ETriggerEvent::Started, this, &AShooterCharacter::OverclockPressed);
+			EnhancedInputComponent->BindAction(OverclockAction, ETriggerEvent::Completed, this, &AShooterCharacter::OverclockReleased);
 		}
 	}
 
@@ -384,7 +394,7 @@ void AShooterCharacter::PawnClientRestart()
 		return;
 	}
 
-	// reload on R and the gamepad's left face button, switching also on Q and the mouse wheel
+	// reload on R and the gamepad's left face button, switching also on Q and the mouse wheel, Overclock on E and the left shoulder
 	if (!CombatMappingContext)
 	{
 		CombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("CombatMappingContext"));
@@ -398,6 +408,11 @@ void AShooterCharacter::PawnClientRestart()
 			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::Q);
 			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollUp);
 			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollDown);
+		}
+		if (OverclockAction)
+		{
+			CombatMappingContext->MapKey(OverclockAction, EKeys::E);
+			CombatMappingContext->MapKey(OverclockAction, EKeys::Gamepad_LeftShoulder);
 		}
 	}
 	Subsystem->AddMappingContext(CombatMappingContext, 1);
@@ -421,4 +436,20 @@ bool AShooterCharacter::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	OutStatus.WeaponIndex = OwnedWeapons.Find(CurrentWeapon.Get());
 	OutStatus.WeaponCount = OwnedWeapons.Num();
 	return true;
+}
+
+void AShooterCharacter::OverclockPressed()
+{
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->SetOverclockHeld(true);
+	}
+}
+
+void AShooterCharacter::OverclockReleased()
+{
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->SetOverclockHeld(false);
+	}
 }

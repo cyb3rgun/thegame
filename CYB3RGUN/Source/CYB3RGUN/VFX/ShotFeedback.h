@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Engine/HitResult.h"
 #include "ShotFeedback.generated.h"
 
 class USceneComponent;
@@ -30,6 +31,10 @@ public:
 	/** Sparks where a shot lands and a brief light just off the surface */
 	UFUNCTION(BlueprintCallable, Category="Shot Feedback", meta = (WorldContext = "WorldContextObject"))
 	static void PlayImpact(const UObject* WorldContextObject, FVector Location, FVector Normal);
+
+	/** A mark on the surface where a shot lands. Pawns, skinned bodies and hidden hit volumes get none. */
+	UFUNCTION(BlueprintCallable, Category="Shot Feedback", meta = (WorldContext = "WorldContextObject"))
+	static void PlayImpactDecal(const UObject* WorldContextObject, const FHitResult& Hit);
 
 private:
 

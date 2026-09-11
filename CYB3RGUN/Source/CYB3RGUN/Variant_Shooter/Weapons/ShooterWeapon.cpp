@@ -6,6 +6,7 @@
 #include "StyleSettings.h"
 #include "WeaponDefinition.h"
 #include "CoreGlobals.h"
+#include "CombatFeelSubsystem.h"
 #include "DoorRangeTarget.h"
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
@@ -143,8 +144,8 @@ void AShooterWeapon::StartFiring()
 	// raise the firing flag
 	bIsFiring = true;
 
-	// refire runs on real time, so the weapon keeps the player's pace while the world is slowed
-	const double TimeSinceLastShot = GetWorld()->GetRealTimeSeconds() - LastShotRealTime;
+	// refire runs on the weapon's own clock, see Tick
+	const double TimeSinceLastShot = WeaponClock - LastShotClock;
 
 	if (TimeSinceLastShot > RefireRate)
 	{
@@ -192,7 +193,7 @@ void AShooterWeapon::Fire()
 
 	// update the time of our last shot
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
-	LastShotRealTime = GetWorld()->GetRealTimeSeconds();
+	LastShotClock = WeaponClock;
 
 	// make noise so the AI perception system can hear us
 	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), ShotNoiseRange, NoiseOwnerTag);
@@ -378,6 +379,7 @@ void AShooterWeapon::FirePellets(const FVector& TargetLocation)
 			UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
 			++ImpactsShown;
 		}
+		UShotFeedback::PlayImpactDecal(this, Hit);
 	}
 
 	if (Style)
@@ -427,17 +429,23 @@ void AShooterWeapon::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// reloads and switches run on real time, so they keep the player's pace while the world is slowed
-	const float RealDelta = static_cast<float>(FApp::GetDeltaTime());
+	// the weapon runs on its holder's clock. A player's is the wall clock at the player's Overclock scale, so reloads,
+	// switches and refire keep the player's pace while the world is slowed; anyone else's is the world's own time.
+	// A long gap on the wall clock, a pause or a hitch, counts as one short frame
+	const double WallNow = FPlatformTime::Seconds();
+	const float WallDelta = LastTickWallSeconds > 0.0 ? static_cast<float>(FMath::Min(WallNow - LastTickWallSeconds, 0.1)) : 0.0f;
+	LastTickWallSeconds = WallNow;
+	const float ClockDelta = IsPlayerWeapon() ? WallDelta * UCombatFeelSubsystem::GetPlayerTimeScale(this) : DeltaSeconds;
+	WeaponClock += ClockDelta;
 
 	if (EquipRemaining > 0.0f && GFrameCounter != EquipStartFrame)
 	{
-		EquipRemaining = FMath::Max(EquipRemaining - RealDelta, 0.0f);
+		EquipRemaining = FMath::Max(EquipRemaining - ClockDelta, 0.0f);
 	}
 
 	if (bReloading && GFrameCounter != ReloadStartFrame)
 	{
-		ReloadElapsed += RealDelta;
+		ReloadElapsed += ClockDelta;
 		if (ReloadElapsed >= GetReloadDuration())
 		{
 			bReloading = false;

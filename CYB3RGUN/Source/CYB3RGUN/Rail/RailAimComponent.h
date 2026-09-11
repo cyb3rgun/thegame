@@ -92,8 +92,12 @@ protected:
 	/** Wall clock at the start of the reload, the log reports the duration it measured */
 	double ReloadStartSeconds = 0.0;
 
-	/** Real time of the last shot and of the last trigger pull on an empty magazine */
-	double LastShotRealTime = -1000.0;
+	/** Seconds on the aim's own clock, see TickComponent, and its reading at the last shot */
+	double AimClock = 0.0;
+	double LastShotClock = -1000.0;
+
+	/** Wall clock at the previous tick, and real time of the last trigger pull on an empty magazine for the HUD cue */
+	double LastTickWallSeconds = 0.0;
 	double LastDryFireTime = -1000.0;
 
 public:

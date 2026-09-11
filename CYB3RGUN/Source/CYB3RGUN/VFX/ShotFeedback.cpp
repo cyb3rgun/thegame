@@ -11,6 +11,11 @@
 #include "GameFramework/PlayerController.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Components/DecalComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 
 namespace
 {
@@ -99,6 +104,40 @@ void UShotFeedback::PlayImpact(const UObject* WorldContextObject, FVector Locati
 	}
 
 	SpawnFlashLight(World, Location + Outward * Settings->ImpactLightOffset, Settings->ImpactLightColor, Settings->ImpactLightIntensity, Settings->ImpactLightRadius, Settings->ImpactLightDuration);
+}
+
+void UShotFeedback::PlayImpactDecal(const UObject* WorldContextObject, const FHitResult& Hit)
+{
+	const UShotFeedbackSettings* Settings = UShotFeedbackSettings::Get();
+	UWorld* World = FeedbackWorld(WorldContextObject);
+	const UPrimitiveComponent* Surface = Hit.GetComponent();
+	if (!Settings->bEnabled || !World || !Surface || Settings->ImpactDecalSize <= 0.0f)
+	{
+		return;
+	}
+
+	// marks go on world surfaces only: not on pawns, not on skinned bodies, not on the hidden volumes that take their hits
+	if (!Surface->IsVisible() || Surface->bHiddenInGame || Surface->IsA<USkinnedMeshComponent>() || Cast<APawn>(Hit.GetActor()))
+	{
+		return;
+	}
+
+	UMaterialInterface* Material = Settings->ImpactDecalMaterial.LoadSynchronous();
+	if (!Material)
+	{
+		return;
+	}
+
+	// the decal projects along its X axis into the surface, turned at random so repeated marks do not line up
+	FRotator Rotation = (-Hit.ImpactNormal.GetSafeNormal()).Rotation();
+	Rotation.Roll = FMath::FRandRange(-180.0f, 180.0f);
+	const float Half = Settings->ImpactDecalSize * 0.5f;
+	if (UDecalComponent* Decal = UGameplayStatics::SpawnDecalAtLocation(World, Material, FVector(4.0f, Half, Half), Hit.ImpactPoint, Rotation, Settings->ImpactDecalLifetime + Settings->ImpactDecalFadeSeconds))
+	{
+		// the decal lives on the world settings actor, so the fade must never destroy its owner
+		Decal->SetFadeScreenSize(0.0005f);
+		Decal->SetFadeOut(Settings->ImpactDecalLifetime, Settings->ImpactDecalFadeSeconds, false);
+	}
 }
 
 void UShotFeedback::SpawnFlashLight(UWorld* World, const FVector& Location, const FLinearColor& Color, float Lumens, float Radius, float Duration)

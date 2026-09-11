@@ -4,6 +4,7 @@
 #include "EncounterDefinition.h"
 #include "RailAimComponent.h"
 #include "WeaponDefinition.h"
+#include "CombatFeelSubsystem.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
@@ -57,6 +58,8 @@ ARailPawn::ARailPawn()
 	static ConstructorHelpers::FObjectFinder<UInputAction> SwitchInput(TEXT("/Game/Variant_Shooter/Input/Actions/IA_SwapWeapon.IA_SwapWeapon"));
 	Aim->SetWeapons({ PistolWeapon.Object, ScattergunWeapon.Object });
 	SwitchWeaponAction = SwitchInput.Object;
+	static ConstructorHelpers::FObjectFinder<UInputAction> OverclockInput(TEXT("/Game/CYB3RGUN/Core/Input/IA_Overclock.IA_Overclock"));
+	OverclockAction = OverclockInput.Object;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -126,13 +129,21 @@ void ARailPawn::PawnClientRestart()
 			}
 		}
 
-		// Q and the mouse wheel switch as well; the rail has no reload key, taking cover reloads
-		if (!CombatMappingContext && SwitchWeaponAction)
+		// Q and the mouse wheel switch as well, E and the left shoulder hold Overclock; the rail has no reload key, taking cover reloads
+		if (!CombatMappingContext)
 		{
 			CombatMappingContext = NewObject<UInputMappingContext>(this, TEXT("CombatMappingContext"));
-			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::Q);
-			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollUp);
-			CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollDown);
+			if (SwitchWeaponAction)
+			{
+				CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::Q);
+				CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollUp);
+				CombatMappingContext->MapKey(SwitchWeaponAction, EKeys::MouseScrollDown);
+			}
+			if (OverclockAction)
+			{
+				CombatMappingContext->MapKey(OverclockAction, EKeys::E);
+				CombatMappingContext->MapKey(OverclockAction, EKeys::Gamepad_LeftShoulder);
+			}
 		}
 		if (CombatMappingContext)
 		{
@@ -172,6 +183,11 @@ void ARailPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	if (SwitchWeaponAction)
 	{
 		Input->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ARailPawn::DoSwitchWeapon);
+	}
+	if (OverclockAction)
+	{
+		Input->BindAction(OverclockAction, ETriggerEvent::Started, this, &ARailPawn::OverclockPressed);
+		Input->BindAction(OverclockAction, ETriggerEvent::Completed, this, &ARailPawn::OverclockReleased);
 	}
 }
 
@@ -233,7 +249,8 @@ void ARailPawn::StickAimInput(const FInputActionValue& Value)
 {
 	// stick Y is positive upward and arrives without modifiers, the screen grows downward
 	const FVector2D Deflection = Value.Get<FVector2D>();
-	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.0f;
+	// on the rider's own time, so a slowed world does not slow the crosshair
+	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() * CustomTimeDilation : 0.0f;
 	Aim->AddAimInput(FVector2D(Deflection.X, -Deflection.Y) * StickAimSpeed * DeltaSeconds);
 }
 
@@ -491,4 +508,20 @@ bool ARailPawn::GetWeaponStatus(FWeaponStatus& OutStatus) const
 	}
 	OutStatus.ReloadHint = NSLOCTEXT("RailPawn", "ReloadHint", "TAKE COVER TO RELOAD");
 	return true;
+}
+
+void ARailPawn::OverclockPressed()
+{
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->SetOverclockHeld(true);
+	}
+}
+
+void ARailPawn::OverclockReleased()
+{
+	if (UCombatFeelSubsystem* Feel = UCombatFeelSubsystem::Get(this))
+	{
+		Feel->SetOverclockHeld(false);
+	}
 }

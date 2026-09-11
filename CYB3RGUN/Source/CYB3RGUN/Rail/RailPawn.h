@@ -85,7 +85,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	TObjectPtr<UInputAction> SwitchWeaponAction;
 
-	/** Q and the mouse wheel for switching, added next to the Blueprint's contexts */
+	/** Held for Overclock: the world slows while the rider keeps a faster scale */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
+	TObjectPtr<UInputAction> OverclockAction;
+
+	/** Q and the mouse wheel for switching, E and the left shoulder for Overclock, added next to the Blueprint's contexts */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
@@ -283,6 +287,8 @@ protected:
 
 	void CoverPressed();
 	void CoverReleased();
+	void OverclockPressed();
+	void OverclockReleased();
 	void UpdateCoverCamera(float DeltaSeconds);
 
 	void Advance(float Delta);
