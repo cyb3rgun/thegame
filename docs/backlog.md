@@ -71,6 +71,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Wave, alive, kills and encounter complete summary in WBP_EncounterHUD (G02)
 - [x] Crosshair overlay WBP_RailCrosshair drawn at the aim position (G03)
 - [x] Settings menu WBP_SettingsMenu: preset, every graphics option, reset, apply, live frame rate, F10 in every level (G03)
+- [x] Measured cost per option and the GPU frame time in the settings menu readout (G03)
 - [ ] Settings menu key as a rebindable Enhanced Input action
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
@@ -92,6 +93,11 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Rail test level Lvl_RailTest, about 207 m with two held encounter beats (G03)
 - [x] Graphics settings: Low to Ultra presets, every heavy feature behind its own option, first run hardware detection (G03)
 - [x] Benchmark level Lvl_Benchmark and Bench.Suite, results in docs/benchmark.md (G03)
+- [x] Six presets: Ultra as the maximum game preset, Cinematic on the Cine level for capture, measured defaults, detection capped at High above 4 megapixels (G03)
+- [x] Resolution scale up to 200 percent with supersampling, Ultra and Cinematic (G03)
+- [x] GPU, driver and resolution in every benchmark result line (G03)
+- [x] Night benchmark prepared: Bench.Suite night and tools/night_benchmark.ps1, not run (G03)
+- [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
 - [ ] USB HID controller input from the real CYB3RGUN
