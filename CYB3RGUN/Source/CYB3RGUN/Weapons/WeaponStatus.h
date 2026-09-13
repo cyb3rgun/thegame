@@ -29,6 +29,35 @@ struct FWeaponStatus
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	int32 MagazineSize = 0;
 
+	/** True for a weapon fed by air pressure: the pressure fields count, the rounds do not (D-055) */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	bool bPressureFed = false;
+
+	/** Reservoir pressure now, in bar */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	float PressureBar = 0.0f;
+
+	/** Reservoir pressure when full, in bar */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	float FillPressureBar = 0.0f;
+
+	/** Pressure below which the weapon no longer fires, in bar */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	float MinFirePressureBar = 0.0f;
+
+	/** Share of the full muzzle energy the next shot leaves with */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	float EnergyShare = 1.0f;
+
+	/** Refills left in the carried supply */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	int32 RefillsLeft = 0;
+
+	/** True while the weapon cannot fire for want of ammunition: no rounds, or pressure below the firing pressure */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	bool bEmpty = false;
+
+	/** True while reloading, or refilling a pressure fed weapon */
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	bool bReloading = false;
 

@@ -537,6 +537,7 @@ void AShooterWeapon::FillStatus(FWeaponStatus& OutStatus) const
 	OutStatus.MakerMark = Definition ? Definition->MakerMark.Get() : nullptr;
 	OutStatus.Rounds = CurrentBullets;
 	OutStatus.MagazineSize = MagazineSize;
+	OutStatus.bEmpty = CurrentBullets <= 0;
 	OutStatus.bReloading = bReloading;
 	OutStatus.ReloadProgress = GetReloadProgress();
 	OutStatus.bSwitching = IsEquipping();

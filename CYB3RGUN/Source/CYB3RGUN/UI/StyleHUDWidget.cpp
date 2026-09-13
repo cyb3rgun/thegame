@@ -341,8 +341,17 @@ void UStyleHUDWidget::UpdateWeapon(double RealTime)
 		}
 	}
 	MakerMarkImage->SetVisibility(Status.MakerMark ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FCyberText::Int(Status.Rounds), FCyberText::Int(Status.MagazineSize)));
-	const FLinearColor WeaponColor = Status.Rounds == 0 ? FCyberMenuStyle::DangerColor() : (Status.bSwitching ? FCyberMenuStyle::DimTextColor() : FCyberMenuStyle::TextColor());
+	if (Status.bPressureFed)
+	{
+		// air is counted in bar, with the refills the supply still holds (D-055)
+		WeaponText->SetText(FText::Format(LOCTEXT("WeaponPressure", "{0}  {1} BAR  AIR {2}"), Status.WeaponName,
+			FCyberText::Int(FMath::RoundToInt(Status.PressureBar)), FCyberText::Int(Status.RefillsLeft)));
+	}
+	else
+	{
+		WeaponText->SetText(FText::Format(LOCTEXT("Weapon", "{0}  {1} / {2}"), Status.WeaponName, FCyberText::Int(Status.Rounds), FCyberText::Int(Status.MagazineSize)));
+	}
+	const FLinearColor WeaponColor = Status.bEmpty ? FCyberMenuStyle::DangerColor() : (Status.bSwitching ? FCyberMenuStyle::DimTextColor() : FCyberMenuStyle::TextColor());
 	WeaponText->SetColorAndOpacity(FSlateColor(WeaponColor));
 
 	ReloadBar->SetVisibility(Status.bReloading ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
@@ -350,11 +359,22 @@ void UStyleHUDWidget::UpdateWeapon(double RealTime)
 
 	// the empty cue: while the magazine is empty and no reload runs, and for a moment after a pull on an empty magazine
 	const bool bDryPull = RealTime - Status.LastDryFireTime < EmptyCueSeconds;
-	const bool bCue = !Status.bReloading && (Status.Rounds == 0 || bDryPull);
+	const bool bCue = !Status.bReloading && (Status.bEmpty || bDryPull);
 	CueText->SetVisibility(bCue ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	if (bCue)
 	{
-		CueText->SetText(FText::Format(LOCTEXT("EmptyCue", "EMPTY  {0}"), Status.ReloadHint));
+		if (Status.bPressureFed && Status.RefillsLeft <= 0)
+		{
+			CueText->SetText(LOCTEXT("NoAirCue", "NO AIR LEFT"));
+		}
+		else if (Status.bPressureFed)
+		{
+			CueText->SetText(FText::Format(LOCTEXT("LowPressureCue", "LOW PRESSURE  {0}"), Status.ReloadHint));
+		}
+		else
+		{
+			CueText->SetText(FText::Format(LOCTEXT("EmptyCue", "EMPTY  {0}"), Status.ReloadHint));
+		}
 		CueText->SetRenderOpacity(0.55f + 0.45f * FMath::Abs(FMath::Sin(static_cast<float>(RealTime) * 6.0f)));
 	}
 }

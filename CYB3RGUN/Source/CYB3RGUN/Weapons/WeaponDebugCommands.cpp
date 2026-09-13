@@ -33,7 +33,7 @@ namespace WeaponDebug
 
 static FAutoConsoleCommandWithWorld GWeaponStatusCommand(
 	TEXT("Weapon.Status"),
-	TEXT("Logs the local player's weapon: rounds, magazine, reload and switch state."),
+	TEXT("Logs the local player's weapon: rounds and magazine or pressure and refills, reload, cycle and switch state."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
 	{
 		const IWeaponStatusSource* Source = Cast<IWeaponStatusSource>(WeaponDebug::GetPlayerPawn(World));
@@ -43,6 +43,11 @@ static FAutoConsoleCommandWithWorld GWeaponStatusCommand(
 			UE_LOG(LogWeaponDebug, Log, TEXT("Weapon.Status: %s, %s, %d/%d, reloading %d at %.0f%%, cycling %d at %.0f%%, switching %d, weapon %d of %d"),
 				*Status.WeaponName.ToString(), *Status.Subtitle.ToString(), Status.Rounds, Status.MagazineSize, Status.bReloading ? 1 : 0, Status.ReloadProgress * 100.0f,
 				Status.bCycling ? 1 : 0, Status.CycleProgress * 100.0f, Status.bSwitching ? 1 : 0, Status.WeaponIndex + 1, Status.WeaponCount);
+			if (Status.bPressureFed)
+			{
+				UE_LOG(LogWeaponDebug, Log, TEXT("Weapon.Status: pressure %.1f of %.0f bar, fires down to %.0f bar, energy %.0f%%, refills %d, empty %d"),
+					Status.PressureBar, Status.FillPressureBar, Status.MinFirePressureBar, Status.EnergyShare * 100.0f, Status.RefillsLeft, Status.bEmpty ? 1 : 0);
+			}
 		}
 		else
 		{

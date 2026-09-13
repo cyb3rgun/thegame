@@ -187,19 +187,26 @@ void ULogoCrosshairWidget::UpdateMark(const FGeometry& MyGeometry)
 	LastUpdateAt = Now;
 	const LogoCrosshairLook::FParams& Param = LogoCrosshairLook::Params();
 
-	// the gauge: one segment per round, or the reload closing the arc, in cover or on the reload key
+	// the gauge: one segment per round, or the reservoir's usable pressure as one arc, or the reload or refill closing it
 	float Fill = 1.0f;
 	float Segments = 0.0f;
 	float Reloading = 0.0f;
 	float LowAmmo = 0.0f;
 	FWeaponStatus Status;
 	const IWeaponStatusSource* Source = Cast<IWeaponStatusSource>(GetOwningPlayerPawn());
-	if (Source && Source->GetWeaponStatus(Status) && Status.MagazineSize > 0)
+	if (Source && Source->GetWeaponStatus(Status) && (Status.MagazineSize > 0 || Status.bPressureFed))
 	{
 		if (Status.bReloading)
 		{
 			Fill = Status.ReloadProgress;
 			Reloading = 1.0f;
+		}
+		else if (Status.bPressureFed)
+		{
+			// the arc spans the air a shot can still use, from the firing pressure up to a full reservoir (D-055)
+			const float Usable = Status.FillPressureBar - Status.MinFirePressureBar;
+			Fill = Usable > 0.0f ? FMath::Clamp((Status.PressureBar - Status.MinFirePressureBar) / Usable, 0.0f, 1.0f) : 0.0f;
+			LowAmmo = Status.bEmpty || Fill <= LowAmmoShare ? 1.0f : 0.0f;
 		}
 		else
 		{

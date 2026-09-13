@@ -33,6 +33,12 @@ struct FWeaponShot
 	float ConeDegrees = 0.0f;
 
 	int32 Pellets = 1;
+
+	/** Share of the full muzzle energy, below 1 once a pressure fed weapon's pressure has fallen */
+	float EnergyShare = 1.0f;
+
+	/** Reservoir pressure the shot left with, in bar, zero for a magazine fed weapon */
+	float PressureBar = 0.0f;
 };
 
 /**
@@ -40,6 +46,10 @@ struct FWeaponShot
  *  their refire time, single shot weapons cycle their action after every shot; a switch draws the weapon, a reload fills
  *  it, and every shot blooms the accuracy cone, which settles again. The holder advances it on its own clock and turns
  *  the shots it hands out into projectiles or traces.
+ *
+ *  A pressure fed weapon spends air instead of rounds (D-055): every shot uses a share of the reservoir pressure, and the
+ *  pressure sets the shot's muzzle energy, drop and cone through the definition's curves. Below the firing pressure the
+ *  trigger clicks; its reload is a refill from the carried supply, which holds a limited number of them.
  */
 struct CYB3RGUN_API FWeaponState
 {
@@ -55,13 +65,13 @@ struct CYB3RGUN_API FWeaponState
 	/** True when a trigger pull fires now */
 	bool CanFire() const;
 
-	/** True when a trigger pull on a ready weapon only clicks */
+	/** True when a trigger pull on a ready weapon only clicks: no rounds, or pressure below the firing pressure */
 	bool IsEmpty() const;
 
-	/** Takes one shot: uses the round, starts the cycle or the refire wait and blooms the cone. Check CanFire first. */
+	/** Takes one shot: uses the round or the air, starts the cycle or the refire wait and blooms the cone. Check CanFire first. */
 	FWeaponShot Fire();
 
-	/** Starts filling the weapon. False when it is full, busy or has nothing to fill from. */
+	/** Starts filling the weapon, a reload or a refill. False when it is full, busy or has nothing to fill from. */
 	bool StartReload();
 
 	/** Stops a reload, the weapon keeps what it had */
@@ -76,7 +86,15 @@ struct CYB3RGUN_API FWeaponState
 	float GetActionProgress() const;
 
 	int32 GetRounds() const { return Rounds; }
+	float GetPressure() const { return Pressure; }
+	int32 GetRefillsLeft() const { return RefillsLeft; }
 	float GetBloom() const { return Bloom; }
+
+	/** Seconds the current reload or refill takes */
+	float GetReloadSeconds() const;
+
+	/** Short account of what the weapon holds, rounds or bar and refills, for logs */
+	FString DescribeAmmo() const;
 	const UWeaponDefinition* GetDefinition() const { return Definition; }
 
 	/** Fills every HUD field the rules know; the holder adds its index, count and hints */
@@ -89,6 +107,11 @@ private:
 
 	const UWeaponDefinition* Definition = nullptr;
 	int32 Rounds = 0;
+
+	/** Reservoir pressure in bar and the refills the supply still holds, for a pressure fed weapon */
+	float Pressure = 0.0f;
+	int32 RefillsLeft = 0;
+
 	EWeaponAction Action = EWeaponAction::Ready;
 	float ActionElapsed = 0.0f;
 	float ActionDuration = 0.0f;

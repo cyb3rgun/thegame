@@ -87,6 +87,9 @@ protected:
 	/** Wall clock at the start of the reload, the log reports the duration it measured */
 	double ReloadStartSeconds = 0.0;
 
+	/** A reload asked for while the weapon was still coming up, started as soon as it is ready */
+	bool bReloadPending = false;
+
 	/** Wall clock at the previous tick */
 	double LastTickWallSeconds = 0.0;
 
@@ -164,7 +167,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapons")
 	bool SwitchWeapon();
 
-	/** Starts refilling the weapon in hand. False when it is full, busy or nothing is carried. */
+	/** Starts refilling the weapon in hand, or as soon as its draw finishes. False when it is full, reloading or nothing is carried. */
 	UFUNCTION(BlueprintCallable, Category="Weapons")
 	bool StartReload();
 
@@ -194,8 +197,9 @@ protected:
 	FWeaponState* GetCurrentState();
 	const FWeaponState* GetCurrentState() const;
 
-	/** Traces a single shot through the crosshair, off the crosshair ray within the cone. True on a blocking hit. */
-	bool TraceShot(float ConeDegrees, FHitResult& OutHit) const;
+	/** Traces a single shot through the crosshair, off the crosshair ray within the cone, dropped by its flight time where
+	 *  it has ballistics. True on a blocking hit. */
+	bool TraceShot(const FWeaponShot& Shot, FHitResult& OutHit) const;
 
 	/** Hands one hit to the target and to the damage path. Returns the pawn that took damage, or null. */
 	AActor* ApplyShotHit(const FHitResult& Hit, float ShotDamage);

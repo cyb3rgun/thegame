@@ -26,6 +26,16 @@ enum class EWeaponFireMode : uint8
 	Reserved
 };
 
+/** What the weapon spends on a shot */
+UENUM(BlueprintType)
+enum class EWeaponFeed : uint8
+{
+	/** Cartridges from a magazine, a reload fills it */
+	Magazine,
+	/** Air from a reservoir: pressure is the ammunition, a refill from the carried supply restores it (D-055) */
+	Pressure
+};
+
 /** The mount points of a weapon body, the contract any future mesh fulfils with sockets (D-054) */
 UENUM(BlueprintType)
 enum class EWeaponMount : uint8
@@ -103,6 +113,11 @@ struct CYB3RGUN_API FWeaponBodyPart
 	/** Placement relative to that mount */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	FTransform Transform;
+
+	/** The needle of the pressure gauge: the part turns about its mount's X axis with the reservoir pressure, through the
+	 *  definition's gauge sweep, empty at one end and full at the other */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	bool bPressureNeedle = false;
 };
 
 /**
@@ -165,12 +180,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s", DisplayName = "Draw Seconds"))
 	float EquipSeconds = 0.35f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 1))
+	/** Cartridges from a magazine, or air from a reservoir (D-055) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine")
+	EWeaponFeed Feed = EWeaponFeed::Magazine;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 1, EditCondition = "Feed == EWeaponFeed::Magazine"))
 	int32 MagazineSize = 12;
 
 	/** Seconds from starting a reload to a full magazine */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 0.0, Units = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 0.0, Units = "s", EditCondition = "Feed == EWeaponFeed::Magazine"))
 	float ReloadSeconds = 1.4f;
+
+	/** Reservoir pressure when full, in bar */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 1.0, EditCondition = "Feed == EWeaponFeed::Pressure"))
+	float FillPressureBar = 250.0f;
+
+	/** Below this pressure, in bar, the valve no longer opens and the trigger only clicks */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 0.0, EditCondition = "Feed == EWeaponFeed::Pressure"))
+	float MinFirePressureBar = 120.0f;
+
+	/** Share of the current pressure one shot uses. A thirstier valve empties the reservoir in fewer shots. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 0.0, ClampMax = 0.5, EditCondition = "Feed == EWeaponFeed::Pressure"))
+	float PressureUsePerShot = 0.07f;
+
+	/** Muzzle energy against pressure: points of pressure in bar (X) and the share of the muzzle energy (Y). Speed and
+	 *  damage follow the energy. Linear between points, held flat beyond the ends. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (EditCondition = "Feed == EWeaponFeed::Pressure"))
+	TArray<FVector2D> EnergyCurve;
+
+	/** Projectile drop against pressure: points of pressure in bar (X) and a multiplier on the drop scale (Y) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (EditCondition = "Feed == EWeaponFeed::Pressure"))
+	TArray<FVector2D> DropCurve;
+
+	/** Accuracy against pressure: points of pressure in bar (X) and degrees added to the accuracy cone (Y) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (EditCondition = "Feed == EWeaponFeed::Pressure"))
+	TArray<FVector2D> ConeCurve;
+
+	/** Seconds a refill from the carried supply takes */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 0.0, Units = "s", EditCondition = "Feed == EWeaponFeed::Pressure"))
+	float RefillSeconds = 3.5f;
+
+	/** Refills the supply carries into a scenario; each one fills the reservoir once */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 0, EditCondition = "Feed == EWeaponFeed::Pressure"))
+	int32 RefillsCarried = 3;
+
+	/** Degrees the gauge needle turns from an empty reservoir to a full one, centred on the needle's placement */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pressure", meta = (ClampMin = 0.0, ClampMax = 360.0, Units = "Degrees", EditCondition = "Feed == EWeaponFeed::Pressure"))
+	float GaugeSweepDegrees = 270.0f;
 
 	/** The projectile a single shot flies as. Several pellets fire traces instead. Empty keeps the holder's own. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics")
@@ -291,4 +347,18 @@ public:
 
 	/** Muzzle velocity from the energy and the projectile mass, zero without an energy */
 	float GetMuzzleSpeed(float Energy) const;
+
+	bool IsPressureFed() const { return Feed == EWeaponFeed::Pressure; }
+
+	/** Share of the muzzle energy at a reservoir pressure, 1 without a curve */
+	float GetEnergyShare(float PressureBar) const;
+
+	/** Multiplier on the drop scale at a reservoir pressure, 1 without a curve */
+	float GetDropMultiplier(float PressureBar) const;
+
+	/** Degrees added to the accuracy cone at a reservoir pressure, 0 without a curve */
+	float GetPressureCone(float PressureBar) const;
+
+	/** Value of a piecewise linear curve of points at X, held flat beyond its ends; the fallback without points */
+	static float EvaluateCurve(const TArray<FVector2D>& Points, float X, float Fallback);
 };

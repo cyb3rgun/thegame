@@ -173,10 +173,11 @@ bool URailAimComponent::CanFire() const
 	return (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
 }
 
-bool URailAimComponent::TraceShot(float ConeDegrees, FHitResult& OutHit) const
+bool URailAimComponent::TraceShot(const FWeaponShot& Shot, FHitResult& OutHit) const
 {
-	// a settled weapon hits exactly what the crosshair shows
-	if (ConeDegrees <= 0.0f)
+	// a settled weapon without ballistics hits exactly what the crosshair shows
+	const bool bDrops = Shot.Speed > 0.0f && Shot.GravityScale > 0.0f;
+	if (Shot.ConeDegrees <= 0.0f && !bDrops)
 	{
 		return ResolveAim(OutHit);
 	}
@@ -191,9 +192,28 @@ bool URailAimComponent::TraceShot(float ConeDegrees, FHitResult& OutHit) const
 	}
 
 	// otherwise the shot leaves the crosshair ray within the cone the weapon holds right now
-	const FVector ShotDirection = FMath::VRandCone(Direction, FMath::DegreesToRadians(ConeDegrees));
+	const FVector ShotDirection = Shot.ConeDegrees > 0.0f ? FMath::VRandCone(Direction, FMath::DegreesToRadians(Shot.ConeDegrees)) : Direction;
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RailAim), false, GetOwner());
-	return GetWorld()->LineTraceSingleByChannel(OutHit, Origin, Origin + ShotDirection * PC->HitResultTraceDistance, TraceChannel, QueryParams);
+	const FVector End = Origin + ShotDirection * PC->HitResultTraceDistance;
+	if (!GetWorld()->LineTraceSingleByChannel(OutHit, Origin, End, TraceChannel, QueryParams) || !bDrops)
+	{
+		return OutHit.bBlockingHit;
+	}
+
+	// the rail has no projectile in flight: the shot falls by its flight time to what it would have reached, and lands
+	// where that lower line meets the world
+	const float FlightSeconds = OutHit.Distance / Shot.Speed;
+	const float Drop = 0.5f * FMath::Abs(GetWorld()->GetGravityZ()) * Shot.GravityScale * FlightSeconds * FlightSeconds;
+	const FVector Lowered = (OutHit.ImpactPoint - FVector(0.0f, 0.0f, Drop) - Origin).GetSafeNormal();
+	FHitResult DroppedHit;
+	if (GetWorld()->LineTraceSingleByChannel(DroppedHit, Origin, Origin + Lowered * PC->HitResultTraceDistance, TraceChannel, QueryParams))
+	{
+		UE_LOG(LogRailAim, Verbose, TEXT("Shot drops %.1f cm over %.0f cm at %.0f cm/s"), Drop, OutHit.Distance, Shot.Speed);
+		OutHit = DroppedHit;
+		return true;
+	}
+	OutHit = FHitResult();
+	return false;
 }
 
 bool URailAimComponent::Fire()
@@ -246,7 +266,7 @@ bool URailAimComponent::Fire()
 	}
 	else
 	{
-		bHit = TraceShot(Shot.ConeDegrees, Hit);
+		bHit = TraceShot(Shot, Hit);
 		if (bHit)
 		{
 			Damaged = ApplyShotHit(Hit, Shot.Damage * (Weapon ? Weapon->GetDamageScale(Hit.Distance) : 1.0f));
@@ -284,6 +304,11 @@ bool URailAimComponent::Fire()
 
 	UE_LOG(LogRailAim, Verbose, TEXT("Shot %d at screen %.3f %.3f: %s%s"), ShotsFired, GetCrosshairNormalized().X, GetCrosshairNormalized().Y,
 		bHit ? *GetNameSafe(Hit.GetActor()) : TEXT("nothing"), Damaged ? TEXT(", damaged") : TEXT(""));
+	if (Shot.PressureBar > 0.0f)
+	{
+		UE_LOG(LogRailAim, Verbose, TEXT("%s fires at %.0f bar: energy %.0f%%, damage %.1f, speed %.0f cm/s, drop scale %.2f, cone %.2f deg, %s"),
+			*Weapon->DisplayName.ToString(), Shot.PressureBar, Shot.EnergyShare * 100.0f, Shot.Damage, Shot.Speed, Shot.GravityScale, Shot.ConeDegrees, *State->DescribeAmmo());
+	}
 
 	OnShotFired.Broadcast(bHit, Hit, Damaged);
 	return true;
@@ -382,10 +407,15 @@ void URailAimComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 	const EWeaponAction Before = State->GetAction();
 	State->Tick(ClockDelta);
+	if (bReloadPending && State->GetAction() == EWeaponAction::Ready)
+	{
+		bReloadPending = false;
+		StartReload();
+	}
 	if (Before == EWeaponAction::Reloading && State->GetAction() == EWeaponAction::Ready)
 	{
 		PlayWeaponSound(Weapon->ReloadEndSound);
-		UE_LOG(LogRailAim, Log, TEXT("%s reloaded in cover, %d rounds, %.2f s on the wall clock"), *Weapon->DisplayName.ToString(), State->GetRounds(), FPlatformTime::Seconds() - ReloadStartSeconds);
+		UE_LOG(LogRailAim, Log, TEXT("%s reloaded in cover, %s, %.2f s on the wall clock"), *Weapon->DisplayName.ToString(), *State->DescribeAmmo(), FPlatformTime::Seconds() - ReloadStartSeconds);
 	}
 }
 
@@ -417,7 +447,7 @@ bool URailAimComponent::SwitchWeapon()
 	FWeaponState* State = GetCurrentState();
 	State->Draw();
 	PlayWeaponSound(Weapon->EquipSound);
-	UE_LOG(LogRailAim, Log, TEXT("Switched to %s, %d of %d rounds"), *Weapon->DisplayName.ToString(), State->GetRounds(), Weapon->MagazineSize);
+	UE_LOG(LogRailAim, Log, TEXT("Switched to %s, %s"), *Weapon->DisplayName.ToString(), *State->DescribeAmmo());
 	return true;
 }
 
@@ -425,19 +455,31 @@ bool URailAimComponent::StartReload()
 {
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
 	FWeaponState* State = GetCurrentState();
-	if (!Weapon || !State || !State->StartReload())
+	if (!Weapon || !State)
+	{
+		return false;
+	}
+
+	// cover taken while the weapon comes up still reloads, once the draw is done
+	if (State->GetAction() == EWeaponAction::Drawing)
+	{
+		bReloadPending = true;
+		return true;
+	}
+	if (!State->StartReload())
 	{
 		return false;
 	}
 
 	ReloadStartSeconds = FPlatformTime::Seconds();
 	PlayWeaponSound(Weapon->ReloadStartSound);
-	UE_LOG(LogRailAim, Log, TEXT("%s reloads in cover, %d of %d rounds left, %.2f s"), *Weapon->DisplayName.ToString(), State->GetRounds(), Weapon->MagazineSize, Weapon->ReloadSeconds);
+	UE_LOG(LogRailAim, Log, TEXT("%s reloads in cover, %s left, %.2f s"), *Weapon->DisplayName.ToString(), *State->DescribeAmmo(), State->GetReloadSeconds());
 	return true;
 }
 
 void URailAimComponent::CancelReload()
 {
+	bReloadPending = false;
 	FWeaponState* State = GetCurrentState();
 	if (!State || State->GetAction() != EWeaponAction::Reloading)
 	{
@@ -446,8 +488,7 @@ void URailAimComponent::CancelReload()
 
 	State->CancelReload();
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	UE_LOG(LogRailAim, Log, TEXT("%s reload left unfinished with %d of %d rounds"), Weapon ? *Weapon->DisplayName.ToString() : TEXT("Weapon"),
-		State->GetRounds(), Weapon ? Weapon->MagazineSize : 0);
+	UE_LOG(LogRailAim, Log, TEXT("%s reload left unfinished with %s"), Weapon ? *Weapon->DisplayName.ToString() : TEXT("Weapon"), *State->DescribeAmmo());
 }
 
 bool URailAimComponent::IsReloading() const

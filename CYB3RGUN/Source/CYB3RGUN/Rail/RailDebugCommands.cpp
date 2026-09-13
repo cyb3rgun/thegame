@@ -202,6 +202,11 @@ static FAutoConsoleCommandWithWorld GRailStatusCommand(
 		{
 			UE_LOG(LogRailDebug, Log, TEXT("Rail.Status: weapon %s %d/%d, reloading %d at %.0f%%, switching %d, weapon %d of %d"), *Weapon.WeaponName.ToString(), Weapon.Rounds, Weapon.MagazineSize,
 				Weapon.bReloading ? 1 : 0, Weapon.ReloadProgress * 100.0f, Weapon.bSwitching ? 1 : 0, Weapon.WeaponIndex + 1, Weapon.WeaponCount);
+			if (Weapon.bPressureFed)
+			{
+				UE_LOG(LogRailDebug, Log, TEXT("Rail.Status: pressure %.1f of %.0f bar, energy %.0f%%, refills %d, empty %d"), Weapon.PressureBar, Weapon.FillPressureBar,
+					Weapon.EnergyShare * 100.0f, Weapon.RefillsLeft, Weapon.bEmpty ? 1 : 0);
+			}
 		}
 	}));
 

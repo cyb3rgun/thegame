@@ -67,6 +67,7 @@ void ACyberWeapon::BeginPlay()
 
 	State.Init(Definition);
 	BuildBody();
+	UpdateGauge();
 	UE_LOG(LogCyberWeapon, Log, TEXT("%s is %s, %d body parts"), *GetName(), *GetDisplayName().ToString(), BodyParts.Num());
 }
 
@@ -116,6 +117,15 @@ void ACyberWeapon::BuildBody()
 			}
 			Piece->RegisterComponent();
 			BodyParts.Add(Piece);
+
+			// the gauge needle keeps its placement and turns from there with the pressure
+			if (Part.bPressureNeedle && Definition->IsPressureFed())
+			{
+				FGaugeNeedle& Needle = Needles.AddDefaulted_GetRef();
+				Needle.Component = Piece;
+				Needle.PartTransform = Part.Transform;
+				Needle.MountTransform = GetMountLocal(Part.Mount, Mesh);
+			}
 		}
 	}
 }
@@ -219,6 +229,33 @@ void ACyberWeapon::FireShot(const FWeaponShot& Shot)
 	WeaponOwner->PlayFiringMontage(FiringMontage);
 	ApplyRecoil();
 	WeaponOwner->UpdateWeaponHUD(State.GetRounds(), Definition->MagazineSize);
+
+	if (Shot.PressureBar > 0.0f)
+	{
+		UpdateGauge();
+		UE_LOG(LogCyberWeapon, Verbose, TEXT("%s fires at %.0f bar: energy %.0f%%, damage %.1f, speed %.0f cm/s, drop scale %.2f, cone %.2f deg, %s"),
+			*GetDisplayName().ToString(), Shot.PressureBar, Shot.EnergyShare * 100.0f, Shot.Damage, Shot.Speed, Shot.GravityScale, Shot.ConeDegrees, *State.DescribeAmmo());
+	}
+}
+
+void ACyberWeapon::UpdateGauge()
+{
+	if (!Definition || !Definition->IsPressureFed() || Needles.IsEmpty())
+	{
+		return;
+	}
+
+	// empty at one end of the sweep, full at the other, centred on the placement the definition gave the needle
+	const float Fill = Definition->FillPressureBar > 0.0f ? FMath::Clamp(State.GetPressure() / Definition->FillPressureBar, 0.0f, 1.0f) : 0.0f;
+	const float Angle = (Fill - 0.5f) * Definition->GaugeSweepDegrees;
+	const FTransform Turn(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(Angle)));
+	for (const FGaugeNeedle& Needle : Needles)
+	{
+		if (Needle.Component)
+		{
+			Needle.Component->SetRelativeTransform(Needle.PartTransform * Turn * Needle.MountTransform);
+		}
+	}
 }
 
 AController* ACyberWeapon::GetHolderController() const
@@ -275,7 +312,8 @@ bool ACyberWeapon::StartReload()
 	bIsFiring = false;
 	LastAction = State.GetAction();
 	PlayWeaponSound(Definition->ReloadStartSound);
-	UE_LOG(LogCyberWeapon, Log, TEXT("%s reloads, %d of %d rounds left, %.2f s"), *GetDisplayName().ToString(), State.GetRounds(), Definition->MagazineSize, Definition->ReloadSeconds);
+	UE_LOG(LogCyberWeapon, Log, TEXT("%s %s, %s left, %.2f s"), *GetDisplayName().ToString(), Definition->IsPressureFed() ? TEXT("refills") : TEXT("reloads"),
+		*State.DescribeAmmo(), State.GetReloadSeconds());
 	WeaponOwner->UpdateWeaponHUD(State.GetRounds(), Definition->MagazineSize);
 	return true;
 }
@@ -286,7 +324,7 @@ void ACyberWeapon::CancelReload()
 	{
 		State.CancelReload();
 		LastAction = State.GetAction();
-		UE_LOG(LogCyberWeapon, Log, TEXT("%s reload cancelled with %d rounds"), *GetDisplayName().ToString(), State.GetRounds());
+		UE_LOG(LogCyberWeapon, Log, TEXT("%s reload cancelled with %s"), *GetDisplayName().ToString(), *State.DescribeAmmo());
 	}
 }
 
@@ -308,8 +346,9 @@ void ACyberWeapon::Tick(float DeltaSeconds)
 	if (LastAction == EWeaponAction::Reloading && Action == EWeaponAction::Ready && Definition)
 	{
 		PlayWeaponSound(Definition->ReloadEndSound);
-		UE_LOG(LogCyberWeapon, Log, TEXT("%s reloaded, %d rounds"), *GetDisplayName().ToString(), State.GetRounds());
+		UE_LOG(LogCyberWeapon, Log, TEXT("%s %s, %s"), *GetDisplayName().ToString(), Definition->IsPressureFed() ? TEXT("refilled") : TEXT("reloaded"), *State.DescribeAmmo());
 		WeaponOwner->UpdateWeaponHUD(State.GetRounds(), Definition->MagazineSize);
+		UpdateGauge();
 	}
 	LastAction = Action;
 }

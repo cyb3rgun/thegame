@@ -17,6 +17,7 @@ class UStaticMeshComponent;
  *  muzzle flash. It fires by the rules of FWeaponState, single shot with a cycling action or semi auto, after its draw
  *  time, with a recoil that recovers and an accuracy cone that blooms. A single shot flies as a projectile with the
  *  definition's ballistics, pellets as traces; both reach the style record, the hit zones and the disarm as before.
+ *  A pressure fed weapon spends air (D-055), and its gauge needle shows the reservoir at the pressure gauge mount.
  */
 UCLASS()
 class CYB3RGUN_API ACyberWeapon : public AShooterWeapon
@@ -57,6 +58,17 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> BodyParts;
 
+	/** A body part that reads the reservoir pressure, with the placement it turns from */
+	struct FGaugeNeedle
+	{
+		TObjectPtr<UStaticMeshComponent> Component;
+		FTransform PartTransform;
+		FTransform MountTransform;
+	};
+
+	/** The pressure gauge needles on both bodies; the components are kept alive by BodyParts */
+	TArray<FGaugeNeedle> Needles;
+
 	/** Aim climb still to come back, degrees, and how fast it comes back */
 	float RecoilToRecover = 0.0f;
 	float RecoilRecoveryRate = 0.0f;
@@ -69,6 +81,9 @@ protected:
 
 	/** A mount in the space of a mesh component: the mesh's socket, or the placeholder position */
 	FTransform GetMountLocal(EWeaponMount Mount, const USkeletalMeshComponent* Mesh) const;
+
+	/** Turns the gauge needles to the reservoir pressure */
+	void UpdateGauge();
 
 	/** Sends one shot on its way: a projectile within the cone, or the pellets, with its flash, sound and recoil */
 	void FireShot(const FWeaponShot& Shot);
