@@ -40,9 +40,9 @@ static FAutoConsoleCommandWithWorld GWeaponStatusCommand(
 		FWeaponStatus Status;
 		if (Source && Source->GetWeaponStatus(Status))
 		{
-			UE_LOG(LogWeaponDebug, Log, TEXT("Weapon.Status: %s %d/%d, reloading %d at %.0f%%, switching %d, weapon %d of %d"),
-				*Status.WeaponName.ToString(), Status.Rounds, Status.MagazineSize, Status.bReloading ? 1 : 0, Status.ReloadProgress * 100.0f,
-				Status.bSwitching ? 1 : 0, Status.WeaponIndex + 1, Status.WeaponCount);
+			UE_LOG(LogWeaponDebug, Log, TEXT("Weapon.Status: %s, %s, %d/%d, reloading %d at %.0f%%, cycling %d at %.0f%%, switching %d, weapon %d of %d"),
+				*Status.WeaponName.ToString(), *Status.Subtitle.ToString(), Status.Rounds, Status.MagazineSize, Status.bReloading ? 1 : 0, Status.ReloadProgress * 100.0f,
+				Status.bCycling ? 1 : 0, Status.CycleProgress * 100.0f, Status.bSwitching ? 1 : 0, Status.WeaponIndex + 1, Status.WeaponCount);
 		}
 		else
 		{

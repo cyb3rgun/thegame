@@ -135,4 +135,7 @@ public:
 	/** Sets the radius of the collision sweep, from the firing weapon's definition */
 	void SetCollisionRadius(float Radius);
 
+	/** Muzzle velocity and gravity of this shot, before it is spawned. Zero speed and a negative gravity keep the Blueprint's own. */
+	void SetBallistics(float Speed, float GravityScale);
+
 };

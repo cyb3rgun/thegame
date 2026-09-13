@@ -7,6 +7,7 @@
 #include "EncounterHUD.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
+#include "WeaponDefinition.h"
 #include "ShooterCharacter.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
@@ -105,19 +106,14 @@ void AZombieTestGameMode::SetupPlayer()
 
 	if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(Pawn))
 	{
-		// the extra weapons first, so the starting weapon ends up in hand
-		for (const TSubclassOf<AShooterWeapon>& Extra : AdditionalWeaponClasses)
+		// the last weapon handed out comes up in hand, so the loadout goes in backwards and its first ends up there
+		for (int32 Index = Loadout.Num() - 1; Index >= 0; --Index)
 		{
-			if (Extra)
+			if (const UWeaponDefinition* Weapon = Loadout[Index])
 			{
-				Holder->AddWeaponClass(Extra);
-				UE_LOG(LogZombieTest, Log, TEXT("Granted weapon %s"), *GetNameSafe(Extra));
+				Holder->AddWeaponDefinition(Weapon);
+				UE_LOG(LogZombieTest, Log, TEXT("Granted weapon %s"), *GetNameSafe(Weapon));
 			}
-		}
-		if (StartingWeaponClass)
-		{
-			Holder->AddWeaponClass(StartingWeaponClass);
-			UE_LOG(LogZombieTest, Log, TEXT("Granted starting weapon %s"), *GetNameSafe(StartingWeaponClass));
 		}
 	}
 	else

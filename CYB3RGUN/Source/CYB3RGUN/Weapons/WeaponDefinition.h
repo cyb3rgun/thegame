@@ -1,4 +1,4 @@
-// CYB3RGUN THEGAME. How a weapon handles: magazine, reload, refire, damage and spread, as data.
+// CYB3RGUN THEGAME. Everything a weapon is, as data: name, body, mounts, fire mode, ballistics, feed, handling, sound (D-052).
 
 #pragma once
 
@@ -6,15 +6,109 @@
 #include "Engine/DataAsset.h"
 #include "WeaponDefinition.generated.h"
 
+class AShooterProjectile;
+class UAnimInstance;
 class UMaterialInterface;
+class USkeletalMesh;
 class USoundBase;
 class UStaticMesh;
 class UTexture2D;
 
+/** How the trigger fires the weapon */
+UENUM(BlueprintType)
+enum class EWeaponFireMode : uint8
+{
+	/** One shot, then the action cycles before the next shot can fire */
+	SingleShot,
+	/** One shot per trigger pull, as fast as the refire time allows */
+	SemiAuto,
+	/** Kept free for later modes such as bursts; fires like semi auto until one is built */
+	Reserved
+};
+
+/** The mount points of a weapon body, the contract any future mesh fulfils with sockets (D-054) */
+UENUM(BlueprintType)
+enum class EWeaponMount : uint8
+{
+	/** Where the hand holds the weapon */
+	Grip,
+	/** Where shots and the muzzle flash leave */
+	Muzzle,
+	/** Where the magazine or the air reservoir sits */
+	Magazine,
+	/** Where an optic mounts */
+	Optic,
+	/** Where the pressure gauge sits on a pressure fed weapon */
+	PressureGauge
+};
+
+/** One mount point: a socket on the mesh, and where the placeholder body has it while the mesh lacks the socket */
+USTRUCT(BlueprintType)
+struct CYB3RGUN_API FWeaponMountPoint
+{
+	GENERATED_BODY()
+
+	/** Socket of this name on the weapon mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FName Socket;
+
+	/** The mount in the weapon's own space, used when the mesh has no socket of that name */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FTransform Fallback;
+};
+
+/** The five mount points, named once for the whole weapon (D-054) */
+USTRUCT(BlueprintType)
+struct CYB3RGUN_API FWeaponMounts
+{
+	GENERATED_BODY()
+
+	FWeaponMounts();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FWeaponMountPoint Grip;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FWeaponMountPoint Muzzle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FWeaponMountPoint Magazine;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FWeaponMountPoint Optic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mount")
+	FWeaponMountPoint PressureGauge;
+
+	const FWeaponMountPoint& Get(EWeaponMount Mount) const;
+};
+
+/** One piece of placeholder geometry, placed relative to a mount point */
+USTRUCT(BlueprintType)
+struct CYB3RGUN_API FWeaponBodyPart
+{
+	GENERATED_BODY()
+
+	/** An engine shape or any static mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TObjectPtr<UMaterialInterface> Material;
+
+	/** The mount the part sits on */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	EWeaponMount Mount = EWeaponMount::Grip;
+
+	/** Placement relative to that mount */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	FTransform Transform;
+};
+
 /**
- *  One weapon's handling, shared by every shot path: the door range and zombie weapons read it through
- *  AShooterWeapon, the rail reads it through its aim component. A weapon with more than one pellet fires
- *  hitscan pellets in a cone from the view, damage falls off with range.
+ *  One weapon, completely, as data (D-052). The weapon actor ACyberWeapon and the rail aim both read it, so adding a
+ *  weapon is a new definition and never code. The name and subtitle are our own text (D-053). The body is a mesh, or
+ *  placeholder geometry until a model exists, and the mount points name the sockets a model must carry (D-054).
  */
 UCLASS(BlueprintType)
 class CYB3RGUN_API UWeaponDefinition : public UDataAsset
@@ -23,9 +117,53 @@ class CYB3RGUN_API UWeaponDefinition : public UDataAsset
 
 public:
 
-	/** Shown on the HUD */
+	/** The weapon's name, shown on the HUD and in the loadout */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	FText DisplayName;
+
+	/** What kind of weapon it is, shown under the name */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	FText Subtitle;
+
+	/** The mark of the weapon's maker, beside its name in the HUD and the loadout, printed on the weapon (D-056). Our own
+	 *  weapons carry the 3R house mark; the CYB3RGUN mark is the product's and never stands in for it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<UTexture2D> MakerMark;
+
+	/** The weapon's mesh. Without one the placeholder body stands in (D-054). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TObjectPtr<USkeletalMesh> Mesh;
+
+	/** Placeholder geometry, shown with the mesh or instead of it until a model exists */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TArray<FWeaponBodyPart> PlaceholderBody;
+
+	/** Mount points: sockets on the mesh, with the placeholder positions as fallback (D-054) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	FWeaponMounts Mounts;
+
+	/** Arms animation of the first person character while the weapon is in hand */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TSubclassOf<UAnimInstance> FirstPersonAnimClass;
+
+	/** Body animation of the third person character while the weapon is in hand */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TSubclassOf<UAnimInstance> ThirdPersonAnimClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing")
+	EWeaponFireMode FireMode = EWeaponFireMode::SemiAuto;
+
+	/** Seconds between two shots of a semi auto weapon */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s"))
+	float RefireSeconds = 0.18f;
+
+	/** Seconds the action of a single shot weapon takes to cycle before the next shot */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s"))
+	float CycleSeconds = 0.8f;
+
+	/** Draw time: seconds from switching to the weapon until it can fire */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s", DisplayName = "Draw Seconds"))
+	float EquipSeconds = 0.35f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 1))
 	int32 MagazineSize = 12;
@@ -34,22 +172,31 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Magazine", meta = (ClampMin = 0.0, Units = "s"))
 	float ReloadSeconds = 1.4f;
 
-	/** Seconds between two shots */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s"))
-	float RefireSeconds = 0.18f;
+	/** The projectile a single shot flies as. Several pellets fire traces instead. Empty keeps the holder's own. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics")
+	TSubclassOf<AShooterProjectile> ProjectileClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing")
-	bool bFullAuto = false;
+	/** Muzzle energy of one shot in joules. With the projectile mass it gives the muzzle velocity; zero keeps the projectile's own speed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics", meta = (ClampMin = 0.0))
+	float MuzzleEnergy = 0.0f;
 
-	/** Seconds after a switch before the weapon can fire */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Firing", meta = (ClampMin = 0.0, Units = "s"))
-	float EquipSeconds = 0.35f;
+	/** Mass of one projectile */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics", meta = (ClampMin = 0.1, Units = "Grams"))
+	float ProjectileMassGrams = 8.0f;
 
-	/** Damage of one bullet, or of one pellet */
+	/** Gravity on the projectile in flight against the world's: 1 drops as it would, 0 flies straight */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics", meta = (ClampMin = 0.0))
+	float DropScale = 1.0f;
+
+	/** Radius of a single projectile's sweep. Small is precise; zero keeps the projectile's own radius. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ballistics", meta = (ClampMin = 0.0, Units = "cm"))
+	float BulletRadius = 0.0f;
+
+	/** Damage of one projectile, or of one pellet */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 0.0))
 	float Damage = 34.0f;
 
-	/** Pellets per shot. More than one fires hitscan pellets in a cone. */
+	/** Pellets per shot. More than one fires traces in a cone. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 1, ClampMax = 32))
 	int32 Pellets = 1;
 
@@ -57,11 +204,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 0.0, ClampMax = 30.0, Units = "Degrees"))
 	float SpreadDegrees = 0.0f;
 
-	/** Farthest a hitscan pellet reaches */
+	/** Farthest a pellet reaches */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 100.0, Units = "cm"))
 	float MaxRange = 20000.0f;
 
-	/** Full damage up to this distance */
+	/** Effective range: full damage up to this distance */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 0.0, Units = "cm"))
 	float FalloffStart = 20000.0f;
 
@@ -72,15 +219,46 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta = (ClampMin = 0.0, ClampMax = 1.0))
 	float FalloffMinScale = 1.0f;
 
-	/** Distance a single bullet lands off the aim point at the target. Zero goes exactly where it is aimed. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Bullet", meta = (ClampMin = 0.0, Units = "cm"))
-	float BulletAimVariance = 0.0f;
+	/** Half angle of the cone a single shot lands in with the weapon settled */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 20.0, Units = "Degrees"))
+	float AccuracyConeDegrees = 0.0f;
 
-	/** Radius of a single bullet's sweep. Small is precise; zero keeps the projectile's own radius. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Bullet", meta = (ClampMin = 0.0, Units = "cm"))
-	float BulletRadius = 0.0f;
+	/** Cone each shot adds on top, recovering over time */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 20.0, Units = "Degrees"))
+	float BloomPerShotDegrees = 0.0f;
 
-	/** Played when the trigger is pulled on an empty magazine */
+	/** Most the bloom can add */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 20.0, Units = "Degrees"))
+	float MaxBloomDegrees = 0.0f;
+
+	/** How fast the bloom settles, degrees per second */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0))
+	float BloomRecoveryDegreesPerSecond = 2.0f;
+
+	/** Recoil impulse: how far one shot throws the aim up */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 30.0, Units = "Degrees"))
+	float RecoilPitchDegrees = 0.0f;
+
+	/** Sideways kick of one shot, up to this far to either side */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 10.0, Units = "Degrees"))
+	float RecoilYawDegrees = 0.0f;
+
+	/** Recovery: seconds the aim takes to come back down after a shot */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.01, Units = "s"))
+	float RecoilRecoverySeconds = 0.25f;
+
+	/** Share of the climb the aim recovers, the rest stays where the recoil put it */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Handling", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float RecoilRecoveryShare = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sound")
+	TObjectPtr<USoundBase> FireSound;
+
+	/** Played while a single shot weapon cycles its action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sound")
+	TObjectPtr<USoundBase> CycleSound;
+
+	/** Played when the trigger is pulled on an empty weapon */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sound")
 	TObjectPtr<USoundBase> EmptySound;
 
@@ -92,11 +270,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sound")
 	TObjectPtr<USoundBase> EquipSound;
-
-	/** The mark of the weapon's maker, beside its name in the HUD and the loadout, printed on the weapon (D-056). Our own
-	 *  weapons carry the 3R house mark; the CYB3RGUN mark is the product's and never stands in for it. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
-	TObjectPtr<UTexture2D> MakerMark;
 
 	/** The print on the first person weapon: a small plane with the mark, on a bone of the weapon mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Maker")
@@ -115,4 +288,7 @@ public:
 
 	/** Damage share that lands at a distance, 1 up to the falloff start, down to the minimum at its end */
 	float GetDamageScale(float Distance) const;
+
+	/** Muzzle velocity from the energy and the projectile mass, zero without an energy */
+	float GetMuzzleSpeed(float Energy) const;
 };

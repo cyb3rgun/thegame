@@ -9,7 +9,7 @@
 
 class UMaterialInterface;
 class USoundBase;
-class AShooterWeapon;
+class UWeaponDefinition;
 
 /**
  *  Timings, difficulty ramp, scoring values and feedback assets for the door range.
@@ -73,13 +73,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Occupants")
 	TObjectPtr<UMaterialInterface> FriendlyMaterial;
 
-	/** Weapon handed to the player when the range starts, the one in hand at the start */
+	/** Weapons handed to the player when the range starts, the first comes up in hand (D-052) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
-	TSubclassOf<AShooterWeapon> StartingWeaponClass;
-
-	/** Further weapons handed out before the starting weapon, reached with the switch action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
-	TArray<TSubclassOf<AShooterWeapon>> AdditionalWeaponClasses;
+	TArray<TObjectPtr<UWeaponDefinition>> Loadout;
 
 	/** Played at the slot when a hostile is hit */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feedback")

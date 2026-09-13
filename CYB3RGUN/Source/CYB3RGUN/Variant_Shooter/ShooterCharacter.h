@@ -201,6 +201,9 @@ public:
 	/** Gives a weapon of this class to the owner */
 	virtual void AddWeaponClass(const TSubclassOf<AShooterWeapon>& WeaponClass) override;
 
+	/** Gives the weapon a definition describes, it comes up in hand; a definition already carried is skipped (D-052) */
+	virtual void AddWeaponDefinition(const UWeaponDefinition* Definition) override;
+
 	/** Activates the passed weapon */
 	virtual void OnWeaponActivated(AShooterWeapon* Weapon) override;
 

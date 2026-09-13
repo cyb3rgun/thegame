@@ -106,6 +106,17 @@ void UPauseMenuWidget::AddLoadout(UVerticalBox* Column)
 		{
 			NameSlot->SetVerticalAlignment(VAlign_Center);
 		}
+
+		// what kind of weapon it is, quieter beside the name (D-053)
+		if (!Weapon.Subtitle.IsEmpty())
+		{
+			UTextBlock* Subtitle = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Weapon.Subtitle, 16, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+			if (UHorizontalBoxSlot* SubtitleSlot = Row->AddChildToHorizontalBox(Subtitle))
+			{
+				SubtitleSlot->SetVerticalAlignment(VAlign_Center);
+				SubtitleSlot->SetPadding(FMargin(14.0f, 0.0f, 0.0f, 0.0f));
+			}
+		}
 		FCyberMenuStyle::AddToColumn(Column, Row, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
 	}
 

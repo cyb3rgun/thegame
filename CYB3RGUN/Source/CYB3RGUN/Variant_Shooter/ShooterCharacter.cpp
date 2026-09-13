@@ -3,6 +3,7 @@
 
 #include "ShooterCharacter.h"
 #include "ShooterWeapon.h"
+#include "CyberWeapon.h"
 #include "EnhancedInputComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
@@ -292,10 +293,43 @@ void AShooterCharacter::AddWeaponClass(const TSubclassOf<AShooterWeapon>& Weapon
 	}
 }
 
+void AShooterCharacter::AddWeaponDefinition(const UWeaponDefinition* Definition)
+{
+	if (!Definition)
+	{
+		return;
+	}
+
+	// one of each weapon
+	for (const AShooterWeapon* Owned : OwnedWeapons)
+	{
+		if (Owned && Owned->GetDefinition() == Definition)
+		{
+			return;
+		}
+	}
+
+	ACyberWeapon* AddedWeapon = ACyberWeapon::SpawnFor(this, Definition);
+	if (!AddedWeapon)
+	{
+		return;
+	}
+
+	OwnedWeapons.Add(AddedWeapon);
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->DeactivateWeapon();
+	}
+	CurrentWeapon = AddedWeapon;
+	CurrentWeapon->ActivateWeapon(PlayerTag);
+}
+
 void AShooterCharacter::OnWeaponActivated(AShooterWeapon* Weapon)
 {
 	// update the bullet counter
-	OnBulletCountUpdated.Broadcast(Weapon->GetMagazineSize(), Weapon->GetBulletCount());
+	FWeaponStatus Status;
+	Weapon->FillStatus(Status);
+	OnBulletCountUpdated.Broadcast(Status.MagazineSize, Status.Rounds);
 
 	// set the character mesh AnimInstances
 	GetFirstPersonMesh()->SetAnimInstanceClass(Weapon->GetFirstPersonAnimInstanceClass());
@@ -433,14 +467,7 @@ bool AShooterCharacter::GetWeaponStatus(FWeaponStatus& OutStatus) const
 		return false;
 	}
 
-	OutStatus.WeaponName = CurrentWeapon->GetDisplayName();
-	OutStatus.MakerMark = CurrentWeapon->GetDefinition() ? CurrentWeapon->GetDefinition()->MakerMark : nullptr;
-	OutStatus.Rounds = CurrentWeapon->GetBulletCount();
-	OutStatus.MagazineSize = CurrentWeapon->GetMagazineSize();
-	OutStatus.bReloading = CurrentWeapon->IsReloading();
-	OutStatus.ReloadProgress = CurrentWeapon->GetReloadProgress();
-	OutStatus.bSwitching = CurrentWeapon->IsEquipping();
-	OutStatus.LastDryFireTime = CurrentWeapon->GetLastDryFireTime();
+	CurrentWeapon->FillStatus(OutStatus);
 	OutStatus.ReloadHint = NSLOCTEXT("ShooterCharacter", "ReloadHint", "R OR X TO RELOAD");
 	OutStatus.WeaponIndex = OwnedWeapons.Find(CurrentWeapon.Get());
 	OutStatus.WeaponCount = OwnedWeapons.Num();
@@ -457,10 +484,7 @@ void AShooterCharacter::GetLoadout(TArray<FWeaponStatus>& OutLoadout) const
 			continue;
 		}
 		FWeaponStatus& Entry = OutLoadout.AddDefaulted_GetRef();
-		Entry.WeaponName = Weapon->GetDisplayName();
-		Entry.MakerMark = Weapon->GetDefinition() ? Weapon->GetDefinition()->MakerMark : nullptr;
-		Entry.Rounds = Weapon->GetBulletCount();
-		Entry.MagazineSize = Weapon->GetMagazineSize();
+		Weapon->FillStatus(Entry);
 		Entry.WeaponIndex = Index;
 		Entry.WeaponCount = OwnedWeapons.Num();
 	}

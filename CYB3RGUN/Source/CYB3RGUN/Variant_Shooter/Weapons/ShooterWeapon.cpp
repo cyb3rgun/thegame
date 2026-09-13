@@ -5,6 +5,7 @@
 #include "StyleScoringComponent.h"
 #include "StyleSettings.h"
 #include "WeaponDefinition.h"
+#include "WeaponStatus.h"
 #include "CoreGlobals.h"
 #include "CombatFeelSubsystem.h"
 #include "DoorRangeTarget.h"
@@ -67,8 +68,6 @@ void AShooterWeapon::BeginPlay()
 	{
 		MagazineSize = Definition->MagazineSize;
 		RefireRate = Definition->RefireSeconds;
-		bFullAuto = Definition->bFullAuto;
-		AimVariance = Definition->BulletAimVariance;
 	}
 
 	// fill the first ammo clip
@@ -248,7 +247,7 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	}
 	else
 	{
-		SpawnShotProjectile(ProjectileTransform);
+		SpawnShotProjectile(ProjectileTransform, Definition ? Definition->Damage : -1.0f, 0.0f, -1.0f);
 	}
 
 	// muzzle flash and its light where the shot leaves; the local player sees it on the first person weapon
@@ -276,7 +275,7 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const
 {
 	// find the muzzle location
-	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
+	const FVector MuzzleLoc = GetMuzzleLocation();
 
 	// calculate the spawn location ahead of the muzzle
 	FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
@@ -316,29 +315,34 @@ const TSubclassOf<UAnimInstance>& AShooterWeapon::GetThirdPersonAnimInstanceClas
 	return ThirdPersonAnimInstanceClass;
 }
 
-void AShooterWeapon::SpawnShotProjectile(const FTransform& ProjectileTransform)
+FVector AShooterWeapon::GetMuzzleLocation() const
 {
-	// spawn the projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
-	SpawnParams.Owner = GetOwner();
-	SpawnParams.Instigator = PawnOwner;
+	return FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
+}
 
-	AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+AShooterProjectile* AShooterWeapon::SpawnShotProjectile(const FTransform& ProjectileTransform, float ShotDamage, float Speed, float GravityScale)
+{
+	if (!ProjectileClass)
+	{
+		return nullptr;
+	}
 
-	// set the noise tag on the projectile, and the definition's damage
+	// spawned deferred, so the damage and the ballistics are in place before the projectile starts to move
+	AShooterProjectile* Projectile = GetWorld()->SpawnActorDeferred<AShooterProjectile>(ProjectileClass, ProjectileTransform, GetOwner(), PawnOwner,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn, ESpawnActorScaleMethod::OverrideRootScale);
 	if (Projectile)
 	{
 		Projectile->SetNoiseTag(NoiseOwnerTag);
-		if (Definition)
+		if (ShotDamage >= 0.0f)
 		{
-			Projectile->SetHitDamage(Definition->Damage);
-			if (Definition->BulletRadius > 0.0f)
-			{
-				Projectile->SetCollisionRadius(Definition->BulletRadius);
-			}
+			Projectile->SetHitDamage(ShotDamage);
 		}
+		if (Definition && Definition->BulletRadius > 0.0f)
+		{
+			Projectile->SetCollisionRadius(Definition->BulletRadius);
+		}
+		Projectile->SetBallistics(Speed, GravityScale);
+		Projectile->FinishSpawning(ProjectileTransform);
 	}
 
 	// a player's shot counts for style: fired now, resolved where it lands or when it times out
@@ -350,6 +354,7 @@ void AShooterWeapon::SpawnShotProjectile(const FTransform& ProjectileTransform)
 			Projectile->MarkAsStyleShot(UStyleSettings::Get(this)->ShotMissTimeout);
 		}
 	}
+	return Projectile;
 }
 
 void AShooterWeapon::FirePellets(const FVector& TargetLocation)
@@ -444,10 +449,8 @@ float AShooterWeapon::GetReloadProgress() const
 	return bReloading && Duration > 0.0f ? FMath::Clamp(ReloadElapsed / Duration, 0.0f, 1.0f) : 0.0f;
 }
 
-void AShooterWeapon::Tick(float DeltaSeconds)
+float AShooterWeapon::AdvanceClock(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
-
 	// the weapon runs on its holder's clock. A player's is the wall clock at the player's Overclock scale, so reloads,
 	// switches and refire keep the player's pace while the world is slowed; anyone else's is the world's own time.
 	// A long gap on the wall clock, a pause or a hitch, counts as one short frame
@@ -456,6 +459,14 @@ void AShooterWeapon::Tick(float DeltaSeconds)
 	LastTickWallSeconds = WallNow;
 	const float ClockDelta = IsPlayerWeapon() ? WallDelta * UCombatFeelSubsystem::GetPlayerTimeScale(this) : DeltaSeconds;
 	WeaponClock += ClockDelta;
+	return ClockDelta;
+}
+
+void AShooterWeapon::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	const float ClockDelta = AdvanceClock(DeltaSeconds);
 
 	if (EquipRemaining > 0.0f && GFrameCounter != EquipStartFrame)
 	{
@@ -517,4 +528,17 @@ bool AShooterWeapon::IsPlayerWeapon() const
 FText AShooterWeapon::GetDisplayName() const
 {
 	return Definition && !Definition->DisplayName.IsEmpty() ? Definition->DisplayName : FText::FromString(GetClass()->GetName());
+}
+
+void AShooterWeapon::FillStatus(FWeaponStatus& OutStatus) const
+{
+	OutStatus.WeaponName = GetDisplayName();
+	OutStatus.Subtitle = Definition ? Definition->Subtitle : FText::GetEmpty();
+	OutStatus.MakerMark = Definition ? Definition->MakerMark.Get() : nullptr;
+	OutStatus.Rounds = CurrentBullets;
+	OutStatus.MagazineSize = MagazineSize;
+	OutStatus.bReloading = bReloading;
+	OutStatus.ReloadProgress = GetReloadProgress();
+	OutStatus.bSwitching = IsEquipping();
+	OutStatus.LastDryFireTime = LastDryFireTime;
 }

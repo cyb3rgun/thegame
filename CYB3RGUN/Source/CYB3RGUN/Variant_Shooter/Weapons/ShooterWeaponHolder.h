@@ -8,6 +8,7 @@
 
 class AShooterWeapon;
 class UAnimMontage;
+class UWeaponDefinition;
 
 
 // This class does not need to be modified.
@@ -43,6 +44,9 @@ public:
 
 	/** Gives a weapon of this class to the owner */
 	virtual void AddWeaponClass(const TSubclassOf<AShooterWeapon>& WeaponClass) = 0;
+
+	/** Gives the owner the weapon a definition describes (D-052) */
+	virtual void AddWeaponDefinition(const UWeaponDefinition* Definition) {}
 
 	/** Activates the passed weapon */
 	virtual void OnWeaponActivated(AShooterWeapon* Weapon) = 0;

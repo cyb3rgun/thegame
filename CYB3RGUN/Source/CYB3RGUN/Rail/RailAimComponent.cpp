@@ -147,6 +147,16 @@ FVector URailAimComponent::ResolveAimPoint() const
 	return GetOwner() ? GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 10000.0f : FVector::ZeroVector;
 }
 
+FWeaponState* URailAimComponent::GetCurrentState()
+{
+	return States.IsValidIndex(WeaponIndex) ? &States[WeaponIndex] : nullptr;
+}
+
+const FWeaponState* URailAimComponent::GetCurrentState() const
+{
+	return States.IsValidIndex(WeaponIndex) ? &States[WeaponIndex] : nullptr;
+}
+
 bool URailAimComponent::CanFire() const
 {
 	const UWorld* World = GetWorld();
@@ -155,23 +165,44 @@ bool URailAimComponent::CanFire() const
 		return false;
 	}
 
-	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	if (!Weapon)
+	// carried weapons follow their own rules, on the aim's clock, see TickComponent
+	if (const FWeaponState* State = GetCurrentState())
 	{
-		return (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
+		return State->CanFire();
+	}
+	return (World->GetTimeSeconds() - LastShotTime) >= RefireSeconds;
+}
+
+bool URailAimComponent::TraceShot(float ConeDegrees, FHitResult& OutHit) const
+{
+	// a settled weapon hits exactly what the crosshair shows
+	if (ConeDegrees <= 0.0f)
+	{
+		return ResolveAim(OutHit);
 	}
 
-	// carried weapons run on the aim's own clock, see TickComponent
-	return !bReloading && EquipRemaining <= 0.0f && Rounds.IsValidIndex(WeaponIndex) && Rounds[WeaponIndex] > 0
-		&& (AimClock - LastShotClock) >= Weapon->RefireSeconds;
+	const APlayerController* PC = GetPlayerController();
+	FVector2D Pixels;
+	FVector Origin;
+	FVector Direction;
+	if (!PC || !GetCrosshairScreenPosition(Pixels) || !PC->DeprojectScreenPositionToWorld(Pixels.X, Pixels.Y, Origin, Direction))
+	{
+		return false;
+	}
+
+	// otherwise the shot leaves the crosshair ray within the cone the weapon holds right now
+	const FVector ShotDirection = FMath::VRandCone(Direction, FMath::DegreesToRadians(ConeDegrees));
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RailAim), false, GetOwner());
+	return GetWorld()->LineTraceSingleByChannel(OutHit, Origin, Origin + ShotDirection * PC->HitResultTraceDistance, TraceChannel, QueryParams);
 }
 
 bool URailAimComponent::Fire()
 {
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	FWeaponState* State = GetCurrentState();
 
-	// an empty magazine clicks, unless cover, a reload or a switch holds the trigger anyway
-	if (Weapon && !bFireBlocked && !bReloading && EquipRemaining <= 0.0f && Rounds.IsValidIndex(WeaponIndex) && Rounds[WeaponIndex] <= 0)
+	// an empty weapon clicks, unless cover or its own action holds the trigger anyway
+	if (State && !bFireBlocked && State->GetAction() == EWeaponAction::Ready && State->IsEmpty())
 	{
 		DryFire();
 		return false;
@@ -184,11 +215,16 @@ bool URailAimComponent::Fire()
 
 	UWorld* World = GetWorld();
 	LastShotTime = World->GetTimeSeconds();
-	LastShotClock = AimClock;
 	++ShotsFired;
-	if (Weapon)
+
+	FWeaponShot Shot;
+	if (State)
 	{
-		--Rounds[WeaponIndex];
+		Shot = State->Fire();
+	}
+	else
+	{
+		Shot.Damage = Damage;
 	}
 
 	// the style record resolves this shot right here: whatever it lands on reports a hit, anything else makes it a miss
@@ -200,18 +236,23 @@ bool URailAimComponent::Fire()
 	}
 
 	FHitResult Hit;
-	const bool bHit = ResolveAim(Hit);
+	bool bHit = false;
 	AActor* Damaged = nullptr;
 
 	if (Weapon && Weapon->Pellets > 1)
 	{
+		bHit = ResolveAim(Hit);
 		Damaged = FirePellets(*Weapon);
 	}
-	else if (bHit)
+	else
 	{
-		Damaged = ApplyShotHit(Hit, Weapon ? Weapon->Damage : Damage);
-		UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
-		UShotFeedback::PlayImpactDecal(this, Hit);
+		bHit = TraceShot(Shot.ConeDegrees, Hit);
+		if (bHit)
+		{
+			Damaged = ApplyShotHit(Hit, Shot.Damage * (Weapon ? Weapon->GetDamageScale(Hit.Distance) : 1.0f));
+			UShotFeedback::PlayImpact(this, Hit.ImpactPoint, Hit.ImpactNormal);
+			UShotFeedback::PlayImpactDecal(this, Hit);
+		}
 	}
 
 	if (Damaged)
@@ -230,6 +271,15 @@ bool URailAimComponent::Fire()
 		const FVector Muzzle = Camera->GetComponentTransform().TransformPosition(FVector(60.0f, 18.0f, -22.0f));
 		const FVector AimTarget = bHit ? Hit.ImpactPoint : ResolveAimPoint();
 		UShotFeedback::PlayMuzzleFlash(this, nullptr, NAME_None, Muzzle, (AimTarget - Muzzle).Rotation(), false);
+	}
+
+	if (Weapon)
+	{
+		PlayWeaponSound(Weapon->FireSound);
+		if (State && State->GetAction() == EWeaponAction::Cycling)
+		{
+			PlayWeaponSound(Weapon->CycleSound);
+		}
 	}
 
 	UE_LOG(LogRailAim, Verbose, TEXT("Shot %d at screen %.3f %.3f: %s%s"), ShotsFired, GetCrosshairNormalized().X, GetCrosshairNormalized().Y,
@@ -301,14 +351,14 @@ void URailAimComponent::BeginPlay()
 	Super::BeginPlay();
 
 	Weapons.RemoveAll([](const TObjectPtr<UWeaponDefinition>& Weapon) { return !Weapon; });
-	Rounds.Reset(Weapons.Num());
+	States.Reset(Weapons.Num());
 	for (const UWeaponDefinition* Weapon : Weapons)
 	{
-		Rounds.Add(Weapon->MagazineSize);
+		States.AddDefaulted_GetRef().Init(Weapon);
 	}
 	WeaponIndex = 0;
 
-	// only carried weapons have reloads and switches to time
+	// only carried weapons have actions to time
 	SetComponentTickEnabled(!Weapons.IsEmpty());
 }
 
@@ -322,25 +372,20 @@ void URailAimComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 	const float WallDelta = LastTickWallSeconds > 0.0 ? static_cast<float>(FMath::Min(WallNow - LastTickWallSeconds, 0.1)) : 0.0f;
 	LastTickWallSeconds = WallNow;
 	const float ClockDelta = WallDelta * UCombatFeelSubsystem::GetPlayerTimeScale(this);
-	AimClock += ClockDelta;
 
-	if (EquipRemaining > 0.0f && GFrameCounter != EquipStartFrame)
+	FWeaponState* State = GetCurrentState();
+	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (!State || !Weapon)
 	{
-		EquipRemaining = FMath::Max(EquipRemaining - ClockDelta, 0.0f);
+		return;
 	}
 
-	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	if (bReloading && Weapon && GFrameCounter != ReloadStartFrame)
+	const EWeaponAction Before = State->GetAction();
+	State->Tick(ClockDelta);
+	if (Before == EWeaponAction::Reloading && State->GetAction() == EWeaponAction::Ready)
 	{
-		ReloadElapsed += ClockDelta;
-		if (ReloadElapsed >= Weapon->ReloadSeconds)
-		{
-			bReloading = false;
-			ReloadElapsed = 0.0f;
-			Rounds[WeaponIndex] = Weapon->MagazineSize;
-			PlayWeaponSound(Weapon->ReloadEndSound);
-			UE_LOG(LogRailAim, Log, TEXT("%s reloaded in cover, %d rounds, %.2f s on the wall clock"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], FPlatformTime::Seconds() - ReloadStartSeconds);
-		}
+		PlayWeaponSound(Weapon->ReloadEndSound);
+		UE_LOG(LogRailAim, Log, TEXT("%s reloaded in cover, %d rounds, %.2f s on the wall clock"), *Weapon->DisplayName.ToString(), State->GetRounds(), FPlatformTime::Seconds() - ReloadStartSeconds);
 	}
 }
 
@@ -360,7 +405,7 @@ const UWeaponDefinition* URailAimComponent::GetCurrentWeapon() const
 
 bool URailAimComponent::SwitchWeapon()
 {
-	if (Weapons.Num() < 2 || Rounds.Num() != Weapons.Num())
+	if (Weapons.Num() < 2 || States.Num() != Weapons.Num())
 	{
 		return false;
 	}
@@ -369,60 +414,57 @@ bool URailAimComponent::SwitchWeapon()
 	WeaponIndex = (WeaponIndex + 1) % Weapons.Num();
 
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	EquipRemaining = Weapon->EquipSeconds;
-	EquipStartFrame = GFrameCounter;
+	FWeaponState* State = GetCurrentState();
+	State->Draw();
 	PlayWeaponSound(Weapon->EquipSound);
-	UE_LOG(LogRailAim, Log, TEXT("Switched to %s, %d of %d rounds"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], Weapon->MagazineSize);
+	UE_LOG(LogRailAim, Log, TEXT("Switched to %s, %d of %d rounds"), *Weapon->DisplayName.ToString(), State->GetRounds(), Weapon->MagazineSize);
 	return true;
 }
 
 bool URailAimComponent::StartReload()
 {
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	if (!Weapon || bReloading || !Rounds.IsValidIndex(WeaponIndex) || Rounds[WeaponIndex] >= Weapon->MagazineSize)
+	FWeaponState* State = GetCurrentState();
+	if (!Weapon || !State || !State->StartReload())
 	{
 		return false;
 	}
 
-	bReloading = true;
-	ReloadElapsed = 0.0f;
-	ReloadStartFrame = GFrameCounter;
 	ReloadStartSeconds = FPlatformTime::Seconds();
 	PlayWeaponSound(Weapon->ReloadStartSound);
-	UE_LOG(LogRailAim, Log, TEXT("%s reloads in cover, %d of %d rounds left, %.2f s"), *Weapon->DisplayName.ToString(), Rounds[WeaponIndex], Weapon->MagazineSize, Weapon->ReloadSeconds);
+	UE_LOG(LogRailAim, Log, TEXT("%s reloads in cover, %d of %d rounds left, %.2f s"), *Weapon->DisplayName.ToString(), State->GetRounds(), Weapon->MagazineSize, Weapon->ReloadSeconds);
 	return true;
 }
 
 void URailAimComponent::CancelReload()
 {
-	if (!bReloading)
+	FWeaponState* State = GetCurrentState();
+	if (!State || State->GetAction() != EWeaponAction::Reloading)
 	{
 		return;
 	}
 
-	bReloading = false;
-	ReloadElapsed = 0.0f;
+	State->CancelReload();
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
 	UE_LOG(LogRailAim, Log, TEXT("%s reload left unfinished with %d of %d rounds"), Weapon ? *Weapon->DisplayName.ToString() : TEXT("Weapon"),
-		Rounds.IsValidIndex(WeaponIndex) ? Rounds[WeaponIndex] : 0, Weapon ? Weapon->MagazineSize : 0);
+		State->GetRounds(), Weapon ? Weapon->MagazineSize : 0);
+}
+
+bool URailAimComponent::IsReloading() const
+{
+	const FWeaponState* State = GetCurrentState();
+	return State && State->GetAction() == EWeaponAction::Reloading;
 }
 
 bool URailAimComponent::GetWeaponStatus(FWeaponStatus& OutStatus) const
 {
-	const UWeaponDefinition* Weapon = GetCurrentWeapon();
-	if (!Weapon)
+	const FWeaponState* State = GetCurrentState();
+	if (!State)
 	{
 		return false;
 	}
 
-	OutStatus.WeaponName = Weapon->DisplayName;
-	OutStatus.MakerMark = Weapon->MakerMark;
-	OutStatus.Rounds = Rounds.IsValidIndex(WeaponIndex) ? Rounds[WeaponIndex] : 0;
-	OutStatus.MagazineSize = Weapon->MagazineSize;
-	OutStatus.bReloading = bReloading;
-	OutStatus.ReloadProgress = bReloading && Weapon->ReloadSeconds > 0.0f ? FMath::Clamp(ReloadElapsed / Weapon->ReloadSeconds, 0.0f, 1.0f) : 0.0f;
-	OutStatus.bSwitching = EquipRemaining > 0.0f;
-	OutStatus.LastDryFireTime = LastDryFireTime;
+	State->FillStatus(OutStatus);
 	OutStatus.WeaponIndex = WeaponIndex;
 	OutStatus.WeaponCount = Weapons.Num();
 	return true;
@@ -430,27 +472,22 @@ bool URailAimComponent::GetWeaponStatus(FWeaponStatus& OutStatus) const
 
 void URailAimComponent::GetLoadout(TArray<FWeaponStatus>& OutLoadout) const
 {
-	for (int32 Index = 0; Index < Weapons.Num(); ++Index)
+	for (int32 Index = 0; Index < States.Num(); ++Index)
 	{
-		const UWeaponDefinition* Weapon = Weapons[Index];
-		if (!Weapon)
-		{
-			continue;
-		}
 		FWeaponStatus& Entry = OutLoadout.AddDefaulted_GetRef();
-		Entry.WeaponName = Weapon->DisplayName;
-		Entry.MakerMark = Weapon->MakerMark;
-		Entry.Rounds = Rounds.IsValidIndex(Index) ? Rounds[Index] : 0;
-		Entry.MagazineSize = Weapon->MagazineSize;
+		States[Index].FillStatus(Entry);
 		Entry.WeaponIndex = Index;
-		Entry.WeaponCount = Weapons.Num();
+		Entry.WeaponCount = States.Num();
 	}
 }
 
 void URailAimComponent::DryFire()
 {
-	LastDryFireTime = GetWorld()->GetRealTimeSeconds();
 	const UWeaponDefinition* Weapon = GetCurrentWeapon();
+	if (FWeaponState* State = GetCurrentState())
+	{
+		State->NoteDryFire(GetWorld()->GetRealTimeSeconds());
+	}
 	if (Weapon)
 	{
 		PlayWeaponSound(Weapon->EmptySound);

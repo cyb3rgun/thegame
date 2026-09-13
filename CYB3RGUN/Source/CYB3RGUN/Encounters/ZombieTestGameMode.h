@@ -9,7 +9,7 @@
 
 class AEncounterDirector;
 class AShooterCharacter;
-class AShooterWeapon;
+class UWeaponDefinition;
 class UEncounterHUD;
 class UEncounterDefinition;
 class UStyleSettings;
@@ -26,13 +26,9 @@ class CYB3RGUN_API AZombieTestGameMode : public AGameModeBase, public IStyleScen
 
 protected:
 
-	/** Weapon handed to the player at spawn, the one in hand at the start */
+	/** Weapons handed to the player at spawn and at every respawn, the first comes up in hand (D-052) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
-	TSubclassOf<AShooterWeapon> StartingWeaponClass;
-
-	/** Further weapons handed out before the starting weapon, reached with the switch action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
-	TArray<TSubclassOf<AShooterWeapon>> AdditionalWeaponClasses;
+	TArray<TObjectPtr<UWeaponDefinition>> Loadout;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test")
 	TSubclassOf<UEncounterHUD> EncounterHUDClass;

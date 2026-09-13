@@ -9,6 +9,7 @@
 #include "LogoCrosshairWidget.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
+#include "WeaponDefinition.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -94,9 +95,9 @@ void ADoorRangeGameMode::CreateHUD(APlayerController* Player)
 void ADoorRangeGameMode::GrantStartingWeapon()
 {
 	const UDoorRangeSettings* Cfg = GetSettings();
-	if (!Cfg->StartingWeaponClass)
+	if (Cfg->Loadout.IsEmpty())
 	{
-		UE_LOG(LogDoorRange, Warning, TEXT("No starting weapon class set in the door range settings"));
+		UE_LOG(LogDoorRange, Warning, TEXT("No loadout set in the door range settings"));
 		return;
 	}
 
@@ -104,17 +105,15 @@ void ADoorRangeGameMode::GrantStartingWeapon()
 	{
 		if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(PC->GetPawn()))
 		{
-			// the extra weapons first, so the starting weapon ends up in hand
-			for (const TSubclassOf<AShooterWeapon>& Extra : Cfg->AdditionalWeaponClasses)
+			// the last weapon handed out comes up in hand, so the loadout goes in backwards and its first ends up there
+			for (int32 Index = Cfg->Loadout.Num() - 1; Index >= 0; --Index)
 			{
-				if (Extra)
+				if (const UWeaponDefinition* Weapon = Cfg->Loadout[Index])
 				{
-					Holder->AddWeaponClass(Extra);
-					UE_LOG(LogDoorRange, Log, TEXT("Granted weapon %s"), *GetNameSafe(Extra));
+					Holder->AddWeaponDefinition(Weapon);
+					UE_LOG(LogDoorRange, Log, TEXT("Granted weapon %s"), *GetNameSafe(Weapon));
 				}
 			}
-			Holder->AddWeaponClass(Cfg->StartingWeaponClass);
-			UE_LOG(LogDoorRange, Log, TEXT("Granted starting weapon %s"), *GetNameSafe(Cfg->StartingWeaponClass));
 		}
 		else
 		{

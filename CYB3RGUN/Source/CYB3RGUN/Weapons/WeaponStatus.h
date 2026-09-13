@@ -15,6 +15,10 @@ struct FWeaponStatus
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	FText WeaponName;
 
+	/** What kind of weapon it is, shown under the name (D-053) */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	FText Subtitle;
+
 	/** The maker's mark shown beside the name, the 3R house mark on our own weapons (D-056) */
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class UTexture2D> MakerMark = nullptr;
@@ -31,6 +35,14 @@ struct FWeaponStatus
 	/** 0 to 1 while reloading */
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")
 	float ReloadProgress = 0.0f;
+
+	/** True while a single shot weapon works its action before the next shot */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	bool bCycling = false;
+
+	/** 0 to 1 while cycling */
+	UPROPERTY(BlueprintReadOnly, Category="Weapon")
+	float CycleProgress = 0.0f;
 
 	/** True while a switched-to weapon comes up and cannot fire yet */
 	UPROPERTY(BlueprintReadOnly, Category="Weapon")

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/HitResult.h"
+#include "WeaponState.h"
 #include "WeaponStatus.h"
 #include "RailAimComponent.generated.h"
 
@@ -33,6 +34,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FRailShotFiredDelegate, bool, bHi
  *  damage entry point. Muzzles never decide a hit; they are cosmetic only.
  *  Works on any pawn: the rail pawn uses Relative input, a first person character uses ScreenCenter,
  *  hardware aiming calls SetCrosshairNormalized with its own screen point.
+ *  Carried weapons follow the same rules as the weapon actor, FWeaponState on their definitions (D-052).
  */
 UCLASS(ClassGroup=(CYB3RGUN), meta=(BlueprintSpawnableComponent))
 class CYB3RGUN_API URailAimComponent : public UActorComponent
@@ -55,11 +57,11 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Aim")
 	FVector2D CrosshairNormalized = FVector2D(0.5, 0.5);
 
-	/** Damage per hit. Matches the template pistol bullet until weapons become data. */
+	/** Damage per hit without carried weapons */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Shot", meta = (ClampMin = 0.0))
 	float Damage = 25.0f;
 
-	/** Seconds between two shots. Matches the template pistol until weapons become data. */
+	/** Seconds between two shots without carried weapons */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Shot", meta = (ClampMin = 0.0, Units = "s"))
 	float RefireSeconds = 0.25f;
 
@@ -77,28 +79,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapons")
 	TArray<TObjectPtr<UWeaponDefinition>> Weapons;
 
-	/** Rounds left in each carried weapon, kept across switches */
-	TArray<int32> Rounds;
+	/** The rules of each carried weapon, kept across switches */
+	TArray<FWeaponState> States;
 
 	int32 WeaponIndex = 0;
-
-	/** Reload and switch timing, on real time. The frame each of them started on does not count. */
-	bool bReloading = false;
-	float ReloadElapsed = 0.0f;
-	uint64 ReloadStartFrame = 0;
-	float EquipRemaining = 0.0f;
-	uint64 EquipStartFrame = 0;
 
 	/** Wall clock at the start of the reload, the log reports the duration it measured */
 	double ReloadStartSeconds = 0.0;
 
-	/** Seconds on the aim's own clock, see TickComponent, and its reading at the last shot */
-	double AimClock = 0.0;
-	double LastShotClock = -1000.0;
-
-	/** Wall clock at the previous tick, and real time of the last trigger pull on an empty magazine for the HUD cue */
+	/** Wall clock at the previous tick */
 	double LastTickWallSeconds = 0.0;
-	double LastDryFireTime = -1000.0;
 
 public:
 
@@ -144,7 +134,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Aim")
 	FVector ResolveAimPoint() const;
 
-	/** Fires one hitscan shot through the crosshair. False when blocked or still in refire. */
+	/** Fires one hitscan shot through the crosshair. False when blocked or the weapon cannot fire yet. */
 	UFUNCTION(BlueprintCallable, Category="Shot")
 	bool Fire();
 
@@ -174,16 +164,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapons")
 	bool SwitchWeapon();
 
-	/** Starts refilling the weapon in hand. False when it is full, already reloading or nothing is carried. */
+	/** Starts refilling the weapon in hand. False when it is full, busy or nothing is carried. */
 	UFUNCTION(BlueprintCallable, Category="Weapons")
 	bool StartReload();
 
-	/** Stops a reload before it finished, the magazine keeps what it had */
+	/** Stops a reload before it finished, the weapon keeps what it had */
 	UFUNCTION(BlueprintCallable, Category="Weapons")
 	void CancelReload();
 
 	UFUNCTION(BlueprintPure, Category="Weapons")
-	bool IsReloading() const { return bReloading; }
+	bool IsReloading() const;
 
 	/** The weapon in hand for the HUD. False without carried weapons. */
 	bool GetWeaponStatus(FWeaponStatus& OutStatus) const;
@@ -200,13 +190,20 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	/** The rules of the weapon in hand, null without carried weapons */
+	FWeaponState* GetCurrentState();
+	const FWeaponState* GetCurrentState() const;
+
+	/** Traces a single shot through the crosshair, off the crosshair ray within the cone. True on a blocking hit. */
+	bool TraceShot(float ConeDegrees, FHitResult& OutHit) const;
+
 	/** Hands one hit to the target and to the damage path. Returns the pawn that took damage, or null. */
 	AActor* ApplyShotHit(const FHitResult& Hit, float ShotDamage);
 
 	/** Fires the weapon's pellets as traces in a cone around the crosshair ray. Returns the first pawn that took damage. */
 	AActor* FirePellets(const UWeaponDefinition& Weapon);
 
-	/** A trigger pull on an empty magazine: the click, and a time stamp for the HUD cue */
+	/** A trigger pull on an empty weapon: the click, and a time stamp for the HUD cue */
 	void DryFire();
 
 	void PlayWeaponSound(USoundBase* Sound) const;

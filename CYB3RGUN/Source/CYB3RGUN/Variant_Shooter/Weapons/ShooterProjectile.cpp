@@ -272,3 +272,21 @@ void AShooterProjectile::SetCollisionRadius(float Radius)
 {
 	CollisionComponent->SetSphereRadius(Radius);
 }
+
+void AShooterProjectile::SetBallistics(float Speed, float GravityScale)
+{
+	if (Speed > 0.0f)
+	{
+		// no cap, gravity may add to the speed on the way down
+		ProjectileMovement->InitialSpeed = Speed;
+		ProjectileMovement->MaxSpeed = 0.0f;
+		if (!ProjectileMovement->Velocity.IsNearlyZero())
+		{
+			ProjectileMovement->Velocity = ProjectileMovement->Velocity.GetSafeNormal() * Speed;
+		}
+	}
+	if (GravityScale >= 0.0f)
+	{
+		ProjectileMovement->ProjectileGravityScale = GravityScale;
+	}
+}

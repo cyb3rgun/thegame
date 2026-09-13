@@ -15,6 +15,7 @@ class UAnimMontage;
 class UAnimInstance;
 class USoundBase;
 class UWeaponDefinition;
+struct FWeaponStatus;
 
 /**
  *  Base class for a simple first person shooter weapon
@@ -172,16 +173,16 @@ protected:
 public:
 
 	/** Activates this weapon and gets it ready to fire */
-	void ActivateWeapon(const FName& OwnerTag);
+	virtual void ActivateWeapon(const FName& OwnerTag);
 
 	/** Deactivates this weapon */
 	void DeactivateWeapon();
 
 	/** Start firing this weapon */
-	void StartFiring();
+	virtual void StartFiring();
 
 	/** Stop firing this weapon */
-	void StopFiring();
+	virtual void StopFiring();
 
 protected:
 
@@ -197,8 +198,14 @@ protected:
 	/** Calculates the spawn transform for projectiles shot by this weapon */
 	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
 
-	/** Spawns the projectile of a single bullet shot */
-	void SpawnShotProjectile(const FTransform& ProjectileTransform);
+	/** Where shots leave the first person weapon */
+	virtual FVector GetMuzzleLocation() const;
+
+	/** Spawns the projectile of a single bullet shot with its damage and ballistics. A negative damage or gravity and a zero speed keep the projectile's own. */
+	AShooterProjectile* SpawnShotProjectile(const FTransform& ProjectileTransform, float ShotDamage, float Speed, float GravityScale);
+
+	/** Advances the weapon's clock by one tick and returns the step: the player's scaled wall clock, or world time for anyone else */
+	float AdvanceClock(float DeltaSeconds);
 
 	/** Fires the definition's pellets as hitscan traces in a cone from the view */
 	void FirePellets(const FVector& TargetLocation);
@@ -236,10 +243,10 @@ public:
 	int32 GetBulletCount() const { return CurrentBullets; }
 
 	/** Starts refilling the magazine. False when it is full, already reloading or the weapon is still coming up. */
-	bool StartReload();
+	virtual bool StartReload();
 
 	/** Stops a reload before it finished, the magazine keeps what it had */
-	void CancelReload();
+	virtual void CancelReload();
 
 	bool IsReloading() const { return bReloading; }
 
@@ -252,6 +259,12 @@ public:
 	double GetLastDryFireTime() const { return LastDryFireTime; }
 
 	const UWeaponDefinition* GetDefinition() const { return Definition; }
+
+	/** Gives a weapon spawned deferred its definition, before it begins play */
+	void SetDefinition(UWeaponDefinition* InDefinition) { Definition = InDefinition; }
+
+	/** The weapon's state for the HUD; the holder adds its index, count and hints */
+	virtual void FillStatus(FWeaponStatus& OutStatus) const;
 
 	FText GetDisplayName() const;
 };
