@@ -126,7 +126,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] GPU, driver and resolution in every benchmark result line (G03)
 - [x] Night benchmark prepared: Bench.Suite night and tools/night_benchmark.ps1, not run (G03)
 - [x] Blockout materials: M_Surface and its instances in Core/Materials on floors, walls, doors, crates and posts (G03)
-- [x] Shared cyberpunk grade DA_Grade_Cyberpunk placed by ACyberGrade in the night door range, the rail level and the menu, with neon tubes, wet floors and volumetric fog; the precision range stays neutral (G04)
+- [x] Shared cyberpunk grade DA_Grade_Cyberpunk placed by ACyberGrade in the night door range, the rail level and the menu, with neon tubes, wet floors and volumetric fog; the day door range stays neutral (G04)
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps

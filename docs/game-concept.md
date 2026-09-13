@@ -18,6 +18,7 @@ Decided:
 - Western: saloon doors, undead bandits, living customers must not be shot.
 - Zombie: first entertainment scenario. Three sub modes sharing one core: first person, top down, target range.
 - Olympic: precision, real physics, no time dilation.
+- The precision scenario is the Olympic scenario, a separate scenario that does not exist yet. The day door range is not the precision scenario; it runs the standard style. DA_Style_Precision stays unused until the Olympic scenario is built.
 
 ## Core Modules
 
