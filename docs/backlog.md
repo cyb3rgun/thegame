@@ -11,6 +11,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Style meter as the moral system: clean shooting raises it, a hit on a hostage or bystander collapses it (G04)
 - [x] Combo multiplier, controlled pairs, headshots that kill at once, accuracy in the run statistics (G04)
 - [x] Hit stop on a kill, directional camera kick in three strengths, kill screen effect, all values in the style data asset (G04)
+- [x] Per bone hit zones against the physics asset: head, torso, legs, both arms and the held weapon, each with a damage multiplier, a reaction and a score in DA_HitZones (G04)
+- [x] Hit reactions as montages blended over the body, picked by the side of the shot, on a native anim instance without an Anim Blueprint (G04)
+- [x] Disarm: a shot on the weapon or the weapon arm drops it with physics, removes the threat without a kill and scores above a kill (G04)
 - [ ] Session statistics (hits, misses, reaction times)
 - [ ] Scenario package format: GameMode, data assets, input context (G02)
 
@@ -55,6 +58,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Pistol and scattergun with magazine, reload, empty click, switching and their own handling (G04)
 - [x] Impact decals on world surfaces (G04)
 - [x] Weapon data asset for damage and refire, the rail aim component still carries pistol values (G04)
+- [x] 3R house mark printed on the pistol and the scattergun, beside the weapon name in the HUD and the pause menu loadout, and as stencil and neon dressing in the night range and on the rail crates (G04)
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies
@@ -70,6 +74,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Enemy base class with one damage entry point, data driven definitions and StateTree behaviour (G02)
 - [x] Undead shambler and sprinter placeholders built from engine shapes (G02)
 - [x] Skeletal bodies on the mannequin for door occupants, shambler and sprinter, friend and foe told apart by posture, scale and material (G03)
+- [x] Leg hits stagger the undead and slow their approach (G04)
 - [ ] Player death and respawn on encounter levels
 - [ ] Mass Entity switch for crowd sized enemy counts
 - [ ] Undead standard horde
@@ -89,6 +94,12 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Main menu with level selection, startup flow and a pause menu (G03)
 - [x] Style HUD: rank, meter, combo, style events, ammunition with the empty cue, Overclock charge (G04)
 - [x] End of run summaries add style, accuracy, best combo, controlled pairs, headshots, rescues and penalties (G04)
+- [x] Brand colours defined once in MPC_Brand and DA_BrandStyle: cyan brand, magenta counter, red danger, every UI colour read from them (G04)
+- [x] Application icon, splash screen and window title from the CYB3RGUN marks (G04)
+- [x] Logo crosshair: the ring is the reticle and tightens red while a hostile draws, the arc is the round gauge and the reload in cover, a thin arc holds Overclock, pulse on a hit, flash on a headshot, red collapse on a penalty (G04)
+- [x] Holographic HUD: scanlines, a faint flicker and a glitch burst when the player is hit, legibility first (G04)
+- [x] Animated menu logo: boots on entry, the ring breathes, the arc turns and spins as the loading indicator (G04)
+- [x] Every in-game number formatted with the invariant culture (G04)
 - [ ] Settings menu key as a rebindable Enhanced Input action
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
@@ -115,6 +126,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] GPU, driver and resolution in every benchmark result line (G03)
 - [x] Night benchmark prepared: Bench.Suite night and tools/night_benchmark.ps1, not run (G03)
 - [x] Blockout materials: M_Surface and its instances in Core/Materials on floors, walls, doors, crates and posts (G03)
+- [x] Shared cyberpunk grade DA_Grade_Cyberpunk placed by ACyberGrade in the night door range, the rail level and the menu, with neon tubes, wet floors and volumetric fog; the precision range stays neutral (G04)
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
