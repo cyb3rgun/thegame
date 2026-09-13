@@ -60,13 +60,13 @@ void UCombatFeelCameraModifier::ModifyPostProcess(float DeltaTime, float& PostPr
 		return;
 	}
 
-	// dark edges, a colour fringe and less colour: a blink on a kill, held softer while Overclock runs
-	PostProcessBlendWeight = 1.0f;
+	// dark edges, a colour fringe and less colour: a blink on a kill, held softer while Overclock runs. The weight follows
+	// the strength and the values are the peaks, so the level's grade shows through and the effect fades out of it
+	PostProcessBlendWeight = Strength;
 	PostProcessSettings.bOverride_VignetteIntensity = true;
-	PostProcessSettings.VignetteIntensity = 0.4f + 0.9f * Strength;
+	PostProcessSettings.VignetteIntensity = 1.3f;
 	PostProcessSettings.bOverride_SceneFringeIntensity = true;
-	PostProcessSettings.SceneFringeIntensity = 4.0f * Flash + 1.5f * OverclockLook;
+	PostProcessSettings.SceneFringeIntensity = (4.0f * Flash + 1.5f * OverclockLook) / Strength;
 	PostProcessSettings.bOverride_ColorSaturation = true;
-	const float Saturation = 1.0f - 0.6f * Strength;
-	PostProcessSettings.ColorSaturation = FVector4(Saturation, Saturation, Saturation, 1.0f);
+	PostProcessSettings.ColorSaturation = FVector4(0.4f, 0.4f, 0.4f, 1.0f);
 }
