@@ -2,6 +2,14 @@
 
 Numbered newest first.
 
+## D-059 Encounter levels respawn the player
+
+Encounter levels respawn the player, so an idle player cannot end a test run. Verification must never depend on the tester staying alive. The zombie test puts a fallen player back at a player start with the starting loadout, and the rail rider gets back up where it went down and the ride goes on.
+
+## D-058 The pistol is the disarm target, not the weapon arm
+
+The held pistol is the disarm target. In the two handed aim pose the off hand covers the gun arm, as measured in G04-B02, so a shot at the gun arm lands on the off hand. This is accepted as designed, not a defect; the weapon arm stays a disarm zone wherever it shows.
+
 ## D-057 In game numbers use invariant formatting
 
 All numbers shown in the game use invariant formatting. The editor's German locale rendered the style multiplier as "x1,0"; a number the player reads must never depend on the machine's locale.
@@ -9,6 +17,22 @@ All numbers shown in the game use invariant formatting. The editor's German loca
 ## D-056 The 3R mark is the in game manufacturer
 
 The 3R mark identifies the in game manufacturer of our own weapons. It appears on the weapon itself, in the weapon menu beside the name, and as world dressing. The CYB3RGUN mark is the product brand, the 3R mark is the fiction's brand, and neither ever substitutes for the other.
+
+## D-055 The PCP model is a real mechanic
+
+The pre charged pneumatic model is a real mechanic, not a reskinned magazine. Reservoir pressure is the ammunition currency, muzzle energy falls as the pressure drops, and refilling is an action with a cost. This is what separates this simulator from every magazine counter shooter.
+
+## D-054 Placeholder bodies now, real models later
+
+Weapons carry placeholder bodies until real models exist. The mount points are the contract: grip socket, muzzle socket, magazine socket, optic mount and pressure gauge location. Any future mesh carrying these sockets drops in without code changes.
+
+## D-053 In game weapon names are our own
+
+The weapon definition holds the name and the subtitle as text, and the names are our own. A future manufacturer licence is then a text and mesh swap, not a rebuild.
+
+## D-052 Weapons are data, not classes
+
+One weapon actor is driven by UWeaponDefinition: name, subtitle, mesh, sockets, fire mode, ballistics, magazine or pressure model, handling, audio and effects. Adding a weapon is content work, never code.
 
 ## D-051 The holographic HUD is diegetic
 
@@ -45,6 +69,10 @@ Clean, disciplined shooting scores highest, and hitting a hostage or bystander c
 ## D-043 Gun fu is built from mechanics only
 
 The gun fu style is built from mechanics, never from another work's expression. Genre, mood, palette, a shooting stance and the real Center Axis Relock technique are unprotected and free to use. Names, logos, characters, dialogue, specific set designs and any named hotel from an existing film are not, and never enter code, assets, filenames or marketing text. This is a house rule, not a preference.
+
+## D-039 to D-042 reserved
+
+Reserved for the MetaHuman cast briefing, which has not been executed yet. They are recorded when the cast is built; the gap in the numbering is intentional.
 
 ## D-038 The menu is a real scene
 
