@@ -41,7 +41,9 @@ enum class EDoorRangeEvent : uint8
 	WaveEnded,
 	RangeFinished,
 	HostageRescued,
-	HostageHit
+	HostageHit,
+	/** A hostile lost its weapon to a shot and stands unarmed (D-050) */
+	HostileDisarmed
 };
 
 /** Pacing and mix for one wave. Later waves usually get shorter windows and more hostiles. */
@@ -156,6 +158,10 @@ struct FDoorRangeStats
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 HostagesHit = 0;
+
+	/** Hostiles and hostage takers disarmed, counted among the hostiles hit as well */
+	UPROPERTY(BlueprintReadOnly)
+	int32 Disarms = 0;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 WavesPlayed = 0;

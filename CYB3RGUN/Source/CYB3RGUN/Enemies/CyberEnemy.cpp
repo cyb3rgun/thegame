@@ -3,6 +3,9 @@
 #include "CyberEnemy.h"
 #include "CyberEnemyController.h"
 #include "EnemyDefinition.h"
+#include "HitReactions.h"
+#include "HitZoneSettings.h"
+#include "TargetAnimInstance.h"
 #include "StyleScoringComponent.h"
 #include "StyleSettings.h"
 #include "Animation/AnimSequenceBase.h"
@@ -24,6 +27,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCyberEnemy, Log, All);
 
+namespace CyberEnemyParts
+{
+	/** Bone the aim point sits on */
+	const FName ChestBone(TEXT("spine_03"));
+}
+
 ACyberEnemy::ACyberEnemy()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -32,7 +41,8 @@ ACyberEnemy::ACyberEnemy()
 	AIControllerClass = ACyberEnemyController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-	// the skeletal mesh shows only for definitions with a body; shots hit the capsule, never the mesh
+	// the skeletal mesh shows only for definitions with a body; with a physics asset its bodies are what shots hit,
+	// otherwise the capsule is, see ApplyHitCollision
 	GetMesh()->SetVisibility(false);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
@@ -41,7 +51,7 @@ ACyberEnemy::ACyberEnemy()
 	PlaceholderRoot->SetupAttachment(GetCapsuleComponent());
 
 	GetCapsuleComponent()->SetCollisionProfileName(FName("Pawn"));
-	// weapons aim with visibility traces, the capsule must stop them or shots converge behind the enemy
+	// weapons aim with visibility traces, the capsule stops them until ApplyHitCollision hands them to a body
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -91,6 +101,7 @@ void ACyberEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		World->GetTimerManager().ClearTimer(FlinchTimer);
 		World->GetTimerManager().ClearTimer(LingerTimer);
 		World->GetTimerManager().ClearTimer(BodyAnimationTimer);
+		World->GetTimerManager().ClearTimer(MoveSpeedTimer);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -118,11 +129,17 @@ void ACyberEnemy::ApplyDefinition()
 		GetMesh()->SetVisibility(false);
 		BuildPlaceholder();
 	}
+	ApplyHitCollision();
 }
 
 bool ACyberEnemy::HasBody() const
 {
 	return Definition && Definition->BodyMesh;
+}
+
+bool ACyberEnemy::HasHitBody() const
+{
+	return HasBody() && GetMesh()->GetPhysicsAsset() != nullptr;
 }
 
 void ACyberEnemy::BuildBody()
@@ -142,11 +159,40 @@ void ACyberEnemy::BuildBody()
 		}
 	}
 
-	Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	// a native anim instance, so hit reactions blend over the idle, the walk or the attack
+	UTargetAnimInstance::Ensure(Body);
 	Body->SetVisibility(true);
 	BodyLoop = nullptr;
 	OneShotUntil = 0.0f;
 	UpdateBodyAnimation();
+}
+
+void ACyberEnemy::ApplyHitCollision()
+{
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	USkeletalMeshComponent* Body = GetMesh();
+	if (HasHitBody() && !bDead)
+	{
+		// the physics asset bodies are the hit target: traces and projectiles pass the capsule and land on a bone (D-049).
+		// The body keeps ignoring pawns, so it never takes part in movement
+		Body->SetCollisionProfileName(FName("CharacterMesh"));
+		Body->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		Body->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Capsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+		Capsule->SetCollisionResponseToChannel(FHitReactions::ProjectileChannel, ECR_Ignore);
+
+		// a body that can be shot keeps its pose fresh off screen as well, so its physics bodies follow the animation
+		Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	}
+	else
+	{
+		// a placeholder, or a body without a physics asset: weapons aim with visibility traces, the capsule must stop them or
+		// shots converge behind the enemy
+		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Capsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		Capsule->SetCollisionResponseToChannel(FHitReactions::ProjectileChannel, ECR_Block);
+		Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+	}
 }
 
 void ACyberEnemy::UpdateBodyAnimation()
@@ -159,18 +205,18 @@ void ACyberEnemy::UpdateBodyAnimation()
 	const float Speed = GetVelocity().Size2D();
 	const bool bMoving = Speed > 20.0f && Definition->MoveAnimation;
 	UAnimSequenceBase* Wanted = bMoving ? Definition->MoveAnimation.Get() : Definition->IdleAnimation.Get();
-	if (!Wanted)
+	UTargetAnimInstance* Anim = UTargetAnimInstance::FromMesh(GetMesh());
+	if (!Wanted || !Anim)
 	{
 		return;
 	}
 
-	USkeletalMeshComponent* Body = GetMesh();
-	if (Wanted != BodyLoop || !Body->IsPlaying())
+	if (Wanted != BodyLoop || Anim->GetBaseSequence() != Wanted)
 	{
-		Body->PlayAnimation(Wanted, true);
+		Anim->PlayBase(Wanted, true);
 		BodyLoop = Wanted;
 	}
-	Body->SetPlayRate(bMoving ? FMath::Clamp(Speed / Definition->MoveAnimationSpeed, 0.5f, 2.5f) : 1.0f);
+	Anim->SetBasePlayRate(bMoving ? FMath::Clamp(Speed / Definition->MoveAnimationSpeed, 0.5f, 2.5f) : 1.0f);
 }
 
 void ACyberEnemy::PlayBodyOneShot(UAnimSequenceBase* Animation)
@@ -180,8 +226,10 @@ void ACyberEnemy::PlayBodyOneShot(UAnimSequenceBase* Animation)
 		return;
 	}
 
-	GetMesh()->PlayAnimation(Animation, false);
-	GetMesh()->SetPlayRate(1.0f);
+	if (UTargetAnimInstance* Anim = UTargetAnimInstance::FromMesh(GetMesh()))
+	{
+		Anim->PlayBase(Animation, false);
+	}
 	BodyLoop = nullptr;
 	OneShotUntil = GetWorld()->GetTimeSeconds() + Animation->GetPlayLength();
 }
@@ -229,7 +277,57 @@ void ACyberEnemy::ClearPlaceholder()
 
 void ACyberEnemy::SetMoveSpeed(float Speed)
 {
-	GetCharacterMovement()->MaxWalkSpeed = FMath::Max(Speed, 0.0f);
+	BaseMoveSpeed = FMath::Max(Speed, 0.0f);
+	RefreshMoveSpeed();
+}
+
+void ACyberEnemy::RefreshMoveSpeed()
+{
+	// a stagger holds the enemy where it stands, a limp slows it, both run out on their own
+	const float Scale = IsStaggered() ? 0.0f : (IsSlowed() ? UHitZoneSettings::Get()->LegSlowScale : 1.0f);
+	GetCharacterMovement()->MaxWalkSpeed = BaseMoveSpeed * Scale;
+
+	// back here when the stagger or the limp ends, whichever comes first
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+	const double NextChange = StaggerUntil > Now ? StaggerUntil : SlowUntil;
+	if (NextChange > Now)
+	{
+		World->GetTimerManager().SetTimer(MoveSpeedTimer, this, &ACyberEnemy::RefreshMoveSpeed, static_cast<float>(NextChange - Now), false);
+	}
+}
+
+bool ACyberEnemy::IsStaggered() const
+{
+	const UWorld* World = GetWorld();
+	return !bDead && World && World->GetTimeSeconds() < StaggerUntil;
+}
+
+bool ACyberEnemy::IsSlowed() const
+{
+	const UWorld* World = GetWorld();
+	return !bDead && World && World->GetTimeSeconds() < SlowUntil;
+}
+
+bool ACyberEnemy::ApplyLegHit()
+{
+	const UHitZoneSettings* Zones = UHitZoneSettings::Get();
+	const double Now = GetWorld()->GetTimeSeconds();
+
+	// every leg hit renews the limp; the stagger comes once per cooldown, so a spray of pellets is one stagger
+	SlowUntil = FMath::Max(SlowUntil, Now + Zones->LegSlowSeconds);
+	const bool bStagger = Now >= NextStaggerAt;
+	if (bStagger)
+	{
+		StaggerUntil = Now + Zones->StaggerSeconds;
+		NextStaggerAt = StaggerUntil + Zones->StaggerCooldown;
+	}
+	RefreshMoveSpeed();
+	return bStagger;
 }
 
 float ACyberEnemy::GetHealthFraction() const
@@ -257,6 +355,12 @@ bool ACyberEnemy::IsTargetInAttackRange(float RangeScale) const
 
 FVector ACyberEnemy::GetAimPoint() const
 {
+	// the chest of a skeletal body, where its physics body is; a point up the capsule of a placeholder
+	FVector Chest;
+	if (HasHitBody() && FHitReactions::GetBonePoint(GetMesh(), CyberEnemyParts::ChestBone, Chest))
+	{
+		return Chest;
+	}
 	const float Height = Definition ? Definition->CapsuleHalfHeight * 0.4f : 40.0f;
 	return GetActorLocation() + FVector(0.0f, 0.0f, Height);
 }
@@ -268,33 +372,59 @@ float ACyberEnemy::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACo
 	if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
 	{
 		Source = EEnemyDamageSource::Explosion;
+		// a blast throws the body away from its centre
+		LastShotDirection = GetActorLocation() - static_cast<const FRadialDamageEvent&>(DamageEvent).Origin;
 	}
 	else if (DamageEvent.DamageTypeClass && DamageEvent.DamageTypeClass->GetName().Contains(TEXT("Fire")))
 	{
 		Source = EEnemyDamageSource::Fire;
 	}
 
-	// a shot on the head brings the enemy down at once
+	// the zone a shot landed in scales the damage and picks the reaction, a shot on the head brings the enemy down at once
 	bool bHeadshot = false;
 	float Amount = Damage;
+	FHitZoneResult Hit;
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const FPointDamageEvent& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
-		bHeadshot = IsHeadHit(PointEvent.HitInfo.ImpactPoint, PointEvent.ShotDirection);
-		if (bHeadshot)
+		LastShotDirection = PointEvent.ShotDirection;
+		if (HasHitBody())
 		{
-			Amount = FMath::Max(Amount, Health);
+			Hit = UHitZoneSettings::Resolve(PointEvent.HitInfo, PointEvent.ShotDirection);
+		}
+
+		if (Hit.Zone != EHitZone::None)
+		{
+			bHeadshot = Hit.Zone == EHitZone::Head;
+			Amount *= Hit.GetDamageMultiplier();
+			if (Hit.GetReaction() == EHitReaction::Kill)
+			{
+				Amount = FMath::Max(Amount, Health);
+			}
+		}
+		else
+		{
+			// a placeholder, or a shot the capsule caught: the head is a line test against the top of the enemy
+			bHeadshot = IsHeadHit(PointEvent.HitInfo.ImpactPoint, PointEvent.ShotDirection);
+			if (bHeadshot)
+			{
+				Amount = FMath::Max(Amount, Health);
+			}
 		}
 	}
 
 	const bool bWasAlive = !bDead;
+	PendingHit = Hit;
 	const float Applied = ApplyEnemyDamage(Amount, Source, EventInstigator, DamageCauser);
+	PendingHit = FHitZoneResult();
 
 	if (bWasAlive && Applied > 0.0f)
 	{
 		if (UStyleScoringComponent* Style = UStyleScoringComponent::ForController(EventInstigator))
 		{
-			Style->RecordTargetHit(this, bHeadshot, bDead);
+			// the zone of a skeletal body, the head test of a placeholder
+			const EHitZone StyleZone = Hit.Zone != EHitZone::None ? Hit.Zone : (bHeadshot ? EHitZone::Head : EHitZone::None);
+			Style->RecordTargetHit(this, StyleZone, bDead);
 		}
 	}
 	return Applied;
@@ -345,7 +475,7 @@ float ACyberEnemy::ApplyEnemyDamage(float Amount, EEnemyDamageSource Source, ACo
 	}
 	else
 	{
-		Flinch();
+		ReactToHit();
 		if (Definition)
 		{
 			PlayEnemySound(Definition->Sounds.Hurt);
@@ -354,6 +484,27 @@ float ACyberEnemy::ApplyEnemyDamage(float Amount, EEnemyDamageSource Source, ACo
 	}
 
 	return Applied;
+}
+
+void ACyberEnemy::ReactToHit()
+{
+	// a skeletal body plays its zone's reaction over whatever it is doing, a leg hit also holds and slows it
+	if (PendingHit.Zone != EHitZone::None && HasHitBody())
+	{
+		EHitReaction Reaction = PendingHit.GetReaction();
+		if (Reaction == EHitReaction::Stagger && !ApplyLegHit())
+		{
+			// inside the stagger cooldown a leg hit only limps, a flinch shows it landed
+			Reaction = EHitReaction::Flinch;
+		}
+		if (FHitReactions::PlayReaction(GetMesh(), Reaction, PendingHit.Zone, PendingHit.Direction))
+		{
+			return;
+		}
+	}
+
+	// a placeholder, or a body without that reaction: the quick squash
+	Flinch();
 }
 
 bool ACyberEnemy::PerformAttack()
@@ -391,6 +542,10 @@ void ACyberEnemy::Die(AController* Killer)
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	// a corpse catches no more shots, they go on to whatever stands behind it
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+
 	if (Definition)
 	{
 		PlayEnemySound(Definition->Sounds.Death);
@@ -403,16 +558,18 @@ void ACyberEnemy::Die(AController* Killer)
 
 	ClearFlinch();
 	GetWorld()->GetTimerManager().ClearTimer(BodyAnimationTimer);
+	GetWorld()->GetTimerManager().ClearTimer(MoveSpeedTimer);
 	if (HasBody())
 	{
-		// the body falls with a death animation and holds its last frame
-		const TArray<TObjectPtr<UAnimSequenceBase>>& Deaths = Definition->DeathAnimations;
-		if (Deaths.Num() > 0)
+		// the body falls away from the last shot and holds its last frame: the hit zone settings' fall for that side,
+		// else one of the definition's at random
+		const EHitDirection Direction = UHitZoneSettings::GetDirection(UHitZoneSettings::GetFacing(GetMesh()), LastShotDirection);
+		if (!FHitReactions::PlayDeath(GetMesh(), Direction))
 		{
-			if (UAnimSequenceBase* Death = Deaths[FMath::RandRange(0, Deaths.Num() - 1)])
+			const TArray<TObjectPtr<UAnimSequenceBase>>& Deaths = Definition->DeathAnimations;
+			if (Deaths.Num() > 0)
 			{
-				GetMesh()->PlayAnimation(Death, false);
-				GetMesh()->SetPlayRate(1.0f);
+				FHitReactions::PlayFall(GetMesh(), Deaths[FMath::RandRange(0, Deaths.Num() - 1)].Get());
 			}
 		}
 	}

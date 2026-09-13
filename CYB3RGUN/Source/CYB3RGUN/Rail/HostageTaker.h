@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "DoorRangeTarget.h"
+#include "HitZoneSettings.h"
 #include "HostageTaker.generated.h"
 
 class USceneComponent;
-class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class UAnimSequenceBase;
 class UMaterialInterface;
@@ -17,7 +17,7 @@ class UMaterialInterface;
 UENUM(BlueprintType)
 enum class EHostageOutcome : uint8
 {
-	/** The taker was hit and the hostage is free */
+	/** The taker was hit or disarmed and the hostage is free */
 	Rescued,
 	/** The hostage was hit */
 	HostageHit,
@@ -29,9 +29,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHostageResolvedDelegate, AHostageT
 
 /**
  *  Waits hidden until a rail beat reveals it, then slides out from its hiding offset holding the hostage in front.
- *  Only a strip of the taker shows beside the hostage: any hit there drops it and frees the hostage, a hit on the
- *  hostage is the full style penalty. Friend and foe read without colour, as on the door range: the taker is the
- *  dark gunmetal mannequin with a pistol, the hostage the lighter one with empty hands.
+ *  Only a strip of the taker shows beside the hostage: any hit there frees the hostage, a hit on the hostage is the full
+ *  style penalty. The physics asset bodies of both are what shots hit, and the taker's pistol is a target of its own:
+ *  a shot on it, or on the arm holding it, disarms the taker and frees the hostage (D-049, D-050). Friend and foe read
+ *  without colour, as on the door range: the taker is the dark gunmetal mannequin with a pistol, the hostage the
+ *  lighter one with empty hands.
  */
 UCLASS()
 class CYB3RGUN_API AHostageTaker : public AActor, public IDoorRangeTarget
@@ -45,34 +47,21 @@ class CYB3RGUN_API AHostageTaker : public AActor, public IDoorRangeTarget
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* Group;
 
-	/** Carries the taker's body and hit volumes, behind the hostage and scaled to its size */
+	/** Carries the taker's body and its pistol, behind the hostage and scaled to its size */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* TakerRoot;
 
+	/** The taker's body, its physics asset bodies are the hit target */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* TakerMesh;
 
+	/** The taker's pistol, in its right hand. A target of its own while the taker can shoot. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* TakerWeapon;
 
+	/** The hostage's body, its physics asset bodies are the hit target */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* HostageMesh;
-
-	/** Hit volumes around the bodies. Never drawn, only their collision follows the pair. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* TakerBody;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* TakerArms;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* TakerHead;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* HostageBody;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* HostageHead;
 
 protected:
 
@@ -83,6 +72,10 @@ protected:
 	/** Size of the taker's body, close to the hostage's so it can hide behind it */
 	UPROPERTY(EditAnywhere, Category="Hostage", meta = (ClampMin = 0.5, ClampMax = 1.5))
 	float TakerBodyScale = 0.88f;
+
+	/** How far the taker's aim point sits out from its head bone, towards the side that shows past the hostage */
+	UPROPERTY(EditAnywhere, Category="Hostage", meta = (ClampMin = 0.0, Units = "cm"))
+	float TakerAimSideOffset = 8.0f;
 
 	/** Where the pair waits before the reveal, in actor space, for example behind a wall edge */
 	UPROPERTY(EditAnywhere, Category="Reveal", meta = (Units = "cm"))
@@ -110,11 +103,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Animation")
 	TObjectPtr<UAnimSequenceBase> TakerAimAnimation;
 
-	/** Looped by the hostage */
+	/** Looped by the hostage, and by a disarmed taker when the hit zone settings have no disarmed idle */
 	UPROPERTY(EditAnywhere, Category="Animation")
 	TObjectPtr<UAnimSequenceBase> HostageIdleAnimation;
 
-	/** Played on the body that was hit */
+	/** Played on a body that falls when the hit zone settings have no fall for it */
 	UPROPERTY(EditAnywhere, Category="Animation")
 	TObjectPtr<UAnimSequenceBase> HitAnimation;
 
@@ -123,8 +116,13 @@ protected:
 
 	bool bActive = false;
 	bool bResolved = false;
+
+	/** The taker is down, or disarmed, and the hostage free */
 	bool bTakerDown = false;
 	bool bHostageDown = false;
+
+	/** The taker lost its pistol to a shot and stands unarmed (D-050) */
+	bool bTakerDisarmed = false;
 
 	/** 0 hidden to 1 fully out, and the way it moves: 1 revealing, -1 backing away */
 	float RevealAlpha = 0.0f;
@@ -164,8 +162,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="Hostage")
 	FVector GetHostageAimPoint() const;
 
+	/** World point on a bone of the taker, or of the hostage: the middle of its physics body. False without that bone. */
+	bool GetBonePoint(FName Bone, bool bHostage, FVector& OutPoint) const;
+
+	/** World point on the taker's pistol while it holds it. False once it is gone. */
+	bool GetWeaponPoint(FVector& OutPoint) const;
+
 	//~ Begin IDoorRangeTarget
-	virtual bool NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy) override;
+	virtual bool NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy) override;
 	//~ End IDoorRangeTarget
 
 protected:
@@ -173,9 +177,31 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 
+	/** Anim instance and hit target collision of the bodies, once when play begins */
+	void SetupTargets();
+
+	/** Set pieces saved before the bodies became the hit targets can still carry the old hit volumes, which must never catch a shot */
+	void DisableStaleHitVolumes();
+
 	void ApplyLayout();
+
+	/** Shows or hides the pair; the pistol goes back into the hand either way */
 	void SetShown(bool bShown);
-	void SetVolumesActive(bool bActive);
+
+	/** Hit target collision of both bodies, and of the pistol while the taker can shoot with it */
+	void SetBodiesShootable(bool bShootable);
+
+	void PlayLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation, float BlendTime = 0.0f);
+
+	/** The taker goes down from a hit in this zone: a limb reacts first, then the body falls */
+	void PlayDown(USkeletalMeshComponent* Body, const FHitZoneResult& Zone);
+
+	/** The hostage is hit in this zone: it falls from a killing zone and only reacts to any other */
+	void PlayInjured(USkeletalMeshComponent* Body, const FHitZoneResult& Zone);
+
+	/** The fall from the side of the shot, else the set piece's own hit animation */
+	void PlayFallOn(USkeletalMeshComponent* Body, EHitDirection Direction);
+
 	void PlayHitOn(USkeletalMeshComponent* Body);
 
 	/** Holds the outcome in view, then reports it. A hostage hit outweighs a rescue that came first. */

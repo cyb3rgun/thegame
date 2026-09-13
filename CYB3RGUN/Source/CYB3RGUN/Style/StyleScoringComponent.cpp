@@ -94,6 +94,9 @@ void UStyleScoringComponent::EndShotResolution()
 		return;
 	}
 
+	// the best zone of each target pays once the whole shot is in, every pellet of it
+	PayZoneBonuses();
+
 	if (bResolutionHitTarget)
 	{
 		++Stats.ShotsHit;
@@ -108,6 +111,11 @@ void UStyleScoringComponent::EndShotResolution()
 
 void UStyleScoringComponent::RecordTargetHit(AActor* Target, bool bHeadshot, bool bKill)
 {
+	RecordTargetHit(Target, bHeadshot ? EHitZone::Head : EHitZone::None, bKill);
+}
+
+void UStyleScoringComponent::RecordTargetHit(AActor* Target, EHitZone Zone, bool bKill)
+{
 	if (!Target)
 	{
 		return;
@@ -120,44 +128,62 @@ void UStyleScoringComponent::RecordTargetHit(AActor* Target, bool bHeadshot, boo
 	}
 
 	const UStyleSettings* Settings = GetSettings();
-	const double Time = Now();
 	bResolutionHitTarget = true;
-	LastCleanTime = Time;
+	LastCleanTime = Now();
 
-	// pellets of one shot on one target count once, a later pellet can still bring it down
-	if (FResolvedTarget* Seen = ResolvedTargets.FindByPredicate([Target](const FResolvedTarget& Entry) { return Entry.Target.Get() == Target; }))
+	// pellets of one shot on one target count once, a later pellet can still bring it down or land in a better zone
+	bool bFirst = false;
+	FResolvedTarget& Entry = FindOrAddTarget(Target, bFirst);
+	if (bKill && !Entry.bKilled)
 	{
-		if (bKill && !Seen->bKilled)
-		{
-			Seen->bKilled = true;
-			ScoreKill(Target, bHeadshot);
-		}
+		Entry.bKilled = true;
+		ScoreKill(Target);
 	}
-	else
+	else if (bFirst && !bKill)
 	{
-		FResolvedTarget& Entry = ResolvedTargets.AddDefaulted_GetRef();
-		Entry.Target = Target;
-		Entry.bKilled = bKill;
+		AddMeter(Settings->MeterPerHit);
+		Award(EStyleEvent::Hit, Settings->HitPoints, Target, true);
+	}
+	NoteZone(Entry, Zone);
 
-		// a second hit on the same target inside the window is a controlled pair, worth more than two separate hits
-		if (LastHitTarget.Get() == Target && Time - LastHitTime <= Settings->ControlledPairWindow)
-		{
-			++Stats.ControlledPairs;
-			AddMeter(Settings->MeterPerControlledPair);
-			Award(EStyleEvent::ControlledPair, Settings->ControlledPairBonus, Target, true);
-		}
-		LastHitTarget = Target;
-		LastHitTime = Time;
+	if (bStandalone)
+	{
+		EndShotResolution();
+	}
+}
 
-		if (bKill)
-		{
-			ScoreKill(Target, bHeadshot);
-		}
-		else
-		{
-			AddMeter(Settings->MeterPerHit);
-			Award(EStyleEvent::Hit, Settings->HitPoints, Target, true);
-		}
+void UStyleScoringComponent::RecordDisarm(AActor* Target, bool bClean)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	const bool bStandalone = ResolutionDepth == 0;
+	if (bStandalone)
+	{
+		BeginShotResolution();
+	}
+
+	// a disarm is a clean hit, the shot that did it is no miss
+	const UStyleSettings* Settings = GetSettings();
+	bResolutionHitTarget = true;
+	LastCleanTime = Now();
+
+	bool bFirst = false;
+	FResolvedTarget& Entry = FindOrAddTarget(Target, bFirst);
+	if (!Entry.bDisarmed)
+	{
+		Entry.bDisarmed = true;
+
+		// the zone score of the weapon, or of the weapon arm, is the disarm's bonus and pays above a kill (D-050)
+		const FHitZoneRule* Rule = UHitZoneSettings::Get()->FindRule(bClean ? EHitZone::Weapon : EHitZone::WeaponArm);
+		++Stats.Disarms;
+		AddMeter(Settings->MeterPerDisarm);
+		AwardAt(EStyleEvent::Disarm, Rule ? Rule->Score : 0, Target, Entry.Multiplier);
+
+		// the threat is gone as surely as after a kill, so a disarm carries the combo on
+		SetCombo(Combo + 1);
 	}
 
 	if (bStandalone)
@@ -166,20 +192,93 @@ void UStyleScoringComponent::RecordTargetHit(AActor* Target, bool bHeadshot, boo
 	}
 }
 
-void UStyleScoringComponent::ScoreKill(AActor* Target, bool bHeadshot)
+UStyleScoringComponent::FResolvedTarget& UStyleScoringComponent::FindOrAddTarget(AActor* Target, bool& bOutAdded)
+{
+	if (FResolvedTarget* Seen = ResolvedTargets.FindByPredicate([Target](const FResolvedTarget& Entry) { return Entry.Target.Get() == Target; }))
+	{
+		bOutAdded = false;
+		return *Seen;
+	}
+
+	bOutAdded = true;
+	FResolvedTarget& Entry = ResolvedTargets.AddDefaulted_GetRef();
+	Entry.Target = Target;
+	Entry.Multiplier = GetMultiplier();
+
+	// a second hit on the same target inside the window is a controlled pair, worth more than two separate hits
+	const UStyleSettings* Settings = GetSettings();
+	const double Time = Now();
+	if (LastHitTarget.Get() == Target && Time - LastHitTime <= Settings->ControlledPairWindow)
+	{
+		++Stats.ControlledPairs;
+		AddMeter(Settings->MeterPerControlledPair);
+		Award(EStyleEvent::ControlledPair, Settings->ControlledPairBonus, Target, true);
+	}
+	LastHitTarget = Target;
+	LastHitTime = Time;
+	return Entry;
+}
+
+void UStyleScoringComponent::NoteZone(FResolvedTarget& Entry, EHitZone Zone) const
+{
+	// a weapon arm that did not disarm is an arm like the other, its own score belongs to the disarm; the weapon zone pays through RecordDisarm
+	const EHitZone BonusZone = Zone == EHitZone::WeaponArm ? EHitZone::OffArm : Zone;
+	const bool bHasBonus = BonusZone == EHitZone::Head || BonusZone == EHitZone::Leg || BonusZone == EHitZone::OffArm;
+
+	// the head bonus crowns a kill, as the headshot always has
+	if (!bHasBonus || (BonusZone == EHitZone::Head && !Entry.bKilled))
+	{
+		return;
+	}
+
+	const FHitZoneRule* Rule = UHitZoneSettings::Get()->FindRule(BonusZone);
+	const int32 Points = Rule ? Rule->Score : 0;
+	if (Entry.BonusZone == EHitZone::None || Points > Entry.BonusPoints)
+	{
+		Entry.BonusZone = BonusZone;
+		Entry.BonusPoints = Points;
+	}
+}
+
+void UStyleScoringComponent::PayZoneBonuses()
+{
+	const UStyleSettings* Settings = GetSettings();
+
+	// taken out first, a listener of the awards must not see the list change under it
+	const TArray<FResolvedTarget> Resolved = MoveTemp(ResolvedTargets);
+	ResolvedTargets.Reset();
+
+	for (const FResolvedTarget& Entry : Resolved)
+	{
+		AActor* Target = Entry.Target.Get();
+		switch (Entry.BonusZone)
+		{
+		case EHitZone::Head:
+			++Stats.Headshots;
+			AddMeter(Settings->MeterPerHeadshot);
+			AwardAt(EStyleEvent::Headshot, Entry.BonusPoints, Target, Entry.Multiplier);
+			break;
+		case EHitZone::Leg:
+			++Stats.LegShots;
+			AwardAt(EStyleEvent::LegShot, Entry.BonusPoints, Target, Entry.Multiplier);
+			break;
+		case EHitZone::OffArm:
+			++Stats.ArmShots;
+			AwardAt(EStyleEvent::ArmShot, Entry.BonusPoints, Target, Entry.Multiplier);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void UStyleScoringComponent::ScoreKill(AActor* Target)
 {
 	const UStyleSettings* Settings = GetSettings();
 
 	++Stats.Kills;
 	AddMeter(Settings->MeterPerKill);
 	Award(EStyleEvent::Kill, Settings->KillPoints, Target, true);
-
-	if (bHeadshot)
-	{
-		++Stats.Headshots;
-		AddMeter(Settings->MeterPerHeadshot);
-		Award(EStyleEvent::Headshot, Settings->HeadshotBonus, Target, true);
-	}
 
 	// the kill itself is paid at the multiplier it was earned under, the next one gets the raised one
 	SetCombo(Combo + 1);
@@ -229,7 +328,11 @@ void UStyleScoringComponent::RecordMiss()
 
 void UStyleScoringComponent::Award(EStyleEvent Event, int32 BasePoints, AActor* Target, bool bMultiplied)
 {
-	const float Multiplier = bMultiplied ? GetMultiplier() : 1.0f;
+	AwardAt(Event, BasePoints, Target, bMultiplied ? GetMultiplier() : 1.0f);
+}
+
+void UStyleScoringComponent::AwardAt(EStyleEvent Event, int32 BasePoints, AActor* Target, float Multiplier)
+{
 	const int32 Points = FMath::RoundToInt(BasePoints * Multiplier);
 	Stats.StylePoints += Points;
 
@@ -287,9 +390,9 @@ void UStyleScoringComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 void UStyleScoringComponent::LogStatus() const
 {
-	UE_LOG(LogStyle, Display, TEXT("Style %d, meter %.0f %s, combo %d at x%.1f, best combo %d, shots %d, hits %d, accuracy %.0f%%, kills %d, headshots %d, pairs %d, rescues %d, penalties %d, misses %d"),
+	UE_LOG(LogStyle, Display, TEXT("Style %d, meter %.0f %s, combo %d at x%.1f, best combo %d, shots %d, hits %d, accuracy %.0f%%, kills %d, headshots %d, disarms %d, leg shots %d, arm shots %d, pairs %d, rescues %d, penalties %d, misses %d"),
 		Stats.StylePoints, Meter, *GetRankLabel().ToString(), Combo, GetMultiplier(), Stats.BestCombo, Stats.ShotsFired, Stats.ShotsHit,
-		Stats.GetAccuracy() * 100.0f, Stats.Kills, Stats.Headshots, Stats.ControlledPairs, Stats.Rescues, Stats.Penalties, Stats.Misses);
+		Stats.GetAccuracy() * 100.0f, Stats.Kills, Stats.Headshots, Stats.Disarms, Stats.LegShots, Stats.ArmShots, Stats.ControlledPairs, Stats.Rescues, Stats.Penalties, Stats.Misses);
 }
 
 #if !UE_BUILD_SHIPPING

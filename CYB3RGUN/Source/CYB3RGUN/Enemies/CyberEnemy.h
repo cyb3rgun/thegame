@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "EnemyTypes.h"
+#include "HitZoneSettings.h"
 #include "CyberEnemy.generated.h"
 
 class UAnimSequenceBase;
@@ -20,7 +21,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FEnemyDamagedDelegate, ACyberEnem
  *  Base enemy. Health, one damage entry point, death, hit reaction hook, a definition for stats
  *  and a state tree driven by the AI controller for behaviour. The actor holds only what an
  *  instance must remember; every tunable lives in the definition so a later Mass Entity
- *  representation can read the same data.
+ *  representation can read the same data. A skeletal body with a physics asset is hit per bone:
+ *  the zone scales the damage and picks the reaction, a leg hit staggers and slows (D-049).
  */
 UCLASS()
 class CYB3RGUN_API ACyberEnemy : public ACharacter
@@ -58,6 +60,23 @@ protected:
 	/** World time until which a one shot animation owns the body */
 	float OneShotUntil = 0.0f;
 
+	/** Zone and side of the shot being applied, set by TakeDamage for the reaction and cleared right after */
+	FHitZoneResult PendingHit;
+
+	/** Direction of the last shot or blast that hit, the body falls away from it */
+	FVector LastShotDirection = FVector::ZeroVector;
+
+	/** Walking speed the behaviour asks for, before a leg hit holds or slows it */
+	float BaseMoveSpeed = 0.0f;
+
+	/** World times until which a leg hit holds the enemy, until which it limps, and from which it can be staggered again */
+	double StaggerUntil = 0.0;
+	double SlowUntil = 0.0;
+	double NextStaggerAt = 0.0;
+
+	/** Puts the walking speed back when a stagger or a limp runs out */
+	FTimerHandle MoveSpeedTimer;
+
 public:
 
 	UPROPERTY(BlueprintAssignable, Category="Enemy")
@@ -89,6 +108,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enemy")
 	void SetTarget(AActor* InTarget) { Target = InTarget; }
 
+	/** Walking speed the behaviour wants. A leg hit holds it at zero for a stagger and scales it down while the enemy limps. */
 	UFUNCTION(BlueprintCallable, Category="Enemy")
 	void SetMoveSpeed(float Speed);
 
@@ -107,6 +127,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="Enemy")
 	float GetHealthFraction() const;
 
+	/** True while a leg hit holds the enemy: its approach and its attack pause */
+	UFUNCTION(BlueprintPure, Category="Enemy")
+	bool IsStaggered() const;
+
+	/** True while a leg hit makes the enemy limp */
+	UFUNCTION(BlueprintPure, Category="Enemy")
+	bool IsSlowed() const;
+
 	/** Distance from this enemy to the target, or a large number without a target */
 	UFUNCTION(BlueprintPure, Category="Enemy")
 	float GetDistanceToTarget() const;
@@ -115,7 +143,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Enemy")
 	bool IsTargetInAttackRange(float RangeScale = 1.0f) const;
 
-	/** Point weapons should aim at, roughly the chest */
+	/** Point weapons should aim at: the chest of a skeletal body, a point up the capsule of a placeholder */
 	UFUNCTION(BlueprintPure, Category="Enemy")
 	FVector GetAimPoint() const;
 
@@ -145,13 +173,29 @@ protected:
 
 	/** True when the definition gives this enemy a skeletal body */
 	bool HasBody() const;
+
+	/** True when the skeletal body has a physics asset: its bodies are the hit target and the capsule lets shots through */
+	bool HasHitBody() const;
 	void BuildBody();
+
+	/** Collision of the capsule and the body for the current definition */
+	void ApplyHitCollision();
 
 	/** Switches the body between idle and move by ground speed, on a short timer rather than every tick */
 	void UpdateBodyAnimation();
 	void PlayBodyOneShot(UAnimSequenceBase* Animation);
 	void ClearPlaceholder();
 	void Die(AController* Killer);
+
+	/** The reaction to a hit that did not kill: the zone's on a skeletal body, the flinch otherwise */
+	void ReactToHit();
+
+	/** A leg hit: the limp, and a stagger when the cooldown allows one. Returns true when it staggers. */
+	bool ApplyLegHit();
+
+	/** Writes the walking speed from the base speed and any stagger or limp, and times the next change */
+	void RefreshMoveSpeed();
+
 	void Flinch();
 	void ClearFlinch();
 	void RemoveBody();

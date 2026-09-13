@@ -207,7 +207,7 @@ static FAutoConsoleCommandWithWorld GRailStatusCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GRailHostageCommand(
 	TEXT("Rail.Hostage"),
-	TEXT("Places the crosshair on the showing part of the active hostage taker and pulls the trigger. Arguments: Hostage aims at the hostage instead, Aim only places the crosshair."),
+	TEXT("Places the crosshair on the showing part of the active hostage taker and pulls the trigger. Arguments: Hostage aims at the hostage instead, Aim only places the crosshair, Weapon aims at the taker's pistol, Bone=<name> at a bone of the taker, or of the hostage together with Hostage."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		ARailPawn* Rider = RailDebug::GetRider(World);
@@ -234,8 +234,31 @@ static FAutoConsoleCommandWithWorldAndArgs GRailHostageCommand(
 
 		const bool bHostage = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Hostage"), ESearchCase::IgnoreCase); });
 		const bool bAimOnly = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Aim"), ESearchCase::IgnoreCase); });
+		const bool bWeapon = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Weapon"), ESearchCase::IgnoreCase); });
+		FName Bone;
+		for (const FString& Arg : Args)
+		{
+			if (Arg.StartsWith(TEXT("Bone="), ESearchCase::IgnoreCase))
+			{
+				Bone = FName(*Arg.Mid(5));
+			}
+		}
+
+		// the pistol, a named bone of the taker or the hostage, or the part of the taker that shows
+		FVector Point = bHostage ? Taker->GetHostageAimPoint() : Taker->GetTakerAimPoint();
+		if (bWeapon && !Taker->GetWeaponPoint(Point))
+		{
+			UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s holds no weapon"), *Taker->GetName());
+			return;
+		}
+		if (!bWeapon && !Bone.IsNone() && !Taker->GetBonePoint(Bone, bHostage, Point))
+		{
+			UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s has no bone %s"), *Taker->GetName(), *Bone.ToString());
+			return;
+		}
+
 		FVector2D Screen;
-		if (!PC->ProjectWorldLocationToScreen(bHostage ? Taker->GetHostageAimPoint() : Taker->GetTakerAimPoint(), Screen, false))
+		if (!PC->ProjectWorldLocationToScreen(Point, Screen, false))
 		{
 			UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s is off screen"), *Taker->GetName());
 			return;
@@ -246,8 +269,10 @@ static FAutoConsoleCommandWithWorldAndArgs GRailHostageCommand(
 		{
 			Rider->DoFire();
 		}
+		const FString Who = bHostage ? FString(TEXT("hostage")) : FString(TEXT("taker"));
+		const FString What = bWeapon ? FString(TEXT("weapon")) : (Bone.IsNone() ? Who : FString::Printf(TEXT("%s bone %s"), *Who, *Bone.ToString()));
 		UE_LOG(LogRailDebug, Log, TEXT("Rail.Hostage: %s the %s of %s at screen %.0f %.0f"), bAimOnly ? TEXT("aimed at") : TEXT("fired at"),
-			bHostage ? TEXT("hostage") : TEXT("taker"), *Taker->GetName(), Screen.X, Screen.Y);
+			*What, *Taker->GetName(), Screen.X, Screen.Y);
 	}));
 
 static FAutoConsoleCommandWithWorld GRailPauseCommand(

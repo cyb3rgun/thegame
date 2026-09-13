@@ -2,6 +2,7 @@
 // Not compiled into shipping builds.
 
 #include "CyberEnemy.h"
+#include "HitReactions.h"
 #include "EncounterDirector.h"
 #include "ZombieTestGameMode.h"
 #include "Engine/World.h"
@@ -38,8 +39,8 @@ namespace ZombieDebug
 		return Enemy->GetActorLocation() + FVector(0.0f, 0.0f, Enemy->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 10.0f);
 	}
 
-	/** Turns the local player toward the nearest alive enemy, its chest or its head. Returns it or null. */
-	ACyberEnemy* AimAtNearest(UWorld* World, bool bHead = false)
+	/** Turns the local player toward the nearest alive enemy: its chest, its head or a named bone. Returns it or null. */
+	ACyberEnemy* AimAtNearest(UWorld* World, bool bHead = false, FName Bone = NAME_None)
 	{
 		AEncounterDirector* Director = GetDirector(World);
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
@@ -63,7 +64,13 @@ namespace ZombieDebug
 
 		if (Nearest)
 		{
-			PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(Eye, bHead ? GetHeadPoint(Nearest) : Nearest->GetAimPoint()));
+			// a named bone of a skeletal body, else its head or its chest
+			FVector Point;
+			if (Bone.IsNone() || !FHitReactions::GetBonePoint(Nearest->GetMesh(), Bone, Point))
+			{
+				Point = bHead ? GetHeadPoint(Nearest) : Nearest->GetAimPoint();
+			}
+			PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(Eye, Point));
 		}
 		return Nearest;
 	}
@@ -84,7 +91,7 @@ namespace ZombieDebug
 namespace ZombieDebug
 {
 	/** Aims at the nearest enemy and fires, then repeats until the burst is spent. Each shot re-aims so a burst can drop several enemies. */
-	void FireBurst(TWeakObjectPtr<UWorld> WeakWorld, int32 ShotsLeft, bool bHead)
+	void FireBurst(TWeakObjectPtr<UWorld> WeakWorld, int32 ShotsLeft, bool bHead, FName Bone = NAME_None)
 	{
 		UWorld* World = WeakWorld.Get();
 		if (!World || ShotsLeft <= 0)
@@ -92,7 +99,7 @@ namespace ZombieDebug
 			return;
 		}
 
-		ACyberEnemy* Target = AimAtNearest(World, bHead);
+		ACyberEnemy* Target = AimAtNearest(World, bHead, Bone);
 		const APawn* Player = UGameplayStatics::GetPlayerPawn(World, 0);
 		const float Distance = (Target && Player) ? FVector::Dist2D(Player->GetActorLocation(), Target->GetActorLocation()) : 0.0f;
 		UE_LOG(LogZombieDebug, Log, TEXT("Zombie.Fire: target %s, distance %.0f cm, shots left %d"), Target ? *Target->GetName() : TEXT("none, firing ahead"), Distance, ShotsLeft);
@@ -111,9 +118,9 @@ namespace ZombieDebug
 		if (ShotsLeft > 1)
 		{
 			FTimerHandle Handle;
-			World->GetTimerManager().SetTimer(Handle, [WeakWorld, ShotsLeft, bHead]()
+			World->GetTimerManager().SetTimer(Handle, [WeakWorld, ShotsLeft, bHead, Bone]()
 			{
-				FireBurst(WeakWorld, ShotsLeft - 1, bHead);
+				FireBurst(WeakWorld, ShotsLeft - 1, bHead, Bone);
 			}, 0.35f, false);
 		}
 	}
@@ -121,23 +128,28 @@ namespace ZombieDebug
 
 static FAutoConsoleCommandWithWorldAndArgs GZombieFireCommand(
 	TEXT("Zombie.Fire"),
-	TEXT("Aims the local player at the nearest alive enemy and fires the current weapon. Optional arguments: number of shots in a burst, each re-aimed, and Head to aim at the head."),
+	TEXT("Aims the local player at the nearest alive enemy and fires the current weapon. Optional arguments: number of shots in a burst, each re-aimed, Head to aim at the head, and Bone=<name> to aim at a bone of a skeletal body such as Bone=thigh_l."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		int32 Shots = 1;
 		bool bHead = false;
+		FName Bone;
 		for (const FString& Arg : Args)
 		{
 			if (Arg.Equals(TEXT("Head"), ESearchCase::IgnoreCase))
 			{
 				bHead = true;
 			}
+			else if (Arg.StartsWith(TEXT("Bone="), ESearchCase::IgnoreCase))
+			{
+				Bone = FName(*Arg.Mid(5));
+			}
 			else if (Arg.IsNumeric())
 			{
 				Shots = FMath::Clamp(FCString::Atoi(*Arg), 1, 60);
 			}
 		}
-		ZombieDebug::FireBurst(World, Shots, bHead);
+		ZombieDebug::FireBurst(World, Shots, bHead, Bone);
 	}));
 
 static FAutoConsoleCommandWithWorld GZombieStatusCommand(

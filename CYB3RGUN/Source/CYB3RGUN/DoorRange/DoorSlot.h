@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "DoorTypes.h"
 #include "DoorRangeTarget.h"
+#include "HitZoneSettings.h"
 #include "DoorSlot.generated.h"
 
 class USceneComponent;
@@ -16,9 +17,10 @@ class UMaterialInterface;
 class USoundBase;
 class UStyleScoringComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDoorSlotHitDelegate, ADoorSlot*, Slot, EDoorOccupant, Occupant, float, ExposureFraction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FDoorSlotHitDelegate, ADoorSlot*, Slot, EDoorOccupant, Occupant, EHitZone, Zone, float, ExposureFraction);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDoorSlotClosedDelegate, ADoorSlot*, Slot, EDoorOccupant, Occupant, bool, bWasHit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDoorSlotDrawnDelegate, ADoorSlot*, Slot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDoorSlotDisarmedDelegate, ADoorSlot*, Slot, EHitZone, Zone, float, ExposureFraction);
 
 /**
  *  A door frame with a swinging door panel and one occupant spawn point behind it.
@@ -27,8 +29,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDoorSlotDrawnDelegate, ADoorSlot*, 
  *
  *  Friend and foe read without colour (D-013, D-035). A hostile is the taller mannequin in dark
  *  gunmetal that draws a pistol during the telegraph and then aims it at the player; a friendly
- *  is the smaller mannequin in light matte paint, at ease with empty hands. Hidden engine shapes
- *  around each body are what shots hit.
+ *  is the smaller mannequin in light matte paint, at ease with empty hands. The physics asset
+ *  bodies are what shots hit, and the pistol is a target of its own: the hit zone decides the
+ *  reaction and the score (D-049), a shot on the pistol or its arm disarms the hostile (D-050).
  */
 UCLASS()
 class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
@@ -61,41 +64,25 @@ class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* SpawnPoint;
 
-	/** Pivot for the occupant bodies and their hit volumes, tips over when hit without a hit animation */
+	/** Pivot for the occupant bodies, tips over when hit without any animation to fall with */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* OccupantRoot;
 
-	/** Carries the hostile body, its pistol and its hit volumes. A hostage taker moves it behind the hostage. */
+	/** Carries the hostile body and its pistol. A hostage taker moves it behind the hostage. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* HostileRoot;
 
-	/** Visible hostile body */
+	/** Visible hostile body, its physics asset bodies are the hit target */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* HostileMesh;
 
-	/** The hostile's pistol, in its right hand */
+	/** The hostile's pistol, in its right hand. A target of its own while the hostile can shoot. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* HostileWeapon;
 
-	/** Visible friendly body */
+	/** Visible friendly body, the hostage of a hostage taker, its physics asset bodies are the hit target */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* FriendlyMesh;
-
-	/** Hit volumes around the bodies. Never drawn, only their collision follows the occupant. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* HostileBody;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* HostileArms;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* HostileHead;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* FriendlyBody;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* FriendlyHead;
 
 protected:
 
@@ -103,7 +90,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 10, ClampMax = 170, Units = "Degrees"))
 	float OpenAngle = 110.0f;
 
-	/** Size of the hostile body against the mannequin. The hit volumes are sized for the defaults. */
+	/** Size of the hostile body against the mannequin, its physics asset scales with it */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
 	float HostileBodyScale = 1.05f;
 
@@ -119,6 +106,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
 	float TakerBodyScale = 0.88f;
 
+	/** How far a hostage taker's aim point sits out from its head bone, towards the side that shows past the hostage */
+	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.0, Units = "cm"))
+	float TakerAimSideOffset = 8.0f;
+
 	/** Played across the telegraph and stretched to its length: the hostile draws its pistol */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies")
 	TObjectPtr<UAnimSequenceBase> HostileDrawAnimation;
@@ -127,18 +118,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door|Bodies")
 	TObjectPtr<UAnimSequenceBase> HostileAimAnimation;
 
-	/** Looped while a friendly shows */
+	/** Looped while a friendly shows, and by a disarmed hostile when the hit zone settings have no disarmed idle */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies")
 	TObjectPtr<UAnimSequenceBase> FriendlyIdleAnimation;
 
-	/** Played on the body that was hit. Without one the occupant tips over as a whole. */
+	/** Played on a body that falls when the hit zone settings have no fall for it. Without either the occupant tips over as a whole. */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies")
 	TObjectPtr<UAnimSequenceBase> HitAnimation;
 
 	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.1, ClampMax = 4.0))
 	float HitAnimationRate = 1.5f;
 
-	/** Seconds the occupant takes to tip over after a hit, when there is no hit animation */
+	/** Seconds the occupant takes to tip over after a hit, when there is no animation to fall with */
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.05, Units = "s"))
 	float HitReactionDuration = 0.3f;
 
@@ -178,11 +169,17 @@ protected:
 	bool bHitRegistered = false;
 	float HitReactionElapsed = 0.0f;
 
-	/** How a hostage taker's door went: the taker is down, or the hostage was hit */
+	/** The hostile lost its pistol to a shot and stands unarmed: out of the fight like a hit one, never escaped (D-050) */
+	bool bDisarmed = false;
+
+	/** True while the occupant tips over as a whole, with no animation to fall with */
+	bool bTipOver = false;
+
+	/** How a hostage taker's door went: the taker is down or disarmed, or the hostage was hit */
 	bool bTakerDown = false;
 	bool bHostageDown = false;
 
-	/** World time the hit registered, a follow-up hit shortly after still reaches the style record */
+	/** World time the hit or the disarm registered, a follow-up hit shortly after still reaches the style record */
 	double HitRegisteredAt = 0.0;
 
 	/** Closes the door once the pair window after a hit has passed */
@@ -193,7 +190,7 @@ protected:
 
 public:
 
-	/** Fired once when a shot is accepted on the occupant */
+	/** Fired once when a shot is accepted on the occupant, with the zone it landed in */
 	UPROPERTY(BlueprintAssignable, Category="Door")
 	FDoorSlotHitDelegate OnSlotHit;
 
@@ -204,6 +201,10 @@ public:
 	/** Fired when a hostile finished its draw and became shootable */
 	UPROPERTY(BlueprintAssignable, Category="Door")
 	FDoorSlotDrawnDelegate OnSlotDrawn;
+
+	/** Fired once when a shot on the pistol, or on the arm holding it, disarms the hostile or the hostage taker */
+	UPROPERTY(BlueprintAssignable, Category="Door")
+	FDoorSlotDisarmedDelegate OnSlotDisarmed;
 
 public:
 
@@ -219,7 +220,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Door")
 	void ForceClose(bool bReportClose = true);
 
-	/** Registers a hit on the occupant. Returns true if the hit counted. */
+	/** Registers a hit on the occupant without a hit zone. Returns true if the hit counted. */
 	UFUNCTION(BlueprintCallable, Category="Door")
 	bool RegisterHit();
 
@@ -233,15 +234,15 @@ public:
 	UFUNCTION(BlueprintPure, Category="Door")
 	bool IsAvailable() const { return State == EDoorState::Closed; }
 
-	/** True while the occupant is up and can be hit */
+	/** True while the occupant is up, armed where it has a weapon, and can be hit */
 	UFUNCTION(BlueprintPure, Category="Door")
-	bool IsDrawn() const { return bDrawn && !bHitRegistered && (State == EDoorState::Showing); }
+	bool IsDrawn() const { return bDrawn && !bHitRegistered && !bDisarmed && (State == EDoorState::Showing); }
 
 	/** Draw bonus fraction: rises from 0 to 1 over the exposure window, then falls back to 0 while the panel closes */
 	UFUNCTION(BlueprintPure, Category="Door")
 	float GetExposureFraction() const;
 
-	/** World position to aim at for the occupant, roughly its centre of mass */
+	/** World position to aim at for the occupant, its chest */
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetOccupantAimPoint() const;
 
@@ -257,8 +258,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="Door")
 	FVector GetHostageAimPoint() const;
 
+	/** World position of a bone of the shown occupant, or of a hostage taker's hostage: the middle of its physics body. False without that bone. */
+	bool GetOccupantBonePoint(FName Bone, bool bHostage, FVector& OutPoint) const;
+
+	/** World position of the pistol of a hostile or a hostage taker while it holds it. False otherwise. */
+	bool GetOccupantWeaponPoint(FVector& OutPoint) const;
+
 	//~ Begin IDoorRangeTarget
-	virtual bool NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy) override;
+	virtual bool NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy) override;
 	//~ End IDoorRangeTarget
 
 protected:
@@ -269,11 +276,23 @@ protected:
 	/** Puts the look materials on the frame, panel and back wall */
 	void ApplyLookMaterials();
 
+	/** Anim instance and hit target collision of the bodies, once when play begins */
+	void SetupTargets();
+
+	/** Levels saved before the bodies became the hit targets can still carry the old hit volumes, which must never catch a shot */
+	void DisableStaleHitVolumes();
+
 	void SetState(EDoorState NewState);
 	void ApplyPanelAlpha(float Alpha);
 	void ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Material);
 	void HideOccupant();
 	void ApplyBodyScale();
+
+	/** Switches the bodies between shootable and not; a shootable body keeps its pose fresh off screen too */
+	void SetBodiesShootable(bool bHostile, bool bFriendly);
+
+	/** The pistol is a target while its holder can shoot: drawn, not down, not disarmed, the door not shut */
+	void UpdateWeaponTarget();
 
 	/** Holds the hostile at the first frame of the draw while the door opens */
 	void PoseHostileReady();
@@ -281,17 +300,35 @@ protected:
 	/** Starts the draw so it ends exactly when the telegraph does */
 	void StartHostileDraw();
 
-	void PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation);
+	void PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation, float BlendTime = 0.0f);
 	USkeletalMeshComponent* GetShownBody() const;
 	void ApplyHitReaction(float ReactionAlpha);
 	void PlaySlotSound(USoundBase* Sound, float Pitch) const;
 	bool IsOccupantComponent(const UPrimitiveComponent* Component) const;
 
-	/** A shot on a hostage taker's door: the taker's showing strip frees the hostage, the hostage is the full penalty */
-	bool NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScoringComponent* Style);
+	/** Registers a hit in a zone on a hostile or a friendly: it counts once and the body reacts to its zone */
+	bool RegisterZoneHit(const FHitZoneResult& Zone);
 
-	/** Plays the hit animation on one body */
+	/** A shot on the pistol or the arm holding it: the pistol flies, the hostile stays up without it (D-050) */
+	void DisarmHostile(const FHitZoneResult& Zone, const FHitResult& Hit, const FVector& ShotDirection);
+
+	/** A shot on a hostage taker's door: the taker's showing strip frees the hostage, the hostage is the full penalty */
+	bool NotifyHostageShot(const FHitResult& Hit, const FVector& ShotDirection, const FHitZoneResult& Zone, UStyleScoringComponent* Style);
+
+	/** A hostile or a hostage taker goes down from a hit in this zone: a limb reacts first, then the body falls */
+	void PlayDown(USkeletalMeshComponent* Body, const FHitZoneResult& Zone);
+
+	/** A friendly or a hostage hit in this zone: it falls from a killing zone and only reacts to any other */
+	void PlayInjured(USkeletalMeshComponent* Body, const FHitZoneResult& Zone);
+
+	/** The fall from the side of the shot, else the door's own hit animation, else the whole occupant tips over */
+	void PlayFallOn(USkeletalMeshComponent* Body, EHitDirection Direction);
+
+	/** Plays the door's own hit animation on one body */
 	void PlayHitOn(USkeletalMeshComponent* Body);
+
+	/** Zone a follow-up shot reports to the style record: its own for another pellet of the shot that counted, none for a later shot */
+	EHitZone GetFollowUpZone(const FHitZoneResult& Zone) const;
 
 	/** Shuts the door once the controlled pair window after a hit has passed */
 	void CloseAfterHit();

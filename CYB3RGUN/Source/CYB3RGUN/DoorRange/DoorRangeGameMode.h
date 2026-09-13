@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "DoorTypes.h"
+#include "HitZoneSettings.h"
 #include "StyleScenario.h"
 #include "DoorRangeGameMode.generated.h"
 
@@ -148,7 +149,10 @@ protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 	UFUNCTION()
-	void HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, float ExposureFraction);
+	void HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, EHitZone Zone, float ExposureFraction);
+
+	UFUNCTION()
+	void HandleSlotDisarmed(ADoorSlot* Slot, EHitZone Zone, float ExposureFraction);
 
 	UFUNCTION()
 	void HandleSlotClosed(ADoorSlot* Slot, EDoorOccupant Occupant, bool bWasHit);
@@ -165,6 +169,9 @@ protected:
 	void EndWave();
 	void FinishRange();
 	void AddScore(int32 Delta, const FString& Reason);
+
+	/** Points of the zone a shot landed in, on top of the hit (D-049) */
+	int32 GetZoneScore(EHitZone Zone) const;
 	void PlayEventSound(EDoorRangeEvent Event, const ADoorSlot* Slot) const;
 	ADoorSlot* PickAvailableSlot() const;
 };

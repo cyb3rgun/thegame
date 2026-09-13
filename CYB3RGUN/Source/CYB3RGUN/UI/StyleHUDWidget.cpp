@@ -95,9 +95,10 @@ FText UStyleHUDWidget::FormatRunSummary(APlayerController* Player)
 	}
 
 	const FStyleRunStats& Stats = Style->GetStats();
-	return FText::Format(LOCTEXT("RunSummary", "STYLE {0}   BEST RANK {1}\nAccuracy {2}%   Best combo {3}\nControlled pairs {4}   Headshots {5}\nRescues {6}   Penalties {7}"),
+	return FText::Format(LOCTEXT("RunSummary", "STYLE {0}   BEST RANK {1}\nAccuracy {2}%   Best combo {3}\nControlled pairs {4}   Headshots {5}\nDisarms {8}   Leg shots {9}   Arm shots {10}\nRescues {6}   Penalties {7}"),
 		FCyberText::Int(Stats.StylePoints), UStyleSettings::Get(Player)->GetRankLabel(Stats.PeakMeter), FCyberText::Int(FMath::RoundToInt(Stats.GetAccuracy() * 100.0f)),
-		FCyberText::Int(Stats.BestCombo), FCyberText::Int(Stats.ControlledPairs), FCyberText::Int(Stats.Headshots), FCyberText::Int(Stats.Rescues), FCyberText::Int(Stats.Penalties));
+		FCyberText::Int(Stats.BestCombo), FCyberText::Int(Stats.ControlledPairs), FCyberText::Int(Stats.Headshots), FCyberText::Int(Stats.Rescues), FCyberText::Int(Stats.Penalties),
+		FCyberText::Int(Stats.Disarms), FCyberText::Int(Stats.LegShots), FCyberText::Int(Stats.ArmShots));
 }
 
 void UStyleHUDWidget::LogSummary(const FText& Summary)
@@ -237,6 +238,15 @@ void UStyleHUDWidget::HandleStyleEvent(EStyleEvent Event, int32 Points, AActor* 
 		break;
 	case EStyleEvent::Rescue:
 		Label = LOCTEXT("EventRescue", "RESCUE");
+		break;
+	case EStyleEvent::Disarm:
+		Label = LOCTEXT("EventDisarm", "DISARM");
+		break;
+	case EStyleEvent::LegShot:
+		Label = LOCTEXT("EventLegShot", "LEG SHOT");
+		break;
+	case EStyleEvent::ArmShot:
+		Label = LOCTEXT("EventArmShot", "ARM SHOT");
 		break;
 	case EStyleEvent::Miss:
 		Label = LOCTEXT("EventMiss", "MISS");

@@ -112,6 +112,12 @@ EStateTreeRunStatus FEnemyApproachTask::Tick(FStateTreeExecutionContext& Context
 		return EStateTreeRunStatus::Failed;
 	}
 
+	// a leg hit holds the enemy: no repath and no burst until it can walk again
+	if (Data.Enemy->IsStaggered())
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
 	if (Data.Enemy->IsTargetInAttackRange())
 	{
 		Data.AIController->StopMovement();
@@ -198,6 +204,12 @@ EStateTreeRunStatus FEnemyAttackTask::Tick(FStateTreeExecutionContext& Context, 
 	if (!Data.Enemy->IsTargetInAttackRange(Data.LeaveRangeScale))
 	{
 		return EStateTreeRunStatus::Succeeded;
+	}
+
+	// a leg hit holds the strike as well, the windup waits until the enemy has its feet again
+	if (Data.Enemy->IsStaggered())
+	{
+		return EStateTreeRunStatus::Running;
 	}
 
 	Data.Countdown -= DeltaTime;

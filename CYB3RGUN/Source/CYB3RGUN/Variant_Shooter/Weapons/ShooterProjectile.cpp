@@ -3,6 +3,7 @@
 
 #include "ShooterProjectile.h"
 #include "Components/SphereComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
@@ -13,6 +14,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "DoorRangeTarget.h"
+#include "HitReactions.h"
 #include "ShotFeedback.h"
 #include "StyleScoringComponent.h"
 
@@ -45,6 +47,10 @@ void AShooterProjectile::BeginPlay()
 	
 	// ignore the pawn that shot this projectile
 	CollisionComponent->IgnoreActorWhenMoving(GetInstigator(), true);
+
+	// the sweep uses the sphere's object type as its channel. On the Projectile channel it passes the capsule of an enemy
+	// with a hit body and lands on a bone; everything else still blocks it, the channel's default response is Block
+	CollisionComponent->SetCollisionObjectType(FHitReactions::ProjectileChannel);
 }
 
 void AShooterProjectile::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -99,9 +105,10 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 
 	} else {
 
-		// single hit projectile. Process the collided actor along the direction it travelled
+		// single hit projectile. Process the collided actor along the direction it travelled, with the real hit and its bone
 		const FVector Travel = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
-		ProcessHit(Other, OtherComp, Hit.ImpactPoint, Travel.IsNearlyZero() ? -Hit.ImpactNormal : Travel);
+		const FVector Direction = Travel.IsNearlyZero() ? -Hit.ImpactNormal : Travel;
+		ProcessHit(Other, RefineBoneHit(Hit, Direction), Direction);
 
 	}
 
@@ -165,19 +172,23 @@ void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
 			// apply physics force away from the explosion
 			const FVector& ExplosionDir = CurrentOverlap.GetActor()->GetActorLocation() - GetActorLocation();
 
-			// push and/or damage the overlapped actor
-			ProcessHit(CurrentOverlap.GetActor(), CurrentOverlap.GetComponent(), GetActorLocation(), ExplosionDir.GetSafeNormal());
+			// push and/or damage the overlapped actor. The made up hit names no bone and is no blocking hit, so it never disarms
+			const FVector Direction = ExplosionDir.GetSafeNormal();
+			const FHitResult BlastHit(CurrentOverlap.GetActor(), CurrentOverlap.GetComponent(), GetActorLocation(), -Direction);
+			ProcessHit(CurrentOverlap.GetActor(), BlastHit, Direction);
 		}
 			
 	}
 }
 
-void AShooterProjectile::ProcessHit(AActor* HitActor, UPrimitiveComponent* HitComp, const FVector& HitLocation, const FVector& HitDirection)
+void AShooterProjectile::ProcessHit(AActor* HitActor, const FHitResult& Hit, const FVector& HitDirection)
 {
-	// have we hit a scoring target? Let it decide whether the shot counts
+	AController* InstigatorController = GetInstigator() ? GetInstigator()->GetController() : nullptr;
+
+	// have we hit a scoring target? Let it decide whether the shot counts and which zone it landed in
 	if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
 	{
-		Target->NotifyShot(HitComp, HitLocation, GetInstigator() ? GetInstigator()->GetController() : nullptr);
+		Target->NotifyShot(Hit, HitDirection, InstigatorController);
 	}
 
 	// have we hit a character?
@@ -186,19 +197,41 @@ void AShooterProjectile::ProcessHit(AActor* HitActor, UPrimitiveComponent* HitCo
 		// ignore the owner of this projectile
 		if (HitCharacter != GetOwner() || bDamageOwner)
 		{
-			// point damage carries where the shot landed, so the target can tell a head hit from a body hit
-			const FHitResult PointHit(HitActor, HitComp, HitLocation, -HitDirection);
-			AController* InstigatorController = GetInstigator() ? GetInstigator()->GetController() : nullptr;
-			UGameplayStatics::ApplyPointDamage(HitCharacter, HitDamage, HitDirection, PointHit, InstigatorController, this, HitDamageType);
+			// point damage carries the real hit and its bone, so the target can tell which zone the shot landed in
+			UGameplayStatics::ApplyPointDamage(HitCharacter, HitDamage, HitDirection, Hit, InstigatorController, this, HitDamageType);
 		}
 	}
 
 	// have we hit a physics object?
-	if (HitComp->IsSimulatingPhysics())
+	UPrimitiveComponent* HitComp = Hit.GetComponent();
+	if (HitComp && HitComp->IsSimulatingPhysics(Hit.BoneName))
 	{
 		// give some physics impulse to the object
-		HitComp->AddImpulseAtLocation(HitDirection * PhysicsForce, HitLocation);
+		HitComp->AddImpulseAtLocation(HitDirection * PhysicsForce, Hit.ImpactPoint, Hit.BoneName);
 	}
+}
+
+FHitResult AShooterProjectile::RefineBoneHit(const FHitResult& Hit, const FVector& Direction) const
+{
+	UPrimitiveComponent* Component = Hit.GetComponent();
+	if (!Component || !Component->IsA<USkinnedMeshComponent>() || Hit.BoneName.IsNone())
+	{
+		return Hit;
+	}
+
+	// the line the centre of the sphere flew along, carried a sphere's width past the contact
+	const FVector End = Hit.ImpactPoint + Direction * (2.0f * CollisionComponent->GetScaledSphereRadius());
+	FHitResult Refined;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ShooterProjectileBone), false);
+	if (!Component->LineTraceComponent(Refined, Hit.TraceStart, End, QueryParams) || Refined.BoneName.IsNone())
+	{
+		return Hit;
+	}
+
+	FHitResult Result = Hit;
+	Result.BoneName = Refined.BoneName;
+	Result.Item = Refined.Item;
+	return Result;
 }
 
 void AShooterProjectile::OnDeferredDestruction()

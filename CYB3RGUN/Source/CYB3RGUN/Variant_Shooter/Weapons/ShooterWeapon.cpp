@@ -384,7 +384,7 @@ void AShooterWeapon::FirePellets(const FVector& TargetLocation)
 		AActor* HitActor = Hit.GetActor();
 		if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
 		{
-			Target->NotifyShot(Hit.GetComponent(), Hit.ImpactPoint, InstigatorController);
+			Target->NotifyShot(Hit, Direction, InstigatorController);
 		}
 		if (HitActor && HitActor != PawnOwner)
 		{

@@ -105,8 +105,11 @@ protected:
 	/** Looks up actors within the explosion radius and damages them */
 	void ExplosionCheck(const FVector& ExplosionCenter);
 
-	/** Processes a projectile hit for the given actor */
-	void ProcessHit(AActor* HitActor, UPrimitiveComponent* HitComp, const FVector& HitLocation, const FVector& HitDirection);
+	/** Processes a projectile hit for the given actor. The hit is the real one, bone and all, so a target can tell the hit zone. */
+	void ProcessHit(AActor* HitActor, const FHitResult& Hit, const FVector& HitDirection);
+
+	/** The sweep sphere can touch a limb beside the line it flies along; a line through the same component names the bone it really hits */
+	FHitResult RefineBoneHit(const FHitResult& Hit, const FVector& Direction) const;
 
 	/** Passes control to Blueprint to implement any effects on hit. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Projectile", meta = (DisplayName = "On Projectile Hit"))

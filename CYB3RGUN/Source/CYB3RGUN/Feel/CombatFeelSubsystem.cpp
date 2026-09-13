@@ -179,6 +179,15 @@ void UCombatFeelSubsystem::HandleStyleEvent(EStyleEvent Event, int32 Points, AAc
 		Charge = Settings->OverclockPerRescue;
 		Kick(Settings->HeavyShake, Target);
 		break;
+	case EStyleEvent::Disarm:
+		// the threat is gone without a kill: more charge than a kill, and the heavy kick
+		Charge = Settings->OverclockPerDisarm;
+		Kick(Settings->HeavyShake, Target);
+		break;
+	case EStyleEvent::LegShot:
+	case EStyleEvent::ArmShot:
+		// the hit or the kill of the same shot has already kicked and charged
+		break;
 	case EStyleEvent::Penalty:
 		// a hit on an innocent ends Overclock and empties it, like the meter (D-044)
 		OverclockCharge = 0.0f;

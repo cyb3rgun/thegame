@@ -42,7 +42,8 @@ struct FStyleShake
  *  Thresholds, windows, bonuses and decay rates of the style meter and its scoring, tuned without a rebuild
  *  (D-046). Clean, disciplined shooting scores highest, and a hit on anyone who is not a target collapses the
  *  meter at once (D-044). A scenario names its own asset through IStyleScenario, every other scenario uses
- *  the project default from Project Settings, Game, Style.
+ *  the project default from Project Settings, Game, Style. The bonus of the zone a shot lands in, the headshot
+ *  among them, is the zone's score in UHitZoneSettings (D-049).
  */
 UCLASS(BlueprintType)
 class CYB3RGUN_API UStyleSettings : public UDataAsset
@@ -60,10 +61,6 @@ public:
 	/** Points for bringing a target down */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
 	int32 KillPoints = 100;
-
-	/** Added to a kill when the shot landed on the head */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
-	int32 HeadshotBonus = 60;
 
 	/** Added when a second hit lands on the same target within the pair window, so a controlled pair is worth more than two separate hits */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0))
@@ -86,7 +83,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scoring", meta = (ClampMin = 0.5, Units = "s"))
 	float ShotMissTimeout = 3.0f;
 
-	/** Consecutive clean kills that raise the multiplier by one step */
+	/** Consecutive clean kills or disarms that raise the multiplier by one step */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combo", meta = (ClampMin = 1))
 	int32 KillsPerMultiplierStep = 3;
 
@@ -117,6 +114,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0))
 	float MeterPerRescue = 20.0f;
+
+	/** A weapon shot out of a hand or dropped from a hit arm, more than a kill (D-050) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0))
+	float MeterPerDisarm = 16.0f;
 
 	/** Taken off the meter by a miss */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meter", meta = (ClampMin = 0.0))
@@ -167,7 +168,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feel")
 	FStyleShake MediumShake;
 
-	/** Camera kick on a kill with a head hit, on a rescue and on a penalty */
+	/** Camera kick on a kill with a head hit, on a disarm, on a rescue and on a penalty */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Feel")
 	FStyleShake HeavyShake;
 
@@ -205,6 +206,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Overclock", meta = (ClampMin = 0.0))
 	float OverclockPerRescue = 20.0f;
+
+	/** Charge for a disarm, more than a kill (D-050) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Overclock", meta = (ClampMin = 0.0))
+	float OverclockPerDisarm = 20.0f;
 
 	/** Charge needed to start, so a press on an almost empty meter does nothing */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Overclock", meta = (ClampMin = 0.0))

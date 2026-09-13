@@ -28,6 +28,12 @@ namespace DoorRangeDebug
 		bool bPair = false;
 		bool bMiss = false;
 		bool bHostage = false;
+
+		/** Bone of the occupant to aim at, from Bone=<name> */
+		FName Bone;
+
+		/** Aim at the occupant's pistol */
+		bool bWeapon = false;
 	};
 
 	ADoorRangeGameMode* GetRange(UWorld* World)
@@ -35,8 +41,9 @@ namespace DoorRangeDebug
 		return World ? Cast<ADoorRangeGameMode>(World->GetAuthGameMode()) : nullptr;
 	}
 
-	/** Turns the local player toward a slot that currently shows the wanted occupant. Returns the slot or null. */
-	ADoorSlot* AimAt(UWorld* World, EDoorOccupant Wanted, bool bHead, bool bHostage = false)
+	/** Turns the local player toward a slot that currently shows the wanted occupant: its chest, its head, a named bone, its
+	 *  pistol or a taker's hostage. Returns the slot or null. */
+	ADoorSlot* AimAt(UWorld* World, const FFireOptions& Options)
 	{
 		ADoorRangeGameMode* Range = GetRange(World);
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
@@ -47,13 +54,34 @@ namespace DoorRangeDebug
 
 		for (ADoorSlot* Slot : Range->GetSlots())
 		{
-			if (Slot && Slot->GetOccupant() == Wanted && Slot->IsDrawn())
+			if (!Slot || Slot->GetOccupant() != Options.Occupant || !Slot->IsDrawn())
 			{
-				const FVector Eye = PC->GetPawn()->GetPawnViewLocation();
-				const FVector Point = bHostage ? Slot->GetHostageAimPoint() : (bHead ? Slot->GetOccupantHeadPoint() : Slot->GetOccupantAimPoint());
-				PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(Eye, Point));
-				return Slot;
+				continue;
 			}
+
+			FVector Point;
+			if (Options.bWeapon)
+			{
+				if (!Slot->GetOccupantWeaponPoint(Point))
+				{
+					continue;
+				}
+			}
+			else if (!Options.Bone.IsNone())
+			{
+				if (!Slot->GetOccupantBonePoint(Options.Bone, Options.bHostage, Point))
+				{
+					continue;
+				}
+			}
+			else
+			{
+				Point = Options.bHostage ? Slot->GetHostageAimPoint() : (Options.bHead ? Slot->GetOccupantHeadPoint() : Slot->GetOccupantAimPoint());
+			}
+
+			const FVector Eye = PC->GetPawn()->GetPawnViewLocation();
+			PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(Eye, Point));
+			return Slot;
 		}
 		return nullptr;
 	}
@@ -109,6 +137,11 @@ namespace DoorRangeDebug
 			Options.bPair |= Arg.Equals(TEXT("Pair"), ESearchCase::IgnoreCase);
 			Options.bMiss |= Arg.Equals(TEXT("Miss"), ESearchCase::IgnoreCase);
 			Options.bHostage |= Arg.Equals(TEXT("Hostage"), ESearchCase::IgnoreCase);
+			Options.bWeapon |= Arg.Equals(TEXT("Weapon"), ESearchCase::IgnoreCase);
+			if (Arg.StartsWith(TEXT("Bone="), ESearchCase::IgnoreCase))
+			{
+				Options.Bone = FName(*Arg.Mid(5));
+			}
 		}
 		return Options;
 	}
@@ -116,7 +149,7 @@ namespace DoorRangeDebug
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 	TEXT("DoorRange.Fire"),
-	TEXT("Aims the local player at a drawn occupant and fires once. Arguments in any order: Hostile (default), Friendly or Taker for a hostage taker, Hostage to aim at a taker's hostage, Head to aim at the head, Pair for a second shot three tenths of a second later, past the refire and inside the pair window, Miss to fire into the sky. Without a matching target it fires straight ahead."),
+	TEXT("Aims the local player at a drawn occupant and fires once. Arguments in any order: Hostile (default), Friendly or Taker for a hostage taker, Hostage to aim at a taker's hostage, Head to aim at the head, Pair for a second shot three tenths of a second later, past the refire and inside the pair window, Miss to fire into the sky, Weapon to aim at the pistol, Bone=<name> to aim at a bone such as Bone=thigh_r or Bone=lowerarm_r. Without a matching target it fires straight ahead."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		const DoorRangeDebug::FFireOptions Options = DoorRangeDebug::ParseOptions(Args);
@@ -127,10 +160,12 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 		}
 		else
 		{
-			Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead, Options.bHostage);
+			Target = DoorRangeDebug::AimAt(World, Options);
 		}
-		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Fire: target %s%s%s%s"), Target ? *Target->GetName() : (Options.bMiss ? TEXT("the sky") : TEXT("none, firing ahead")),
-			Options.bHead ? TEXT(", head") : TEXT(""), Options.bPair ? TEXT(", pair") : TEXT(""), Options.bHostage ? TEXT(", hostage") : TEXT(""));
+		const FString BoneText = Options.Bone.IsNone() ? FString() : FString::Printf(TEXT(", bone %s"), *Options.Bone.ToString());
+		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Fire: target %s%s%s%s%s%s"), Target ? *Target->GetName() : (Options.bMiss ? TEXT("the sky") : TEXT("none, firing ahead")),
+			Options.bHead ? TEXT(", head") : TEXT(""), Options.bPair ? TEXT(", pair") : TEXT(""), Options.bHostage ? TEXT(", hostage") : TEXT(""),
+			Options.bWeapon ? TEXT(", weapon") : TEXT(""), *BoneText);
 
 		// weapons aim through the screen space path (D-019), which reads the view the player last saw.
 		// The snap needs a few camera updates before the crosshair shows the target, so the trigger waits for them
@@ -156,11 +191,11 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeFireCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeAimCommand(
 	TEXT("DoorRange.Aim"),
-	TEXT("Aims the local player at a drawn occupant without firing. Arguments: Hostile (default), Friendly or Taker, Head to aim at the head, Hostage to aim at a taker's hostage."),
+	TEXT("Aims the local player at a drawn occupant without firing. Arguments: Hostile (default), Friendly or Taker, Head to aim at the head, Hostage to aim at a taker's hostage, Weapon to aim at the pistol, Bone=<name> to aim at a bone."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		const DoorRangeDebug::FFireOptions Options = DoorRangeDebug::ParseOptions(Args);
-		ADoorSlot* Target = DoorRangeDebug::AimAt(World, Options.Occupant, Options.bHead, Options.bHostage);
+		ADoorSlot* Target = DoorRangeDebug::AimAt(World, Options);
 		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Aim: target %s"), Target ? *Target->GetName() : TEXT("none"));
 	}));
 

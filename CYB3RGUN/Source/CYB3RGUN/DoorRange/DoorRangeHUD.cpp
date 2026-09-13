@@ -263,6 +263,9 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 	case EDoorRangeEvent::HostageHit:
 		ShowEvent(FText::Format(LOCTEXT("HostageHit", "HOSTAGE HIT  {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Bad());
 		break;
+	case EDoorRangeEvent::HostileDisarmed:
+		ShowEvent(FText::Format(LOCTEXT("HostileDisarmed", "HOSTILE DISARMED  +{0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Good());
+		break;
 	case EDoorRangeEvent::WaveStarted:
 		ShowEvent(FText::Format(LOCTEXT("WaveStarted", "WAVE {0}"), FCyberText::Int(Delta)), DoorRangeHudLook::Neutral());
 		if (SummaryPanel)
@@ -278,9 +281,10 @@ void UDoorRangeHUD::HandleRangeEvent(EDoorRangeEvent Event, int32 Delta, ADoorSl
 void UDoorRangeHUD::HandleRangeFinished(const FDoorRangeStats& Stats)
 {
 	const FText RangeSummary = FText::Format(
-		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nHostiles escaped {3}\nFriendlies hit {4}\nHostages freed {5}, hit {6}"),
+		LOCTEXT("SummaryFormat", "RANGE COMPLETE\n\nFINAL SCORE {0}\n\nHostiles hit {1} / {2}\nDisarms {7}\nHostiles escaped {3}\nFriendlies hit {4}\nHostages freed {5}, hit {6}"),
 		FCyberText::Int(Stats.FinalScore), FCyberText::Int(Stats.HostilesHit), FCyberText::Int(Stats.HostilesTotal),
-		FCyberText::Int(Stats.HostilesEscaped), FCyberText::Int(Stats.FriendliesHit), FCyberText::Int(Stats.HostagesRescued), FCyberText::Int(Stats.HostagesHit));
+		FCyberText::Int(Stats.HostilesEscaped), FCyberText::Int(Stats.FriendliesHit), FCyberText::Int(Stats.HostagesRescued), FCyberText::Int(Stats.HostagesHit),
+		FCyberText::Int(Stats.Disarms));
 
 	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), RangeSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
 	UStyleHUDWidget::LogSummary(Summary);

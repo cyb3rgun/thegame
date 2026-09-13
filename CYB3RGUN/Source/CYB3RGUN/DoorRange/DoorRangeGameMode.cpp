@@ -142,6 +142,7 @@ void ADoorRangeGameMode::CollectSlots()
 		Slot->OnSlotHit.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotHit);
 		Slot->OnSlotClosed.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotClosed);
 		Slot->OnSlotDrawn.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotDrawn);
+		Slot->OnSlotDisarmed.AddUniqueDynamic(this, &ADoorRangeGameMode::HandleSlotDisarmed);
 	}
 }
 
@@ -315,19 +316,22 @@ void ADoorRangeGameMode::HandleSlotDrawn(ADoorSlot* Slot)
 	OnRangeEvent.Broadcast(EDoorRangeEvent::HostileDrawn, 0, Slot);
 }
 
-void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, float ExposureFraction)
+void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, EHitZone Zone, float ExposureFraction)
 {
 	const UDoorRangeSettings* Cfg = GetSettings();
+	const FString ZoneName = StaticEnum<EHitZone>()->GetNameStringByValue(static_cast<int64>(Zone));
 
 	switch (Occupant)
 	{
 	case EDoorOccupant::Hostile:
 	{
+		// the hit, the draw bonus and the score of the zone the shot landed in (D-049)
 		const int32 DrawBonus = FMath::RoundToInt(Cfg->DrawBonusMax * FMath::Clamp(ExposureFraction, 0.0f, 1.0f));
-		const int32 Delta = Cfg->HitHostileScore + DrawBonus;
+		const int32 ZoneBonus = GetZoneScore(Zone);
+		const int32 Delta = Cfg->HitHostileScore + DrawBonus + ZoneBonus;
 		++Stats.HostilesHit;
 		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
-		AddScore(Delta, FString::Printf(TEXT("Hostile hit on %s, draw bonus %d, exposure %.2f, state %d"), *Slot->GetName(), DrawBonus, ExposureFraction, static_cast<int32>(Slot->GetDoorState())));
+		AddScore(Delta, FString::Printf(TEXT("Hostile hit on %s, zone %s bonus %d, draw bonus %d, exposure %.2f, state %d"), *Slot->GetName(), *ZoneName, ZoneBonus, DrawBonus, ExposureFraction, static_cast<int32>(Slot->GetDoorState())));
 		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
 		OnRangeEvent.Broadcast(EDoorRangeEvent::HostileHit, Delta, Slot);
 		PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
@@ -335,11 +339,12 @@ void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, 
 	}
 	case EDoorOccupant::HostageTaker:
 	{
-		// the taker is down and its hostage free: a hostile hit and the rescue on top
-		const int32 Delta = Cfg->HitHostileScore + Cfg->HostageRescueScore;
+		// the taker is down and its hostage free: a hostile hit, the rescue and the zone on top
+		const int32 ZoneBonus = GetZoneScore(Zone);
+		const int32 Delta = Cfg->HitHostileScore + Cfg->HostageRescueScore + ZoneBonus;
 		++Stats.HostilesHit;
 		++Stats.HostagesRescued;
-		AddScore(Delta, FString::Printf(TEXT("Hostage freed on %s"), *Slot->GetName()));
+		AddScore(Delta, FString::Printf(TEXT("Hostage freed on %s, zone %s bonus %d"), *Slot->GetName(), *ZoneName, ZoneBonus));
 		OnRangeEvent.Broadcast(EDoorRangeEvent::HostageRescued, Delta, Slot);
 		PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
 		break;
@@ -365,6 +370,44 @@ void ADoorRangeGameMode::HandleSlotHit(ADoorSlot* Slot, EDoorOccupant Occupant, 
 	default:
 		break;
 	}
+}
+
+void ADoorRangeGameMode::HandleSlotDisarmed(ADoorSlot* Slot, EHitZone Zone, float ExposureFraction)
+{
+	const UDoorRangeSettings* Cfg = GetSettings();
+	const bool bTaker = Slot->GetOccupant() == EDoorOccupant::HostageTaker;
+	const bool bClean = Zone == EHitZone::Weapon;
+
+	// a disarm is out of the fight like a hit, and the zone score of the pistol or its arm pays more than any kill (D-050)
+	const int32 ZoneBonus = GetZoneScore(Zone);
+	const int32 DrawBonus = bTaker ? 0 : FMath::RoundToInt(Cfg->DrawBonusMax * FMath::Clamp(ExposureFraction, 0.0f, 1.0f));
+	const int32 Delta = Cfg->HitHostileScore + DrawBonus + ZoneBonus + (bTaker ? Cfg->HostageRescueScore : 0);
+	++Stats.HostilesHit;
+	++Stats.Disarms;
+
+	UE_LOG(LogDoorRange, Log, TEXT("Disarm on %s: %s"), *Slot->GetName(), bClean ? TEXT("clean") : TEXT("arm"));
+
+	if (bTaker)
+	{
+		// the hostage is free as well; the taker leaves the count when its door shuts
+		++Stats.HostagesRescued;
+		AddScore(Delta, FString::Printf(TEXT("Hostage freed on %s by a disarm, zone bonus %d"), *Slot->GetName(), ZoneBonus));
+		OnRangeEvent.Broadcast(EDoorRangeEvent::HostageRescued, Delta, Slot);
+	}
+	else
+	{
+		HostilesRemainingThisWave = FMath::Max(HostilesRemainingThisWave - 1, 0);
+		AddScore(Delta, FString::Printf(TEXT("Hostile disarmed on %s, zone bonus %d, draw bonus %d, exposure %.2f"), *Slot->GetName(), ZoneBonus, DrawBonus, ExposureFraction));
+		OnHostilesRemainingChanged.Broadcast(HostilesRemainingThisWave, HostilesTotalThisWave);
+		OnRangeEvent.Broadcast(EDoorRangeEvent::HostileDisarmed, Delta, Slot);
+	}
+	PlayEventSound(EDoorRangeEvent::HostileHit, Slot);
+}
+
+int32 ADoorRangeGameMode::GetZoneScore(EHitZone Zone) const
+{
+	const FHitZoneRule* Rule = UHitZoneSettings::Get()->FindRule(Zone);
+	return Rule ? Rule->Score : 0;
 }
 
 void ADoorRangeGameMode::HandleSlotClosed(ADoorSlot* Slot, EDoorOccupant Occupant, bool bWasHit)
@@ -426,8 +469,8 @@ void ADoorRangeGameMode::FinishRange()
 		Crosshair->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, escaped %d, friendlies hit %d, hostages freed %d, hostages hit %d, waves %d"),
-		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.HostagesRescued, Stats.HostagesHit, Stats.WavesPlayed);
+	UE_LOG(LogDoorRange, Log, TEXT("Range complete: final score %d, hostiles hit %d of %d, disarms %d, escaped %d, friendlies hit %d, hostages freed %d, hostages hit %d, waves %d"),
+		Stats.FinalScore, Stats.HostilesHit, Stats.HostilesTotal, Stats.Disarms, Stats.HostilesEscaped, Stats.FriendliesHit, Stats.HostagesRescued, Stats.HostagesHit, Stats.WavesPlayed);
 
 	OnRangeEvent.Broadcast(EDoorRangeEvent::RangeFinished, Score, nullptr);
 	OnRangeFinished.Broadcast(Stats);

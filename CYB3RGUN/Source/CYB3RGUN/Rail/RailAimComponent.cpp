@@ -250,14 +250,14 @@ AActor* URailAimComponent::ApplyShotHit(const FHitResult& Hit, float ShotDamage)
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	AController* Instigator = OwnerPawn ? OwnerPawn->GetController() : nullptr;
 
-	// scoring targets decide themselves whether the shot counts
+	// scoring targets decide themselves whether the shot counts and which zone it landed in
+	const FVector ShotDirection = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
 	if (IDoorRangeTarget* Target = Cast<IDoorRangeTarget>(HitActor))
 	{
-		Target->NotifyShot(Hit.GetComponent(), Hit.ImpactPoint, Instigator);
+		Target->NotifyShot(Hit, ShotDirection, Instigator);
 	}
 
 	// the engine damage path, which enemies route into their single entry point
-	const FVector ShotDirection = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
 	const float Applied = UGameplayStatics::ApplyPointDamage(HitActor, ShotDamage, ShotDirection, Hit, Instigator, GetOwner(), DamageTypeClass);
 
 	// walls and props accept engine damage too, only a pawn that took it counts as a hit

@@ -148,7 +148,7 @@ void ULogoCrosshairWidget::HandleStyleEvent(EStyleEvent Event, int32 Points, AAc
 	case EStyleEvent::Miss:
 		break;
 	default:
-		// hits, kills, controlled pairs and rescues all pulse the ring
+		// hits, kills, disarms, zone bonuses, controlled pairs and rescues all pulse the ring
 		PulseAt = Now;
 		break;
 	}

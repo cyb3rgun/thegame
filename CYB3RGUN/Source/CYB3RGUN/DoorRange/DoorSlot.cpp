@@ -1,6 +1,9 @@
 // CYB3RGUN THEGAME. One door of the door module.
 
 #include "DoorSlot.h"
+#include "HitReactions.h"
+#include "HitZoneSettings.h"
+#include "TargetAnimInstance.h"
 #include "ThreatSubsystem.h"
 #include "StyleScoringComponent.h"
 #include "StyleSettings.h"
@@ -8,17 +11,29 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include "Sound/SoundBase.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDoorSlot, Log, All);
 
-namespace
+namespace DoorSlotParts
 {
+	/** Socket of the hostile's right hand the pistol sits in */
+	const FName WeaponSocket(TEXT("HandGrip_R"));
+
+	/** Bones the aim points sit on */
+	const FName HeadBone(TEXT("head"));
+	const FName ChestBone(TEXT("spine_03"));
+
+	/** Hit volumes of slots saved before the physics asset bodies became the hit targets */
+	const TCHAR* const StaleVolumes[] = { TEXT("HostileBody"), TEXT("HostileArms"), TEXT("HostileHead"), TEXT("FriendlyBody"), TEXT("FriendlyHead") };
+
 	UStaticMeshComponent* MakeShape(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh, const FVector& Location, const FVector& Scale)
 	{
 		UStaticMeshComponent* Component = Owner->CreateDefaultSubobject<UStaticMeshComponent>(Name);
@@ -32,16 +47,6 @@ namespace
 		return Component;
 	}
 
-	/** A hit volume is a shape that is never drawn */
-	UStaticMeshComponent* MakeHitVolume(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh, const FVector& Location, const FVector& Scale)
-	{
-		UStaticMeshComponent* Component = MakeShape(Owner, Parent, Name, Mesh, Location, Scale);
-		Component->SetVisibility(false);
-		Component->SetHiddenInGame(true);
-		Component->SetCastShadow(false);
-		return Component;
-	}
-
 	USkeletalMeshComponent* MakeBody(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, USkeletalMesh* Mesh)
 	{
 		USkeletalMeshComponent* Body = Owner->CreateDefaultSubobject<USkeletalMeshComponent>(Name);
@@ -49,19 +54,13 @@ namespace
 		Body->SetSkeletalMeshAsset(Mesh);
 		// the mannequin faces +Y, the slot faces the player along +X
 		Body->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
-		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Body->SetGenerateOverlapEvents(false);
-		Body->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-		Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		// the physics asset bodies are the hit target, switched on while the occupant shows
+		FHitReactions::SetupBodyTarget(Body);
+		// a native anim instance, so hit reactions blend over the base animation
+		Body->SetAnimInstanceClass(UTargetAnimInstance::StaticClass());
 		Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 		Body->SetVisibility(false);
 		return Body;
-	}
-
-	/** Hit volumes stay hidden, only their collision is switched */
-	void SetShapeActive(UStaticMeshComponent* Component, bool bActive)
-	{
-		Component->SetCollisionEnabled(bActive ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	}
 
 	void PaintBody(USkeletalMeshComponent* Body, UMaterialInterface* Material)
@@ -82,8 +81,6 @@ ADoorSlot::ADoorSlot()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HostileBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> FriendlyBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PistolMesh(TEXT("/Game/Weapons/Pistol/Meshes/SKM_Pistol.SKM_Pistol"));
@@ -107,16 +104,16 @@ ADoorSlot::ADoorSlot()
 
 	// The actor's forward (+X) faces the player. The door plane is the YZ plane at X = 0.
 	// Basic shapes are 100 cm cubes, cylinders, spheres and cones, so scale is size in metres.
-	FramePostLeft = MakeShape(this, Root, TEXT("FramePostLeft"), CubeMesh.Object, FVector(0.0f, -55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
-	FramePostRight = MakeShape(this, Root, TEXT("FramePostRight"), CubeMesh.Object, FVector(0.0f, 55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
-	FrameTop = MakeShape(this, Root, TEXT("FrameTop"), CubeMesh.Object, FVector(0.0f, 0.0f, 205.0f), FVector(0.15f, 1.2f, 0.1f));
-	BackWall = MakeShape(this, Root, TEXT("BackWall"), CubeMesh.Object, FVector(-130.0f, 0.0f, 110.0f), FVector(0.1f, 1.6f, 2.4f));
+	FramePostLeft = DoorSlotParts::MakeShape(this, Root, TEXT("FramePostLeft"), CubeMesh.Object, FVector(0.0f, -55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
+	FramePostRight = DoorSlotParts::MakeShape(this, Root, TEXT("FramePostRight"), CubeMesh.Object, FVector(0.0f, 55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
+	FrameTop = DoorSlotParts::MakeShape(this, Root, TEXT("FrameTop"), CubeMesh.Object, FVector(0.0f, 0.0f, 205.0f), FVector(0.15f, 1.2f, 0.1f));
+	BackWall = DoorSlotParts::MakeShape(this, Root, TEXT("BackWall"), CubeMesh.Object, FVector(-130.0f, 0.0f, 110.0f), FVector(0.1f, 1.6f, 2.4f));
 
 	Hinge = CreateDefaultSubobject<USceneComponent>(TEXT("Hinge"));
 	Hinge->SetupAttachment(Root);
 	Hinge->SetRelativeLocation(FVector(0.0f, -50.0f, 0.0f));
 
-	DoorPanel = MakeShape(this, Hinge, TEXT("DoorPanel"), CubeMesh.Object, FVector(0.0f, 50.0f, 100.0f), FVector(0.06f, 1.0f, 2.0f));
+	DoorPanel = DoorSlotParts::MakeShape(this, Hinge, TEXT("DoorPanel"), CubeMesh.Object, FVector(0.0f, 50.0f, 100.0f), FVector(0.06f, 1.0f, 2.0f));
 
 	SpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("SpawnPoint"));
 	SpawnPoint->SetupAttachment(Root);
@@ -128,23 +125,19 @@ ADoorSlot::ADoorSlot()
 	HostileRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HostileRoot"));
 	HostileRoot->SetupAttachment(OccupantRoot);
 
-	// Hostile: the taller mannequin with a pistol in the right hand. The volumes wrap the aiming
-	// pose: torso and legs, the arms held out towards the player, the head.
-	HostileMesh = MakeBody(this, HostileRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
+	// Hostile: the taller mannequin with a pistol in the right hand. Shots land on its physics asset
+	// bodies, and on the pistol while it can shoot.
+	HostileMesh = DoorSlotParts::MakeBody(this, HostileRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
 	HostileWeapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HostileWeapon"));
-	HostileWeapon->SetupAttachment(HostileMesh, FName("HandGrip_R"));
+	HostileWeapon->SetupAttachment(HostileMesh, DoorSlotParts::WeaponSocket);
 	HostileWeapon->SetSkeletalMeshAsset(PistolMesh.Object);
 	HostileWeapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HostileWeapon->SetGenerateOverlapEvents(false);
+	HostileWeapon->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	HostileWeapon->SetVisibility(false);
-	HostileBody = MakeHitVolume(this, HostileRoot, TEXT("HostileBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 78.0f), FVector(0.42f, 0.42f, 1.56f));
-	HostileArms = MakeHitVolume(this, HostileRoot, TEXT("HostileArms"), CubeMesh.Object, FVector(30.0f, 0.0f, 148.0f), FVector(0.6f, 0.3f, 0.16f));
-	HostileHead = MakeHitVolume(this, HostileRoot, TEXT("HostileHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 176.0f), FVector(0.3f, 0.3f, 0.32f));
 
 	// Friendly: the smaller mannequin, empty hands, at ease.
-	FriendlyMesh = MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh.Object);
-	FriendlyBody = MakeHitVolume(this, OccupantRoot, TEXT("FriendlyBody"), CylinderMesh.Object, FVector(0.0f, 0.0f, 65.0f), FVector(0.4f, 0.4f, 1.3f));
-	FriendlyHead = MakeHitVolume(this, OccupantRoot, TEXT("FriendlyHead"), SphereMesh.Object, FVector(0.0f, 0.0f, 145.0f), FVector(0.28f, 0.28f, 0.3f));
+	FriendlyMesh = DoorSlotParts::MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh.Object);
 
 	ApplyBodyScale();
 }
@@ -180,10 +173,39 @@ void ADoorSlot::BeginPlay()
 	Super::BeginPlay();
 
 	ApplyLookMaterials();
+	SetupTargets();
 
 	HideOccupant();
 	ApplyPanelAlpha(0.0f);
 	SetState(EDoorState::Closed);
+}
+
+void ADoorSlot::SetupTargets()
+{
+	DisableStaleHitVolumes();
+
+	// placed slots keep whatever their level saved, so the setup is made again here
+	for (USkeletalMeshComponent* Body : { HostileMesh, FriendlyMesh })
+	{
+		UTargetAnimInstance::Ensure(Body);
+		FHitReactions::SetupBodyTarget(Body);
+	}
+}
+
+void ADoorSlot::DisableStaleHitVolumes()
+{
+	TInlineComponentArray<UStaticMeshComponent*> Shapes(this);
+	for (UStaticMeshComponent* Shape : Shapes)
+	{
+		for (const TCHAR* Stale : DoorSlotParts::StaleVolumes)
+		{
+			if (Shape && Shape->GetFName() == FName(Stale))
+			{
+				Shape->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				UE_LOG(LogDoorSlot, Warning, TEXT("%s still carries the old hit volume %s, it no longer catches shots"), *GetName(), Stale);
+			}
+		}
+	}
 }
 
 void ADoorSlot::Open(const FDoorOpenParams& InParams)
@@ -200,6 +222,8 @@ void ADoorSlot::Open(const FDoorOpenParams& InParams)
 	Params.TelegraphDuration = FMath::Max(Params.TelegraphDuration, 0.0f);
 
 	bHitRegistered = false;
+	bDisarmed = false;
+	bTipOver = false;
 	bDrawn = false;
 	DrawnAt = 0.0f;
 	HitReactionElapsed = 0.0f;
@@ -252,7 +276,13 @@ void ADoorSlot::ForceClose(bool bReportClose)
 
 bool ADoorSlot::RegisterHit()
 {
-	if (State == EDoorState::Closed || Params.Occupant == EDoorOccupant::Empty || bHitRegistered || !bDrawn)
+	// a hit without a shot behind it has no zone, the body falls as it always has
+	return RegisterZoneHit(FHitZoneResult());
+}
+
+bool ADoorSlot::RegisterZoneHit(const FHitZoneResult& Zone)
+{
+	if (State == EDoorState::Closed || Params.Occupant == EDoorOccupant::Empty || bHitRegistered || bDisarmed || !bDrawn)
 	{
 		return false;
 	}
@@ -266,23 +296,98 @@ bool ADoorSlot::RegisterHit()
 	bHitRegistered = true;
 	HitRegisteredAt = GetWorld()->GetTimeSeconds();
 	HitReactionElapsed = 0.0f;
+	UpdateWeaponTarget();
 
-	PlayHitOn(GetShownBody());
+	// any accepted hit brings a hostile down, the zone only decides how it goes; a friendly falls or flinches
+	if (Params.Occupant == EDoorOccupant::Hostile)
+	{
+		PlayDown(HostileMesh, Zone);
+	}
+	else
+	{
+		PlayInjured(GetShownBody(), Zone);
+	}
 
 	const float ExposureFraction = GetExposureFraction();
-	OnSlotHit.Broadcast(this, Params.Occupant, ExposureFraction);
+	OnSlotHit.Broadcast(this, Params.Occupant, Zone.Zone, ExposureFraction);
 
 	CloseAfterHit();
 	return true;
 }
 
+void ADoorSlot::DisarmHostile(const FHitZoneResult& Zone, const FHitResult& Hit, const FVector& ShotDirection)
+{
+	// the pistol flies: knocked away along the shot when it was hit, falling from the hand when the arm was
+	FHitReactions::DropWeapon(HostileWeapon, ShotDirection, Hit.ImpactPoint, Zone.Zone == EHitZone::Weapon);
+
+	// the hostile jerks with the hit, a flinch for the pistol and the arm for the arm, then stands empty handed
+	FHitReactions::PlayReaction(HostileMesh, Zone.GetReaction(), Zone.Zone, Zone.Direction);
+	if (!FHitReactions::PlayDisarmedIdle(HostileMesh))
+	{
+		PlayBodyLoop(HostileMesh, FriendlyIdleAnimation, UHitZoneSettings::Get()->DisarmedBlend);
+	}
+	UpdateWeaponTarget();
+}
+
+void ADoorSlot::PlayDown(USkeletalMeshComponent* Body, const FHitZoneResult& Zone)
+{
+	// a leg staggers and an arm flinches before the body falls, a head or torso hit falls at once
+	const bool bLimb = Zone.Zone == EHitZone::Leg || Zone.Zone == EHitZone::OffArm || Zone.Zone == EHitZone::WeaponArm;
+	const EHitDirection Direction = Zone.Direction;
+	if (bLimb)
+	{
+		TWeakObjectPtr<ADoorSlot> WeakSlot(this);
+		TWeakObjectPtr<USkeletalMeshComponent> WeakBody(Body);
+		const bool bReacting = FHitReactions::PlayReaction(Body, Zone.GetReaction(), Zone.Zone, Direction, [WeakSlot, WeakBody, Direction]()
+		{
+			// the door may have shut while the reaction ran
+			ADoorSlot* Slot = WeakSlot.Get();
+			if (Slot && Slot->State != EDoorState::Closed)
+			{
+				Slot->PlayFallOn(WeakBody.Get(), Direction);
+			}
+		});
+		if (bReacting)
+		{
+			return;
+		}
+	}
+	PlayFallOn(Body, Direction);
+}
+
+void ADoorSlot::PlayInjured(USkeletalMeshComponent* Body, const FHitZoneResult& Zone)
+{
+	// the penalty is the same wherever it lands; a killing zone drops the innocent, any other only makes it react
+	const EHitReaction Reaction = Zone.GetReaction();
+	if (Reaction != EHitReaction::None && Reaction != EHitReaction::Kill && FHitReactions::PlayReaction(Body, Reaction, Zone.Zone, Zone.Direction))
+	{
+		return;
+	}
+	PlayFallOn(Body, Zone.Direction);
+}
+
+void ADoorSlot::PlayFallOn(USkeletalMeshComponent* Body, EHitDirection Direction)
+{
+	if (Body && !FHitReactions::PlayDeath(Body, Direction))
+	{
+		PlayHitOn(Body);
+	}
+}
+
 void ADoorSlot::PlayHitOn(USkeletalMeshComponent* Body)
 {
-	if (Body && HitAnimation)
+	// the door's own fall; without one the whole occupant tips over
+	if (!FHitReactions::PlayFall(Body, HitAnimation, HitAnimationRate))
 	{
-		Body->PlayAnimation(HitAnimation, false);
-		Body->SetPlayRate(HitAnimationRate);
+		bTipOver = true;
+		HitReactionElapsed = 0.0f;
 	}
+}
+
+EHitZone ADoorSlot::GetFollowUpZone(const FHitZoneResult& Zone) const
+{
+	// another pellet of the shot that already counted can still show the style record a better zone, a later shot cannot
+	return GetWorld()->GetTimeSeconds() == HitRegisteredAt ? Zone.Zone : EHitZone::None;
 }
 
 void ADoorSlot::CloseAfterHit()
@@ -292,9 +397,9 @@ void ADoorSlot::CloseAfterHit()
 		return;
 	}
 
-	// the occupant falls, and the door swings shut once the controlled pair window has passed, so the
-	// second shot of a pair is not stopped by the closing panel
-	const float CloseDelay = UStyleSettings::Get(this)->ControlledPairWindow;
+	// the occupant reacts and falls, and the door swings shut once the reaction has shown and the controlled pair
+	// window has passed, so the second shot of a pair is not stopped by the closing panel
+	const float CloseDelay = FMath::Max(UStyleSettings::Get(this)->ControlledPairWindow, UHitZoneSettings::Get()->DoorHoldAfterHit);
 	if (CloseDelay > 0.0f)
 	{
 		GetWorldTimerManager().SetTimer(HitCloseTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { ForceClose(); }), CloseDelay, false);
@@ -307,7 +412,7 @@ void ADoorSlot::CloseAfterHit()
 
 void ADoorSlot::ApplyHostileLayout(bool bTaker)
 {
-	// a hostage taker is the hostile body brought down to the hostage's size and moved behind it, hit volumes and all
+	// a hostage taker is the hostile body brought down to the hostage's size and moved behind it, pistol and all
 	const float Scale = bTaker ? TakerBodyScale / FMath::Max(HostileBodyScale, 0.01f) : 1.0f;
 	HostileRoot->SetRelativeLocation(bTaker ? TakerOffset : FVector::ZeroVector);
 	HostileRoot->SetRelativeScale3D(FVector(Scale));
@@ -316,8 +421,8 @@ void ADoorSlot::ApplyHostileLayout(bool bTaker)
 int32 ADoorSlot::RepairHostileSet(bool bFix)
 {
 	// slots placed in a level before the hostile root existed saved their parts on the occupant root. DoorRange.RepairSlots fix
-	// moves them in the editor so the level is saved right; nothing repairs them at run time
-	USceneComponent* const Parts[] = { HostileMesh, HostileBody, HostileArms, HostileHead };
+	// moves them in the editor so the level is saved right; nothing repairs them at run time. The pistol rides on the body.
+	USceneComponent* const Parts[] = { HostileMesh };
 	int32 Stale = 0;
 	for (USceneComponent* Part : Parts)
 	{
@@ -337,8 +442,9 @@ int32 ADoorSlot::RepairHostileSet(bool bFix)
 
 void ADoorSlot::ReportThreat() const
 {
-	// the logo reticle tightens over the draw, is fully tight while the hostile can shoot and lets go as the door shuts (D-048)
-	if (bHitRegistered || (Params.Occupant != EDoorOccupant::Hostile && Params.Occupant != EDoorOccupant::HostageTaker))
+	// the logo reticle tightens over the draw, is fully tight while the hostile can shoot and lets go as the door shuts (D-048).
+	// A disarmed hostile is no threat any more
+	if (bHitRegistered || bDisarmed || (Params.Occupant != EDoorOccupant::Hostile && Params.Occupant != EDoorOccupant::HostageTaker))
 	{
 		return;
 	}
@@ -388,61 +494,99 @@ FVector ADoorSlot::GetOccupantAimPoint() const
 		return GetOccupantHeadPoint();
 	}
 
-	const float Height = Params.Occupant == EDoorOccupant::Hostile ? 125.0f : 100.0f;
-	return SpawnPoint->GetComponentLocation() + FVector(0.0f, 0.0f, Height);
+	// the chest of the body that shows
+	const USkeletalMeshComponent* Body = Params.Occupant == EDoorOccupant::Friendly ? FriendlyMesh : HostileMesh;
+	FVector Point;
+	return FHitReactions::GetBonePoint(Body, DoorSlotParts::ChestBone, Point) ? Point : SpawnPoint->GetComponentLocation();
 }
 
 FVector ADoorSlot::GetOccupantHeadPoint() const
 {
-	switch (Params.Occupant)
+	const USkeletalMeshComponent* Body = Params.Occupant == EDoorOccupant::Friendly ? FriendlyMesh : HostileMesh;
+	FVector Head;
+	if (!FHitReactions::GetBonePoint(Body, DoorSlotParts::HeadBone, Head))
 	{
-	case EDoorOccupant::Friendly:
-		return FriendlyHead->GetComponentLocation();
-	case EDoorOccupant::HostageTaker:
+		Head = Body->GetComponentLocation();
+	}
+
+	// the side of the taker's head that shows past the hostage
+	if (Params.Occupant == EDoorOccupant::HostageTaker)
 	{
-		// the side of the taker's head that shows past the hostage, half its radius out from the centre
-		const FVector Side = GetActorRightVector() * FMath::Sign(TakerOffset.Y);
-		return HostileHead->GetComponentLocation() + Side * HostileHead->Bounds.BoxExtent.X * 0.5f;
+		Head += GetActorRightVector() * FMath::Sign(TakerOffset.Y) * TakerAimSideOffset;
 	}
-	default:
-		return HostileHead->GetComponentLocation();
-	}
+	return Head;
 }
 
 FVector ADoorSlot::GetHostageAimPoint() const
 {
-	return FriendlyBody->GetComponentLocation() + FVector(0.0f, 0.0f, 35.0f);
+	FVector Point;
+	return FHitReactions::GetBonePoint(FriendlyMesh, DoorSlotParts::ChestBone, Point) ? Point : FriendlyMesh->GetComponentLocation();
 }
 
-bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy)
+bool ADoorSlot::GetOccupantBonePoint(FName Bone, bool bHostage, FVector& OutPoint) const
+{
+	const bool bFriendlyBody = bHostage || Params.Occupant == EDoorOccupant::Friendly;
+	return FHitReactions::GetBonePoint(bFriendlyBody ? FriendlyMesh : HostileMesh, Bone, OutPoint);
+}
+
+bool ADoorSlot::GetOccupantWeaponPoint(FVector& OutPoint) const
+{
+	const bool bArmed = Params.Occupant == EDoorOccupant::Hostile || Params.Occupant == EDoorOccupant::HostageTaker;
+	return bArmed && FHitReactions::GetWeaponPoint(HostileWeapon, OutPoint);
+}
+
+bool ADoorSlot::NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy)
 {
 	// only the occupant counts, hits on the frame or the panel are ignored
-	if (!IsOccupantComponent(HitComponent))
+	if (!IsOccupantComponent(Hit.GetComponent()))
 	{
 		return false;
 	}
 
 	UStyleScoringComponent* Style = UStyleScoringComponent::ForController(InstigatedBy);
+	const FHitZoneResult Zone = UHitZoneSettings::Resolve(Hit, ShotDirection);
+	UE_LOG(LogDoorSlot, Verbose, TEXT("%s: shot on %s, bone %s, zone %s, from the %s"), *GetName(), *GetNameSafe(Hit.GetComponent()), *Hit.BoneName.ToString(),
+		*StaticEnum<EHitZone>()->GetNameStringByValue(static_cast<int64>(Zone.Zone)), *StaticEnum<EHitDirection>()->GetNameStringByValue(static_cast<int64>(Zone.Direction)));
 
 	if (Params.Occupant == EDoorOccupant::HostageTaker)
 	{
-		return NotifyHostageShot(HitComponent, Style);
+		return NotifyHostageShot(Hit, ShotDirection, Zone, Style);
 	}
 
-	// a second shot on a hostile that is already going down scores nothing on the door, but it is a hit
+	// a second shot on a hostile that is already going down, or disarmed, scores nothing on the door, but it is a hit
 	// for the style record and can complete a controlled pair
-	if (bHitRegistered)
+	if (bHitRegistered || bDisarmed)
 	{
 		const bool bFollowUp = Params.Occupant == EDoorOccupant::Hostile && GetWorld()->GetTimeSeconds() - HitRegisteredAt <= UStyleSettings::Get(this)->ControlledPairWindow;
 		if (bFollowUp && Style)
 		{
-			Style->RecordTargetHit(this, false, false);
+			Style->RecordTargetHit(this, GetFollowUpZone(Zone), false);
 		}
 		return bFollowUp;
 	}
 
+	// the pistol, or the arm holding it: the hostile loses the pistol and stays up, out of the fight without a kill (D-050)
+	if (Params.Occupant == EDoorOccupant::Hostile && Zone.IsDisarm())
+	{
+		if (State == EDoorState::Closed || !bDrawn)
+		{
+			return false;
+		}
+
+		bDisarmed = true;
+		HitRegisteredAt = GetWorld()->GetTimeSeconds();
+		DisarmHostile(Zone, Hit, ShotDirection);
+		if (Style)
+		{
+			Style->RecordDisarm(this, Zone.Zone == EHitZone::Weapon);
+		}
+		OnSlotDisarmed.Broadcast(this, Zone.Zone, GetExposureFraction());
+		CloseAfterHit();
+		return true;
+	}
+
 	const EDoorOccupant Occupant = Params.Occupant;
-	if (!RegisterHit())
+	if (!RegisterZoneHit(Zone))
 	{
 		return false;
 	}
@@ -451,7 +595,7 @@ bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& Hit
 	{
 		if (Occupant == EDoorOccupant::Hostile)
 		{
-			Style->RecordTargetHit(this, HitComponent == HostileHead, true);
+			Style->RecordTargetHit(this, Zone.Zone, true);
 		}
 		else if (Occupant == EDoorOccupant::Friendly)
 		{
@@ -461,7 +605,7 @@ bool ADoorSlot::NotifyShot(UPrimitiveComponent* HitComponent, const FVector& Hit
 	return true;
 }
 
-bool ADoorSlot::NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScoringComponent* Style)
+bool ADoorSlot::NotifyHostageShot(const FHitResult& Hit, const FVector& ShotDirection, const FHitZoneResult& Zone, UStyleScoringComponent* Style)
 {
 	if (State == EDoorState::Closed || !bDrawn)
 	{
@@ -469,11 +613,18 @@ bool ADoorSlot::NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScori
 	}
 
 	const float ExposureFraction = GetExposureFraction();
+	UPrimitiveComponent* HitComponent = Hit.GetComponent();
 
-	UE_LOG(LogDoorSlot, Log, TEXT("%s: hostage taker door shot on %s"), *GetName(), *GetNameSafe(HitComponent));
+	// the hostage's body shapes leave gaps the old volumes did not: a shot that grazes the hostage on its way to the taker counts on the hostage
+	FHitResult Graze;
+	const bool bOnTaker = HitComponent == HostileMesh || HitComponent == HostileWeapon;
+	const bool bGrazed = bOnTaker && !bHostageDown && FHitReactions::Grazes(FriendlyMesh, Hit, ShotDirection, Graze);
+
+	UE_LOG(LogDoorSlot, Log, TEXT("%s: hostage taker door shot on %s, zone %s%s"), *GetName(), *GetNameSafe(HitComponent),
+		*StaticEnum<EHitZone>()->GetNameStringByValue(static_cast<int64>(Zone.Zone)), bGrazed ? TEXT(", grazing the hostage") : TEXT(""));
 
 	// the hostage counts whenever it is hit: a freed hostage still stands in the line of fire until the door shuts
-	if (HitComponent == FriendlyBody || HitComponent == FriendlyHead)
+	if (HitComponent == FriendlyMesh || bGrazed)
 	{
 		if (bHostageDown)
 		{
@@ -483,12 +634,14 @@ bool ADoorSlot::NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScori
 		bHostageDown = true;
 		bHitRegistered = true;
 		HitRegisteredAt = GetWorld()->GetTimeSeconds();
-		PlayHitOn(FriendlyMesh);
+		const FHitZoneResult HostageZone = bGrazed ? UHitZoneSettings::Resolve(Graze, ShotDirection) : Zone;
+		PlayInjured(FriendlyMesh, HostageZone);
+		UpdateWeaponTarget();
 		if (Style)
 		{
 			Style->RecordNonTargetHit(this);
 		}
-		OnSlotHit.Broadcast(this, EDoorOccupant::Friendly, ExposureFraction);
+		OnSlotHit.Broadcast(this, EDoorOccupant::Friendly, HostageZone.Zone, ExposureFraction);
 		CloseAfterHit();
 		return true;
 	}
@@ -499,28 +652,44 @@ bool ADoorSlot::NotifyHostageShot(UPrimitiveComponent* HitComponent, UStyleScori
 		return false;
 	}
 
-	// a second shot on a taker that is already going down still reaches the style record and can complete a pair
+	// a second shot on a taker that is already down or disarmed still reaches the style record and can complete a pair
 	if (bTakerDown)
 	{
 		const bool bFollowUp = GetWorld()->GetTimeSeconds() - HitRegisteredAt <= UStyleSettings::Get(this)->ControlledPairWindow;
 		if (bFollowUp && Style)
 		{
-			Style->RecordTargetHit(this, false, false);
+			Style->RecordTargetHit(this, GetFollowUpZone(Zone), false);
 		}
 		return bFollowUp;
 	}
 
-	// whatever shows of the taker beside its hostage is the zone: it goes down at once and the hostage is free
+	// whatever shows of the taker beside its hostage is the zone: the taker is out of the fight and the hostage is free
 	bTakerDown = true;
-	bHitRegistered = true;
 	HitRegisteredAt = GetWorld()->GetTimeSeconds();
-	PlayHitOn(HostileMesh);
-	if (Style)
+	if (Zone.IsDisarm())
 	{
-		Style->RecordTargetHit(this, HitComponent == HostileHead, true);
-		Style->RecordRescue(this);
+		// the pistol, or the arm holding it: disarmed and rescued, the taker stays up without its weapon (D-050)
+		bDisarmed = true;
+		DisarmHostile(Zone, Hit, ShotDirection);
+		if (Style)
+		{
+			Style->RecordDisarm(this, Zone.Zone == EHitZone::Weapon);
+			Style->RecordRescue(this);
+		}
+		OnSlotDisarmed.Broadcast(this, Zone.Zone, ExposureFraction);
 	}
-	OnSlotHit.Broadcast(this, EDoorOccupant::HostageTaker, ExposureFraction);
+	else
+	{
+		bHitRegistered = true;
+		PlayDown(HostileMesh, Zone);
+		UpdateWeaponTarget();
+		if (Style)
+		{
+			Style->RecordTargetHit(this, Zone.Zone, true);
+			Style->RecordRescue(this);
+		}
+		OnSlotHit.Broadcast(this, EDoorOccupant::HostageTaker, Zone.Zone, ExposureFraction);
+	}
 	CloseAfterHit();
 	return true;
 }
@@ -553,6 +722,7 @@ void ADoorSlot::Tick(float DeltaSeconds)
 				bDrawn = true;
 				DrawnAt = StateElapsed;
 				PlayBodyLoop(HostileMesh, HostileAimAnimation);
+				UpdateWeaponTarget();
 				PlaySlotSound(Params.DrawSound, Params.DrawPitch);
 				OnSlotDrawn.Broadcast(this);
 			}
@@ -614,6 +784,7 @@ void ADoorSlot::SetState(EDoorState NewState)
 		{
 			bDrawn = true;
 			DrawnAt = 0.0f;
+			UpdateWeaponTarget();
 		}
 		break;
 	case EDoorState::Closing:
@@ -626,11 +797,13 @@ void ADoorSlot::SetState(EDoorState NewState)
 		SetActorTickEnabled(false);
 		PlaySlotSound(Params.DoorSound, Params.DoorPitch);
 
+		// a disarmed hostile is out of the fight like a hit one, it never counts as escaped
 		const EDoorOccupant ClosedOccupant = Params.Occupant;
-		const bool bWasHit = bHitRegistered;
+		const bool bWasHit = bHitRegistered || bDisarmed;
 		const bool bReport = bReportNextClose;
 		Params.Occupant = EDoorOccupant::Empty;
 		bHitRegistered = false;
+		bDisarmed = false;
 		bDrawn = false;
 		bReportNextClose = true;
 
@@ -659,11 +832,8 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 
 	ApplyHostileLayout(bTaker);
 
-	SetShapeActive(HostileBody, bHostile);
-	SetShapeActive(HostileArms, bHostile);
-	SetShapeActive(HostileHead, bHostile);
-	SetShapeActive(FriendlyBody, bFriendly);
-	SetShapeActive(FriendlyHead, bFriendly);
+	// the bodies can be shot from the moment they show; the pistol once its holder can shoot, see UpdateWeaponTarget
+	SetBodiesShootable(bHostile, bFriendly);
 
 	HostileMesh->SetVisibility(bHostile, true);
 	FriendlyMesh->SetVisibility(bFriendly);
@@ -671,24 +841,43 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 	// a hostage taker wears the hostile look and its hostage the friendly one
 	if (bHostile)
 	{
-		PaintBody(HostileMesh, Material);
+		DoorSlotParts::PaintBody(HostileMesh, Material);
 	}
 	if (bFriendly)
 	{
-		PaintBody(FriendlyMesh, bTaker ? Params.HostageMaterial.Get() : Material);
+		DoorSlotParts::PaintBody(FriendlyMesh, bTaker ? Params.HostageMaterial.Get() : Material);
 	}
 }
 
 void ADoorSlot::HideOccupant()
 {
-	for (UStaticMeshComponent* Shape : { HostileBody, HostileArms, HostileHead, FriendlyBody, FriendlyHead })
-	{
-		SetShapeActive(Shape, false);
-	}
+	// the pistol goes back into the hand first, one lying loose would not hide with the body
+	FHitReactions::ResetWeapon(HostileWeapon, HostileMesh, DoorSlotParts::WeaponSocket);
+	SetBodiesShootable(false, false);
+	FHitReactions::StopReactions(HostileMesh);
+	FHitReactions::StopReactions(FriendlyMesh);
 	HostileMesh->SetVisibility(false, true);
 	FriendlyMesh->SetVisibility(false);
+	bTipOver = false;
 	ApplyHitReaction(0.0f);
 	ApplyHostileLayout(false);
+}
+
+void ADoorSlot::SetBodiesShootable(bool bHostile, bool bFriendly)
+{
+	// a body that can be shot keeps its pose fresh off screen as well, so its physics bodies follow the animation
+	FHitReactions::SetBodyShootable(HostileMesh, bHostile);
+	FHitReactions::SetBodyShootable(FriendlyMesh, bFriendly);
+	HostileMesh->VisibilityBasedAnimTickOption = bHostile ? EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones : EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+	FriendlyMesh->VisibilityBasedAnimTickOption = bFriendly ? EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones : EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+}
+
+void ADoorSlot::UpdateWeaponTarget()
+{
+	// the pistol is a target of its own while the hostile, or the hostage taker, can shoot with it
+	const bool bArmed = Params.Occupant == EDoorOccupant::Hostile || Params.Occupant == EDoorOccupant::HostageTaker;
+	const bool bCanShoot = bArmed && bDrawn && !bHitRegistered && !bDisarmed && !bTakerDown && !bHostageDown && State != EDoorState::Closed;
+	FHitReactions::SetWeaponShootable(HostileWeapon, bCanShoot);
 }
 
 void ADoorSlot::ApplyBodyScale()
@@ -705,25 +894,28 @@ void ADoorSlot::PoseHostileReady()
 		return;
 	}
 
-	HostileMesh->PlayAnimation(HostileDrawAnimation, false);
-	HostileMesh->SetPlayRate(0.0f);
-	HostileMesh->SetPosition(0.0f, false);
+	// held on the first frame of the draw, StartHostileDraw sets it going
+	if (UTargetAnimInstance* Anim = UTargetAnimInstance::FromMesh(HostileMesh))
+	{
+		Anim->PlayBase(HostileDrawAnimation, false, 0.0f, 0.0f);
+	}
 }
 
 void ADoorSlot::StartHostileDraw()
 {
-	if (HostileDrawAnimation && Params.TelegraphDuration > 0.0f)
+	UTargetAnimInstance* Anim = UTargetAnimInstance::FromMesh(HostileMesh);
+	if (Anim && HostileDrawAnimation && Params.TelegraphDuration > 0.0f)
 	{
-		HostileMesh->SetPlayRate(HostileDrawAnimation->GetPlayLength() / Params.TelegraphDuration);
+		Anim->SetBasePlayRate(HostileDrawAnimation->GetPlayLength() / Params.TelegraphDuration);
 	}
 }
 
-void ADoorSlot::PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation)
+void ADoorSlot::PlayBodyLoop(USkeletalMeshComponent* Body, UAnimSequenceBase* Animation, float BlendTime)
 {
-	if (Animation)
+	UTargetAnimInstance* Anim = UTargetAnimInstance::FromMesh(Body);
+	if (Anim && Animation)
 	{
-		Body->PlayAnimation(Animation, true);
-		Body->SetPlayRate(1.0f);
+		Anim->PlayBase(Animation, true, 1.0f, 0.0f, BlendTime);
 	}
 }
 
@@ -744,8 +936,8 @@ USkeletalMeshComponent* ADoorSlot::GetShownBody() const
 
 void ADoorSlot::ApplyHitReaction(float ReactionAlpha)
 {
-	// without a hit animation the occupant tips backwards away from the player, the root sits at floor level so it falls over its feet
-	const float Pitch = HitAnimation ? 0.0f : 80.0f * ReactionAlpha;
+	// with nothing to fall with, the occupant tips backwards away from the player; the root sits at floor level so it falls over its feet
+	const float Pitch = bTipOver ? 80.0f * ReactionAlpha : 0.0f;
 	OccupantRoot->SetRelativeRotation(FRotator(Pitch, 0.0f, 0.0f));
 }
 
@@ -759,5 +951,5 @@ void ADoorSlot::PlaySlotSound(USoundBase* Sound, float Pitch) const
 
 bool ADoorSlot::IsOccupantComponent(const UPrimitiveComponent* Component) const
 {
-	return Component && (Component == HostileBody || Component == HostileArms || Component == HostileHead || Component == FriendlyBody || Component == FriendlyHead);
+	return Component && (Component == HostileMesh || Component == HostileWeapon || Component == FriendlyMesh);
 }

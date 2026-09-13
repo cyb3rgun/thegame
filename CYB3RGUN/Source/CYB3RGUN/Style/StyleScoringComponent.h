@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "HitZoneSettings.h"
 #include "StyleScoringComponent.generated.h"
 
 class AController;
@@ -19,7 +20,13 @@ enum class EStyleEvent : uint8
 	ControlledPair,
 	Rescue,
 	Miss,
-	Penalty
+	Penalty,
+	/** A weapon shot out of a hand, or dropped from a hit arm: the threat is gone without a kill (D-050) */
+	Disarm,
+	/** Zone bonus of a leg hit */
+	LegShot,
+	/** Zone bonus of an arm hit */
+	ArmShot
 };
 
 /** Numbers of one run, for the end of run summaries */
@@ -55,6 +62,16 @@ struct FStyleRunStats
 	UPROPERTY(BlueprintReadOnly)
 	int32 Misses = 0;
 
+	/** Targets disarmed, cleanly or through the weapon arm */
+	UPROPERTY(BlueprintReadOnly)
+	int32 Disarms = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 LegShots = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 ArmShots = 0;
+
 	UPROPERTY(BlueprintReadOnly)
 	int32 BestCombo = 0;
 
@@ -74,9 +91,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStyleShotDelegate, int32, ShotsFire
 
 /**
  *  Scores how the player shoots, the same in every scenario (D-044). Clean actions raise the style meter:
- *  hits, kills, headshots, controlled pairs and rescues. A miss takes meter and combo, a hit on a hostage or
- *  bystander drops the meter to the floor and the combo to zero. Consecutive clean kills raise a multiplier
- *  that applies to every clean action. Every value comes from UStyleSettings (D-046).
+ *  hits, kills, disarms, controlled pairs, rescues, and the bonus of the zone a shot landed in (D-049, D-050).
+ *  A miss takes meter and combo, a hit on a hostage or bystander drops the meter to the floor and the combo to
+ *  zero. Consecutive clean kills and disarms raise a multiplier that applies to every clean action. Every value
+ *  comes from UStyleSettings (D-046), the zone bonuses from the zone scores of UHitZoneSettings.
  *
  *  Lives on the local player's controller and is created on first use, so a scenario needs no setup.
  *  Shot paths record each shot and bracket its resolution; whatever the shot lands on reports the outcome,
@@ -108,8 +126,17 @@ public:
 	void BeginShotResolution();
 	void EndShotResolution();
 
-	/** A shot landed on a target. Several reports for one target within one resolution count once. */
+	/**
+	 *  A shot landed on a target in a hit zone. Several reports for one target within one resolution count once, and the best
+	 *  zone among them pays its bonus when the resolution ends. The head bonus needs the target brought down.
+	 */
+	void RecordTargetHit(AActor* Target, EHitZone Zone, bool bKill);
+
+	/** A shot landed on a target, on the head or not. Kept for callers without a hit zone. */
 	void RecordTargetHit(AActor* Target, bool bHeadshot, bool bKill);
+
+	/** A target lost its weapon to a shot: on the weapon itself when clean, through the weapon arm otherwise. Counts once per target and shot. */
+	void RecordDisarm(AActor* Target, bool bClean);
 
 	/** A shot landed on a hostage or bystander */
 	void RecordNonTargetHit(AActor* Victim);
@@ -155,6 +182,14 @@ protected:
 	{
 		TWeakObjectPtr<AActor> Target;
 		bool bKilled = false;
+		bool bDisarmed = false;
+
+		/** Best zone with a bonus reported for this target so far, and its points, paid when the resolution ends */
+		EHitZone BonusZone = EHitZone::None;
+		int32 BonusPoints = 0;
+
+		/** Multiplier when the target was first hit, so its zone bonus is paid at the rate its kill was */
+		float Multiplier = 1.0f;
 	};
 
 	FStyleRunStats Stats;
@@ -176,8 +211,19 @@ protected:
 	const UStyleSettings* GetSettings() const;
 	double Now() const;
 	void RecordMiss();
-	void ScoreKill(AActor* Target, bool bHeadshot);
+	void ScoreKill(AActor* Target);
+
+	/** The entry of a target in the resolution; its first report adds it and checks for a controlled pair */
+	FResolvedTarget& FindOrAddTarget(AActor* Target, bool& bOutAdded);
+
+	/** Keeps the zone with the higher bonus for a target of the resolution */
+	void NoteZone(FResolvedTarget& Entry, EHitZone Zone) const;
+
+	/** Pays the zone bonus of every target of the resolution that is ending */
+	void PayZoneBonuses();
+
 	void Award(EStyleEvent Event, int32 BasePoints, AActor* Target, bool bMultiplied);
+	void AwardAt(EStyleEvent Event, int32 BasePoints, AActor* Target, float Multiplier);
 	void AddMeter(float Delta);
 	void SetCombo(int32 NewCombo);
 };

@@ -6,8 +6,8 @@
 #include "UObject/Interface.h"
 #include "DoorRangeTarget.generated.h"
 
-class UPrimitiveComponent;
 class AController;
+struct FHitResult;
 
 UINTERFACE(MinimalAPI)
 class UDoorRangeTarget : public UInterface
@@ -17,7 +17,8 @@ class UDoorRangeTarget : public UInterface
 
 /**
  *  Implemented by actors that react to weapon hits with scoring logic.
- *  Weapons call NotifyShot on the actor they hit; the target decides whether the shot counts.
+ *  Weapons call NotifyShot on the actor they hit with the full hit, its component and bone, and the direction the shot
+ *  travelled; the target decides whether the shot counts and which hit zone it landed in (D-049).
  */
 class CYB3RGUN_API IDoorRangeTarget
 {
@@ -25,6 +26,6 @@ class CYB3RGUN_API IDoorRangeTarget
 
 public:
 
-	/** Called by a weapon or projectile when a shot lands on this actor. Returns true if the shot was accepted. */
-	virtual bool NotifyShot(UPrimitiveComponent* HitComponent, const FVector& HitLocation, AController* InstigatedBy) = 0;
+	/** Called by a weapon or projectile when a shot lands on this actor, before any damage. Returns true if the shot was accepted. */
+	virtual bool NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy) = 0;
 };
