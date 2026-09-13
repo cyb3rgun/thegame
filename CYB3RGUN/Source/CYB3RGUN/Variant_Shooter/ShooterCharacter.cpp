@@ -360,6 +360,7 @@ void AShooterCharacter::Die()
 
 	// call the BP handler
 	BP_OnDeath();
+	OnDied.Broadcast(this);
 
 	// schedule character respawn
 	GetWorld()->GetTimerManager().SetTimer(RespawnTimer, this, &AShooterCharacter::OnRespawn, RespawnTime, false);

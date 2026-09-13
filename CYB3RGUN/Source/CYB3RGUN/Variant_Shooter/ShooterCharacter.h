@@ -17,6 +17,7 @@ class URailAimComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
+DECLARE_MULTICAST_DELEGATE_OneParam(FShooterCharacterDiedDelegate, AShooterCharacter* /* Character */);
 
 /**
  *  A player controllable first person shooter character
@@ -101,6 +102,9 @@ protected:
 	FTimerHandle RespawnTimer;
 
 public:
+
+	/** Broadcast when the character dies, before its body is removed; a game mode respawns the player from here (D-059) */
+	FShooterCharacterDiedDelegate OnDied;
 
 	/** Bullet count updated delegate */
 	FBulletCountUpdatedDelegate OnBulletCountUpdated;

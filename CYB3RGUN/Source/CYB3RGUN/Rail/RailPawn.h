@@ -147,6 +147,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health", meta = (ClampMin = 1.0))
 	float MaxHealth = 500.0f;
 
+	/** Seconds a rider who went down stays down before getting back up with full health, the ride then goes on (D-059) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health", meta = (ClampMin = 0.0, Units = "s"))
+	float RiderRespawnDelay = 3.0f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Health")
 	float Health = 0.0f;
 
@@ -164,6 +168,7 @@ protected:
 	bool bPausedByRequest = false;
 
 	FTimerHandle StartTimer;
+	FTimerHandle RespawnTimer;
 
 public:
 
@@ -277,6 +282,9 @@ protected:
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** The rider gets back up with full health after going down, and the ride goes on (D-059) */
+	void RiderGetsUp();
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PawnClientRestart() override;
 

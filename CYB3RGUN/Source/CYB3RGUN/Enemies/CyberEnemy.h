@@ -113,7 +113,7 @@ public:
 	void SetMoveSpeed(float Speed);
 
 	UFUNCTION(BlueprintPure, Category="Enemy")
-	AActor* GetTarget() const { return Target; }
+	AActor* GetTarget() const { return IsValid(Target) ? Target.Get() : nullptr; }
 
 	UFUNCTION(BlueprintPure, Category="Enemy")
 	const UEnemyDefinition* GetDefinition() const { return Definition; }

@@ -8,6 +8,7 @@
 #include "ZombieTestGameMode.generated.h"
 
 class AEncounterDirector;
+class AShooterCharacter;
 class AShooterWeapon;
 class UEncounterHUD;
 class UEncounterDefinition;
@@ -61,7 +62,12 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UStyleHUDWidget> StyleHUD;
 
+	/** Seconds from the player's death to the respawn at a player start with the starting loadout (D-059) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Zombie Test", meta = (ClampMin = 0.0, Units = "s"))
+	float RespawnDelay = 3.0f;
+
 	FTimerHandle StartTimer;
+	FTimerHandle RespawnTimer;
 
 public:
 
@@ -81,4 +87,10 @@ protected:
 	void FindOrSpawnDirector();
 	void SetupPlayer();
 	void StartEncounter();
+
+	/** The player went down, the respawn is timed (D-059) */
+	void HandlePlayerDied(AShooterCharacter* Character);
+
+	/** Removes the fallen body and restarts the player with the starting loadout, the encounter runs on */
+	void RespawnPlayer();
 };

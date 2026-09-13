@@ -7,6 +7,7 @@
 #include "EncounterHUD.h"
 #include "ShooterWeapon.h"
 #include "ShooterWeaponHolder.h"
+#include "ShooterCharacter.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -26,6 +27,7 @@ void AZombieTestGameMode::BeginPlay()
 void AZombieTestGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(StartTimer);
+	GetWorldTimerManager().ClearTimer(RespawnTimer);
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -95,6 +97,12 @@ void AZombieTestGameMode::SetupPlayer()
 	Invoker->SetGenerationRadii(NavInvokerRadius, NavInvokerRadius + 500.0f);
 	Invoker->RegisterComponent();
 
+	// a player who goes down comes back, so an idle tester never ends the run (D-059)
+	if (AShooterCharacter* Shooter = Cast<AShooterCharacter>(Pawn))
+	{
+		Shooter->OnDied.AddUObject(this, &AZombieTestGameMode::HandlePlayerDied);
+	}
+
 	if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(Pawn))
 	{
 		// the extra weapons first, so the starting weapon ends up in hand
@@ -128,4 +136,29 @@ void AZombieTestGameMode::StartEncounter()
 	{
 		UE_LOG(LogZombieTest, Warning, TEXT("No encounter director to start"));
 	}
+}
+
+void AZombieTestGameMode::HandlePlayerDied(AShooterCharacter* Character)
+{
+	UE_LOG(LogZombieTest, Log, TEXT("Player down, respawn in %.1f s"), RespawnDelay);
+	GetWorldTimerManager().SetTimer(RespawnTimer, this, &AZombieTestGameMode::RespawnPlayer, FMath::Max(RespawnDelay, 0.01f), false);
+}
+
+void AZombieTestGameMode::RespawnPlayer()
+{
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	if (!PC)
+	{
+		return;
+	}
+
+	// the fallen body goes, the controller gets a fresh pawn at a player start and the starting loadout
+	if (APawn* Fallen = PC->GetPawn())
+	{
+		PC->UnPossess();
+		Fallen->Destroy();
+	}
+	RestartPlayer(PC);
+	SetupPlayer();
+	UE_LOG(LogZombieTest, Log, TEXT("Player respawned as %s"), *GetNameSafe(PC->GetPawn()));
 }

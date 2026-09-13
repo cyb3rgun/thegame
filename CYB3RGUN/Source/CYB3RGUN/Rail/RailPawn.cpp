@@ -111,6 +111,7 @@ void ARailPawn::BeginPlay()
 void ARailPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(StartTimer);
+	GetWorldTimerManager().ClearTimer(RespawnTimer);
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -488,12 +489,21 @@ float ARailPawn::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACont
 
 	if (Health <= 0.0f)
 	{
-		// placeholder until the rail has a fail state: the ride stops where the rider went down
-		UE_LOG(LogRail, Warning, TEXT("Rider down at %.0f cm, ride paused"), DistanceAlongSpline);
+		// the ride stops where the rider went down, and after a moment the rider gets back up and the ride goes on (D-059)
+		UE_LOG(LogRail, Warning, TEXT("Rider down at %.0f cm, ride paused, back up in %.1f s"), DistanceAlongSpline, RiderRespawnDelay);
 		Pause();
+		GetWorldTimerManager().SetTimer(RespawnTimer, this, &ARailPawn::RiderGetsUp, FMath::Max(RiderRespawnDelay, 0.01f), false);
 	}
 
 	return Applied;
+}
+
+void ARailPawn::RiderGetsUp()
+{
+	Health = MaxHealth;
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+	UE_LOG(LogRail, Log, TEXT("Rider back up at %.0f cm with %.0f health, the ride goes on"), DistanceAlongSpline, Health);
+	Resume();
 }
 
 void ARailPawn::DoSwitchWeapon()
