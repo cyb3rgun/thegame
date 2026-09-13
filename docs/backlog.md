@@ -59,6 +59,12 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Impact decals on world surfaces (G04)
 - [x] Weapon data asset for damage and refire, the rail aim component still carries pistol values (G04)
 - [x] 3R house mark printed on the pistol and the scattergun, beside the weapon name in the HUD and the pause menu loadout, and as stencil and neon dressing in the night range and on the rail crates (G04)
+- [x] One weapon actor driven by weapon definitions: single shot with a cycling action or semi auto, draw, recoil with recovery, accuracy cone with bloom, falloff, ballistics from muzzle energy and projectile mass (G04)
+- [x] Mount points as the contract for future models: grip, muzzle, magazine, optic and pressure gauge sockets with placeholder positions (G04)
+- [x] PCP pressure model: reservoir pressure is the ammunition, energy, drop and spread follow the pressure through curves, timed refills from a limited supply, pressure on the logo arc gauge and a needle gauge on the weapon (G04)
+- [x] AP JET I, AP JET II and 3R 9x19 with placeholder bodies; the 3R 9x19 replaces the template pistol as the standard sidearm (G04)
+- [ ] Real models for the AP JET family and the 3R 9x19, carrying the mount point sockets
+- [ ] Reserved fire mode slot: bursts or another mode once a weapon needs one
 - [ ] Digital twin of the real CYB3RGUN weapon
 - [ ] Improvised torch attachment: pulsed bursts, five metre flame cone
 - [ ] Torch chain ignition between burning enemies

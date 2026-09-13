@@ -34,6 +34,8 @@ Decided:
 
 - Improvised torch attachment: pulsed bursts in machine gun rhythm, five metre flame cone, chain ignition between burning enemies, fire light attracts enemies. Self destruction rolls a base chance plus a heat bonus that rises with sustained fire, announced by a short hiss before detonation. Radial damage takes nearby enemies with the player.
 - Time dilation under our own name (working title Overclock): diegetic, produced by the CYB3RGUN electronics, coupled to the HOLD trigger. Entertainment scenarios only.
+- Weapons are data with our own names (D-052, D-053). The first roster: 3R 9x19, the service pistol and standard sidearm; AP JET I, a big bore PCP single shot; AP JET II, the same family as a semi-auto with a faster follow-up and a thirstier valve.
+- Pre charged pneumatics spend air, not rounds (D-055): the reservoir pressure sets the muzzle energy, the drop and the spread, and a refill from the carried supply is a timed action with a limited number of charges.
 
 ## Bestiary
 

@@ -106,10 +106,10 @@ void AZombieTestGameMode::SetupPlayer()
 
 	if (IShooterWeaponHolder* Holder = Cast<IShooterWeaponHolder>(Pawn))
 	{
-		// the last weapon handed out comes up in hand, so the loadout goes in backwards and its first ends up there
-		for (int32 Index = Loadout.Num() - 1; Index >= 0; --Index)
+		// the first weapon of the loadout comes up in hand, the rest follow in the switch order
+		for (const UWeaponDefinition* Weapon : Loadout)
 		{
-			if (const UWeaponDefinition* Weapon = Loadout[Index])
+			if (Weapon)
 			{
 				Holder->AddWeaponDefinition(Weapon);
 				UE_LOG(LogZombieTest, Log, TEXT("Granted weapon %s"), *GetNameSafe(Weapon));

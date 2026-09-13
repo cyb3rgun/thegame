@@ -315,10 +315,12 @@ void AShooterCharacter::AddWeaponDefinition(const UWeaponDefinition* Definition)
 		return;
 	}
 
+	// weapons switch in the order they were handed out; the first comes up in hand, the others wait holstered
 	OwnedWeapons.Add(AddedWeapon);
 	if (CurrentWeapon)
 	{
-		CurrentWeapon->DeactivateWeapon();
+		AddedWeapon->DeactivateWeapon();
+		return;
 	}
 	CurrentWeapon = AddedWeapon;
 	CurrentWeapon->ActivateWeapon(PlayerTag);

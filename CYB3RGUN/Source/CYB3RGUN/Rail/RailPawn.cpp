@@ -52,11 +52,13 @@ ARailPawn::ARailPawn()
 	Aim = CreateDefaultSubobject<URailAimComponent>(TEXT("Aim"));
 	Aim->SetInputMode(ERailAimInputMode::Relative);
 
-	// the rider carries the pistol and the scattergun, switching uses the shooter template's action
-	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> PistolWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_Pistol.DA_Weapon_Pistol"));
+	// the rider carries the 3R service pistol, both AP JET big bores and the scattergun, switching uses the shooter template's action
+	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> SidearmWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_3R_9x19.DA_Weapon_3R_9x19"));
+	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> JetSingleWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_APJet1.DA_Weapon_APJet1"));
+	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> JetSemiWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_APJet2.DA_Weapon_APJet2"));
 	static ConstructorHelpers::FObjectFinder<UWeaponDefinition> ScattergunWeapon(TEXT("/Game/CYB3RGUN/Weapons/DA_Weapon_Scattergun.DA_Weapon_Scattergun"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> SwitchInput(TEXT("/Game/Variant_Shooter/Input/Actions/IA_SwapWeapon.IA_SwapWeapon"));
-	Aim->SetWeapons({ PistolWeapon.Object, ScattergunWeapon.Object });
+	Aim->SetWeapons({ SidearmWeapon.Object, JetSingleWeapon.Object, JetSemiWeapon.Object, ScattergunWeapon.Object });
 	SwitchWeaponAction = SwitchInput.Object;
 	static ConstructorHelpers::FObjectFinder<UInputAction> OverclockInput(TEXT("/Game/CYB3RGUN/Core/Input/IA_Overclock.IA_Overclock"));
 	OverclockAction = OverclockInput.Object;
