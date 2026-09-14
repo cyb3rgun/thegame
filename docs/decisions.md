@@ -2,6 +2,34 @@
 
 Numbered newest first.
 
+## D-069 Closed content never enters git history
+
+Closed tier content never enters git history. The ignore rule is in place before the assets arrive, and it is enforced by a check script, tools/check_tiers.ps1, not by discipline. An ignore rule never removes what is already committed, so the split has to exist first.
+
+## D-068 The open tier builds and runs on its own
+
+The open tier must build and run on its own. Missing closed content degrades to primitives and logs a clear notice; it never crashes and never blocks startup. A public repository that cannot run is worse than none.
+
+## D-067 Content is split into two tiers
+
+The open tier is code, documentation, configuration, brand files and primitive placeholder geometry. The closed tier is characters, finished environments, enemy models, AI personalities, soundtrack and any purchased or licensed asset, available only under a rental and server agreement. The paths of each tier are in docs/content-tiers.md.
+
+## D-066 Source available, not open source
+
+The correct term is source available, not open source. Open source implies a right to redistribute, which is not granted, and the wrong term invites criticism the project does not need.
+
+## D-065 No binary release is ever published
+
+No binary release will ever be published. Anyone who wants to run the product compiles, configures, sets up and administers it themselves. This is a deliberate distribution decision, not a limitation.
+
+## D-064 The product is for adults
+
+The product is for adults: not suitable for anyone under 18, developed with an 18+ classification as its target. This is visible at the top of the README, not buried in a legal section.
+
+## D-063 Targets are armed offenders, machines or the undead
+
+Targets are armed offenders, machines or the undead. Never bystanders, never hostages. This supersedes the older concept line "undead, machines or objects, never humans". A law enforcement scenario without human offenders is not a law enforcement scenario. The rule protects the innocent, not the species.
+
 ## D-062 The README is kept current every season
 
 The README is the project's front door. It is brought up to date at the end of every season, in the same structure as the initial version, so what a visitor reads matches what is built.
@@ -9,6 +37,8 @@ The README is the project's front door. It is brought up to date at the end of e
 ## D-061 Public text names no real weapon maker, weapon model, film or game
 
 Public facing text never names a real weapon manufacturer, a real weapon model, a film or another game. Mechanics may be described freely; names are what turn an homage into a false origin claim. This covers the README, the store page, trailers and all marketing copy.
+
+Clarified in G04-B05: D-061 applies only to outward facing text, meaning the README, the store page, trailers and marketing. Internal development documents such as the game concept and the decision log may name genre references, games and products, because that is what they are for.
 
 ## D-060 The canonical remote is cyb3rgun/thegame over SSH
 
