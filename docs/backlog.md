@@ -161,6 +161,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Content repository: private repository with the game content folders, laid over a code checkout
 - [ ] Lawyer's review of LICENSE, LICENSE-CONTENT.md and LICENSE-THIRD-PARTY.md
 - [ ] Contact address for licensing enquiries in LICENSE-CONTENT.md and the README, which point to cyb3rgun.com for now
+- [ ] Replace the weapon click sounds taken from /Engine/VREditor/Sounds with project or shipped sounds before the first packaged build: editor content is not cooked, so a package would lose them
 - [ ] Shop listing for models, content packs, plugins and updates, which the README refers to
 - [ ] Epic template content: check the redistribution terms of the committed template folders
 - [ ] Body look materials without template parents, so the stand ins keep their colours without the template mannequin materials
