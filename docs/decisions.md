@@ -2,6 +2,22 @@
 
 Numbered newest first.
 
+## D-080 The scattergun is the bird range weapon
+
+The scattergun is the intended weapon of the bird range, which comes up in hand; the 3R stays in the loadout. It is the only place in the game where a spread pattern beats a precise shot, which gives that weapon a home. Its weapon definition is shared and was not changed for the mode (G05-B02).
+
+## D-079 Flight targets are data, not classes
+
+A flying target is a UFlightTargetDefinition: a single mesh or a body of primitive parts with flapping pivots, size, hit spheres, flight speed, the weighted paths it flies with their values, base score, hit behaviour (fall or vanish) and sounds. The range settings list the definitions and their weights. Birds, drones, clay or anything else fly the same module by swapping data assets, without touching code (G05-B02).
+
+## D-078 The player stands still and turns; targets cross on ballistic paths
+
+The player stands on a fixed spot with free look and no movement, and aims through the one screen space aiming path. Targets cross the field of view on four path types with their values in data: straight crossing, rising under its own gravity, diving and pulling out, and an erratic flutter. Leading a moving target is the skill this mode trains: projectiles meet the target where it has moved to, and for hitscan pellets the target's hit spheres sit ahead of its body by the distance it covers while a charge at the lead shot speed of the settings crosses the range, so both weapons ask for the same lead (G05-B02).
+
+## D-077 Bird Shooting is a countdown mode, not a wave mode
+
+The bird range runs one countdown, one run and one score: 90 seconds by default in the settings asset, continuous launches that hold a steady number of targets in flight, and a summary at the end. No waves, telegraphs, hostages, penalty targets or difficulty ramp. A hit scores by difficulty, BaseScore x clamp((distance / reference distance) x (speed / reference speed) x (reference size / size), 0.5, 4) rounded to steps of 5, with the references in the settings; the style meter, combo and controlled pairs run beside it unchanged, as in every scenario. It is the deliberate counterpoint to the other three modes (G05-B02).
+
 ## D-076 Door and occupant share one timeline
 
 A door and its occupant run on one timeline: the occupant is visible only where the door leaves it visible. The panel swings out towards the player, so its path never crosses the alcove the occupant stands in and the panel itself hides the occupant while the opening gap grows. On closing, the slot computes from the occupant's bounds the panel angle that covers its far side, plus a small margin for views that are not frontal, and hides the occupant at that angle, before the swing ends. This holds for the hostile, the friendly and the hostage taker pair alike, and was verified frame by frame in slow motion (G05-B01).
