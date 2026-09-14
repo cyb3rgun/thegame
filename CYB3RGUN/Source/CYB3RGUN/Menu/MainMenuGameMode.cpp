@@ -20,8 +20,8 @@ AMainMenuGameMode::AMainMenuGameMode()
 	PlayerControllerClass = AMainMenuPlayerController::StaticClass();
 
 	BackgroundLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/CYB3RGUN/Maps/Lvl_DoorRange_Night.Lvl_DoorRange_Night")));
-	AmbientHostileMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/CYB3RGUN/Enemies/Bodies/MI_Body_Hostile.MI_Body_Hostile")));
-	AmbientFriendlyMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/CYB3RGUN/Enemies/Bodies/MI_Body_Friendly.MI_Body_Friendly")));
+	AmbientHostileMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/CYB3RGUN/Enemies/Materials/MI_Body_Hostile.MI_Body_Hostile")));
+	AmbientFriendlyMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/CYB3RGUN/Enemies/Materials/MI_Body_Friendly.MI_Body_Friendly")));
 }
 
 bool AMainMenuGameMode::PlayerCanRestart_Implementation(APlayerController* Player)

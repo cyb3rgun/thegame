@@ -16,3 +16,15 @@ Saved/
 .DS_Store
 Thumbs.db
 CYB3RGUN/.mcp.json
+
+# closed tier content, licensed separately and never committed (D-067, D-069, docs/content-tiers.md)
+# tools/check_tiers.ps1 fails when any of these is tracked or staged
+CYB3RGUN/Content/CYB3RGUN/Characters/
+CYB3RGUN/Content/CYB3RGUN/Enemies/Bodies/
+CYB3RGUN/Content/CYB3RGUN/Environments/
+CYB3RGUN/Content/CYB3RGUN/Audio/
+CYB3RGUN/Content/CYB3RGUN/Personalities/
+CYB3RGUN/Content/CYB3RGUN/Licensed/
+CYB3RGUN/Content/Fab/
+CYB3RGUN/Content/Megascans/
+CYB3RGUN/Content/MetaHumans/
