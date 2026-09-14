@@ -46,6 +46,7 @@ public class CYB3RGUN : ModuleRules
 			"CYB3RGUN/Variant_Shooter/UI",
 			"CYB3RGUN/Variant_Shooter/Weapons",
 			"CYB3RGUN/DoorRange",
+			"CYB3RGUN/FlightRange",
 			"CYB3RGUN/Enemies",
 			"CYB3RGUN/Encounters",
 			"CYB3RGUN/Rail",
