@@ -2,6 +2,18 @@
 
 Numbered newest first.
 
+## D-062 The README is kept current every season
+
+The README is the project's front door. It is brought up to date at the end of every season, in the same structure as the initial version, so what a visitor reads matches what is built.
+
+## D-061 Public text names no real weapon maker, weapon model, film or game
+
+Public facing text never names a real weapon manufacturer, a real weapon model, a film or another game. Mechanics may be described freely; names are what turn an homage into a false origin claim. This covers the README, the store page, trailers and all marketing copy.
+
+## D-060 The canonical remote is cyb3rgun/thegame over SSH
+
+The canonical remote is git@github.com:cyb3rgun/thegame.git over SSH. The old repository saschadaemgen/CYB3RGUN-THEGAME stays as a backup and receives no further pushes. SSH avoids the token prompts the HTTPS remote required.
+
 ## D-059 Encounter levels respawn the player
 
 Encounter levels respawn the player, so an idle player cannot end a test run. Verification must never depend on the tester staying alive. The zombie test puts a fallen player back at a player start with the starting loadout, and the rail rider gets back up where it went down and the ride goes on.
