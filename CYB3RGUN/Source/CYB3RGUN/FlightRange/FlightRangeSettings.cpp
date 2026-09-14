@@ -2,6 +2,7 @@
 
 #include "FlightRangeSettings.h"
 #include "FlightTargetDefinition.h"
+#include "WeaponDefinition.h"
 
 int32 UFlightRangeSettings::ComputeScore(int32 BaseScore, float Distance, float Speed, float Size) const
 {
@@ -14,6 +15,11 @@ int32 UFlightRangeSettings::ComputeScore(int32 BaseScore, float Distance, float 
 	const int32 Step = FMath::Max(ScoreStep, 1);
 	const int32 Rounded = FMath::RoundToInt(BaseScore * Factor / Step) * Step;
 	return FMath::Max(Rounded, Step);
+}
+
+const FFlightWeaponOverride* UFlightRangeSettings::FindWeaponOverride(const UWeaponDefinition* Weapon) const
+{
+	return Weapon ? WeaponOverrides.FindByPredicate([Weapon](const FFlightWeaponOverride& Entry) { return Entry.Weapon == Weapon; }) : nullptr;
 }
 
 UFlightTargetDefinition* UFlightRangeSettings::PickTarget() const

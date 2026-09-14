@@ -23,6 +23,24 @@ struct FFlightTargetEntry
 	float Weight = 1.0f;
 };
 
+/** Handling of one loadout weapon for this mode only; the weapon definition itself stays as it is */
+USTRUCT(BlueprintType)
+struct FFlightWeaponOverride
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<UWeaponDefinition> Weapon;
+
+	/** Rounds in a magazine in this mode, 0 keeps the weapon's own */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon", meta = (ClampMin = 0))
+	int32 MagazineSize = 0;
+
+	/** Seconds a reload takes in this mode, 0 keeps the weapon's own */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon", meta = (ClampMin = 0.0, Units = "s"))
+	float ReloadSeconds = 0.0f;
+};
+
 /**
  *  One countdown, one run, one score (D-077). The field is the half circle in front of the player start; targets enter
  *  from its sides or rise from launch points behind cover and cross it. Their value grows with distance and speed and
@@ -46,6 +64,13 @@ public:
 	/** Weapons handed to the player, the first comes up in hand (D-080) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Round")
 	TArray<TObjectPtr<UWeaponDefinition>> Loadout;
+
+	/** Magazine and reload of loadout weapons in this mode. A timed round must not spend its time waiting, so reloading is a rhythm here. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Round")
+	TArray<FFlightWeaponOverride> WeaponOverrides;
+
+	/** The override for a loadout weapon, or null */
+	const FFlightWeaponOverride* FindWeaponOverride(const UWeaponDefinition* Weapon) const;
 
 	/** The targets the range launches */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Spawning")

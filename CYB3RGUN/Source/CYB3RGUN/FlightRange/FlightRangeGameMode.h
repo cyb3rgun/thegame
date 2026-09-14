@@ -16,6 +16,7 @@ class UFlightRangeHUD;
 class UFlightRangeSettings;
 class UStyleHUDWidget;
 class UStyleSettings;
+class UWeaponDefinition;
 
 UENUM(BlueprintType)
 enum class EFlightRoundState : uint8
@@ -173,6 +174,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<ULogoCrosshairWidget> Crosshair;
 
+	/** Copies of loadout weapons carrying this mode's magazine and reload */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWeaponDefinition>> RoundWeapons;
+
 	FFlightRangeStats Stats;
 	EFlightRoundState RoundState = EFlightRoundState::GetReady;
 	FTransform FieldTransform;
@@ -192,6 +197,9 @@ protected:
 
 	/** Plants the player: no movement, free look, the loadout, and the field taken from where it stands */
 	void SetupPlayer();
+
+	/** The weapon to hand out: the definition itself, or a copy with the overrides of the settings */
+	const UWeaponDefinition* MakeRoundWeapon(const UWeaponDefinition* Weapon);
 
 	void SetRoundState(EFlightRoundState NewState);
 	void HandleTargetLaunched(AFlightTarget* Target, EFlightSource Source);

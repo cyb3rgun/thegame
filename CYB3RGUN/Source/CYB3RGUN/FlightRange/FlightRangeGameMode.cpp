@@ -121,8 +121,9 @@ void AFlightRangeGameMode::SetupPlayer()
 		{
 			if (Weapon)
 			{
-				Holder->AddWeaponDefinition(Weapon);
-				UE_LOG(LogFlightRange, Log, TEXT("Granted weapon %s"), *GetNameSafe(Weapon));
+				const UWeaponDefinition* Granted = MakeRoundWeapon(Weapon);
+				Holder->AddWeaponDefinition(Granted);
+				UE_LOG(LogFlightRange, Log, TEXT("Granted weapon %s, %d rounds, %.2f s reload"), *GetNameSafe(Weapon), Granted->MagazineSize, Granted->ReloadSeconds);
 			}
 		}
 	}
@@ -143,6 +144,28 @@ void AFlightRangeGameMode::SetupPlayer()
 	{
 		GetWorldTimerManager().SetTimer(StartTimer, this, &AFlightRangeGameMode::StartRound, FMath::Max(Cfg->StartDelaySeconds, 0.01f), false);
 	}
+}
+
+const UWeaponDefinition* AFlightRangeGameMode::MakeRoundWeapon(const UWeaponDefinition* Weapon)
+{
+	const FFlightWeaponOverride* Override = GetSettings()->FindWeaponOverride(Weapon);
+	if (!Override || (Override->MagazineSize <= 0 && Override->ReloadSeconds <= 0.0f))
+	{
+		return Weapon;
+	}
+
+	// a copy for this round carries the mode's handling; the shared definition every other mode uses stays untouched
+	UWeaponDefinition* Copy = DuplicateObject<UWeaponDefinition>(Weapon, this, MakeUniqueObjectName(this, UWeaponDefinition::StaticClass(), FName(Weapon->GetName() + TEXT("_FlightRange"))));
+	if (Override->MagazineSize > 0)
+	{
+		Copy->MagazineSize = Override->MagazineSize;
+	}
+	if (Override->ReloadSeconds > 0.0f)
+	{
+		Copy->ReloadSeconds = Override->ReloadSeconds;
+	}
+	RoundWeapons.Add(Copy);
+	return Copy;
 }
 
 void AFlightRangeGameMode::StartRound()
