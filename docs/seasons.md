@@ -26,3 +26,4 @@ Carried out of G04, open in the backlog: the MetaHuman cast (D-039 to D-042 rese
 ## G05 in progress
 
 - **G05-B01.** Occupant visibility tied to the door timeline; six CC0 texture sets and M_Surface rebuilt with a second layer and a macro mask, on the door ranges, the rail level and the benchmark (D-074 to D-076).
+- **G05-B02.** The Bird Shooting mode: a countdown flight range with flight targets as data, four path types, a spawn director, score by difficulty, the scattergun as its weapon, Lvl_BirdRange and its level card (D-077 to D-080).

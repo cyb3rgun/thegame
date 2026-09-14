@@ -29,7 +29,10 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Target Shooting mode: precision, reaction time and target discrimination; the door range levels play it today
 - [ ] Tactical Training mode: scenarios with offenders, hostages and bystanders; the hostage taker and the disarm exist on the door range and the rail
 - [ ] Zombie mode as a finished scenario; Lvl_ZombieTest is a test arena with three composed waves
-- [ ] Bird Shooting mode: leading a moving target on a ballistic path
+- [x] Bird Shooting mode: a 90 second countdown on Lvl_BirdRange, birds crossing from both sides and rising from cover, score by distance, speed and size, the scattergun in hand (G05)
+- [ ] Bird range sounds: launches, hits and the countdown use the engine ping as a placeholder
+- [ ] Bird range feel pass: the scattergun's six shells and 2.2 s reload spend about a third of a round reloading; decide whether the mode keeps the shared weapon values
+- [ ] More flight targets as data: clay and drone definitions with the vanish behaviour
 - [ ] Laser Tag mode: match data, replays and rankings shared with real events
 - [ ] Play Together: local and online multiplayer, cooperative and competitive
 - [ ] Scenario selection screen in the style of arcade lightgun cabinets
@@ -55,7 +58,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Rail reload in cover: entering cover starts it, leaving early leaves it unfinished (G04)
 - [x] Rail hostage taker set piece beat with rescue, hostage hit and escape outcomes (G04)
 - [ ] Rail branch selection beyond the first next segment
-- [ ] Flight range module: targets crossing on ballistic paths
+- [x] Flight range module: targets as data on straight, rising, diving and flutter paths, a spawn director over both sides and launch points behind cover, lead for projectiles and hitscan pellets (G05)
 - [ ] Rail fail state when the rider goes down
 - [ ] Rail camera turns toward the action of a beat
 
