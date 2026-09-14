@@ -29,7 +29,7 @@ These folders hold game content. They are kept in their own content repository a
 | `CYB3RGUN/Source/` | All C++ written for the project | Code (D-070) |
 | `CYB3RGUN/Config/`, `CYB3RGUN/CYB3RGUN.uproject`, `CYB3RGUN/Build/` icons | Project configuration and application icons | Configuration and brand files |
 | `docs/`, `tools/`, `media/`, `.github/`, `README.md`, the licence files | Documentation, scripts, brand source files, repository presentation | Documentation and brand files |
-| `CYB3RGUN/Content/CYB3RGUN/Core/` | Shared materials, combat, style, input, menu, rail and level data | Data assets and blockout materials the simulator needs to run (D-068) |
+| `CYB3RGUN/Content/CYB3RGUN/Core/` | Shared materials and their CC0 texture sets, combat, style, input, menu, rail and level data | Data assets and surface materials the simulator needs to run (D-068); the textures stay CC0, see docs/credits.md |
 | `CYB3RGUN/Content/CYB3RGUN/UI/` | HUD, menus, brand assets | Interface and brand files |
 | `CYB3RGUN/Content/CYB3RGUN/VFX/` | Niagara systems, decals, neon materials, the grade | Effects built from engine features |
 | `CYB3RGUN/Content/CYB3RGUN/Weapons/` | Weapon definitions, placeholder body materials | Weapons are data with placeholder bodies (D-052, D-054) |
