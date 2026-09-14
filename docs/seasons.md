@@ -8,6 +8,7 @@
 | G02 | The door module runs as a playable prototype | closed, goal met |
 | G03 | A short on-rails route plays end to end with two encounter beats and screen space aiming | closed, goal met |
 | G04 | Shooting has a signature, rewarded by a style system that makes clean, disciplined work score highest | closed, goal met |
+| G05 | The night door range and the rail level look built, not blocked out | open |
 
 ## State at the close of G04
 
@@ -22,4 +23,6 @@ G04 met its goal over four pieces:
 
 Carried out of G04, open in the backlog: the MetaHuman cast (D-039 to D-042 reserved), real weapon models on the mount point sockets, environment art beyond blockout, the night benchmark run, and every scenario beyond the door range, rail and zombie test levels.
 
-The next season has no goal yet.
+## G05 in progress
+
+- **G05-B01.** Occupant visibility tied to the door timeline; six CC0 texture sets and M_Surface rebuilt with a second layer and a macro mask, on the door ranges, the rail level and the benchmark (D-074 to D-076).

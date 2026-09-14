@@ -43,6 +43,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Door module: the telegraph is a pistol draw on a skeletal body, the crouch is gone (G03)
 - [x] Door module: night version Lvl_DoorRange_Night with moonlight, warm lanterns, volumetric fog and a graded post process (G03)
 - [x] Door module: rare hostage taker, a small exposed zone frees the hostage, a hit on the hostage is the full penalty (G04)
+- [x] Door module: occupant visibility follows the door, the panel swings out and the occupant hides once the closing panel covers it (G05)
 - [ ] Door module: Western dressing (saloon doors)
 - [ ] Door module: Zombie dressing
 - [x] Encounter module: data driven waves with time, kill and signal triggers run by a director (G02)
@@ -144,6 +145,11 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Night benchmark prepared: Bench.Suite night and tools/night_benchmark.ps1, not run (G03)
 - [x] Blockout materials: M_Surface and its instances in Core/Materials on floors, walls, doors, crates and posts (G03)
 - [x] Shared cyberpunk grade DA_Grade_Cyberpunk placed by ACyberGrade in the night door range, the rail level and the menu, with neon tubes, wet floors and volumetric fog; the day door range stays neutral (G04)
+- [x] Surface material M_Surface on six CC0 texture sets in Core/Textures, world aligned with a second rotated layer and a macro noise mask, on the door ranges, the rail level and the benchmark walls and bark (G05)
+- [x] External asset sources and licences recorded in docs/credits.md (G05)
+- [ ] Remove the unconnected G03 nodes and their Legacy parameters from M_Surface in the Material Editor by hand; deleting material expressions through MCP crashes the editor
+- [ ] Benchmark grass and leaves on a texture set, they keep BasicShapeMaterial colours; rerun the benchmark, the walls and bark now sample 4K and 2K sets
+- [ ] Door panels and frames as meshes with UVs, so the wood grain follows the panel instead of world aligned projection
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Environment art beyond blockout
