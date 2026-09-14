@@ -5,6 +5,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 ## Simulator Core
 
 - [ ] Ballistics model, camera and scenario agnostic
+- [x] Ballistics from weapon data: muzzle speed from energy and projectile mass, gravity drop on projectiles and by flight time on the rail hitscan, range falloff (G04)
 - [x] Fire control (trigger modes, refire, magazine) as weapon data (G04)
 - [ ] Hit scoring service shared by all scenarios (G02)
 - [x] One screen space aiming path from the crosshair for mouse, light gun and hardware (G03)
@@ -25,6 +26,12 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Zombie top down sub mode
 - [ ] Zombie target range sub mode
 - [ ] Olympic: precision, real physics, no time dilation
+- [ ] Target Shooting mode: precision, reaction time and target discrimination; the door range levels play it today
+- [ ] Tactical Training mode: scenarios with offenders, hostages and bystanders; the hostage taker and the disarm exist on the door range and the rail
+- [ ] Zombie mode as a finished scenario; Lvl_ZombieTest is a test arena with three composed waves
+- [ ] Bird Shooting mode: leading a moving target on a ballistic path
+- [ ] Laser Tag mode: match data, replays and rankings shared with real events
+- [ ] Play Together: local and online multiplayer, cooperative and competitive
 - [ ] Scenario selection screen in the style of arcade lightgun cabinets
 
 ## Modules
@@ -47,6 +54,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Rail reload in cover: entering cover starts it, leaving early leaves it unfinished (G04)
 - [x] Rail hostage taker set piece beat with rescue, hostage hit and escape outcomes (G04)
 - [ ] Rail branch selection beyond the first next segment
+- [ ] Flight range module: targets crossing on ballistic paths
 - [ ] Rail fail state when the rider goes down
 - [ ] Rail camera turns toward the action of a beat
 
@@ -57,7 +65,7 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Muzzle flash and impact sparks with short lived lights on the projectile weapons and the rail aim, tunable under Shot Feedback (G03)
 - [x] Pistol and scattergun with magazine, reload, empty click, switching and their own handling (G04)
 - [x] Impact decals on world surfaces (G04)
-- [x] Weapon data asset for damage and refire, the rail aim component still carries pistol values (G04)
+- [x] Weapon data asset for damage and refire, the rail aim component still carries pistol values (G04); since G04-B03 the rail aim reads the same weapon definitions
 - [x] 3R house mark printed on the pistol and the scattergun, beside the weapon name in the HUD and the pause menu loadout, and as stencil and neon dressing in the night range and on the rail crates (G04)
 - [x] One weapon actor driven by weapon definitions: single shot with a cycling action or semi auto, draw, recoil with recovery, accuracy cone with bloom, falloff, ballistics from muzzle energy and projectile mass (G04)
 - [x] Mount points as the contract for future models: grip, muzzle, magazine, optic and pressure gauge sockets with placeholder positions (G04)
@@ -81,7 +89,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Undead shambler and sprinter placeholders built from engine shapes (G02)
 - [x] Skeletal bodies on the mannequin for door occupants, shambler and sprinter, friend and foe told apart by posture, scale and material (G03)
 - [x] Leg hits stagger the undead and slow their approach (G04)
-- [ ] Player death and respawn on encounter levels
+- [x] Player death and respawn on encounter levels: the zombie test respawns the player after 3 s with the loadout, the rail rider gets back up after 3 s (G04)
+- [ ] Realistic character cast on MetaHuman (D-039 to D-042 reserved)
 - [ ] Mass Entity switch for crowd sized enemy counts
 - [ ] Undead standard horde
 - [ ] Undead bear (tank)
@@ -117,6 +126,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Clown horn signature
 - [ ] Torch hiss warning before detonation
 - [x] Door open and close sounds, placeholder engine noise (G02)
+- [ ] Material dependent impact sounds
+- [ ] Soundtrack
 
 ## Infrastructure
 
@@ -135,6 +146,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Shared cyberpunk grade DA_Grade_Cyberpunk placed by ACyberGrade in the night door range, the rail level and the menu, with neon tubes, wet floors and volumetric fog; the day door range stays neutral (G04)
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
+- [ ] Environment art beyond blockout
+- [x] Canonical remote git@github.com:cyb3rgun/thegame.git over SSH, the old repository kept as a fetch only backup (G04)
+- [x] README as the project front page with banner, kept current every season (G04)
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
