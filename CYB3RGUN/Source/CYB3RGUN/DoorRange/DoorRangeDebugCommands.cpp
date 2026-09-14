@@ -127,6 +127,29 @@ namespace DoorRangeDebug
 		return EDoorOccupant::Hostile;
 	}
 
+	/** The slot index from a Slot=<n> argument, or the plain number of a single argument; -1 without one */
+	int32 ParseSlotIndex(const TArray<FString>& Args)
+	{
+		for (const FString& Arg : Args)
+		{
+			if (Arg.StartsWith(TEXT("Slot="), ESearchCase::IgnoreCase))
+			{
+				return FCString::Atoi(*Arg.Mid(5));
+			}
+			if (Arg.IsNumeric())
+			{
+				return FCString::Atoi(*Arg);
+			}
+		}
+		return -1;
+	}
+
+	ADoorSlot* GetSlot(UWorld* World, int32 Index)
+	{
+		ADoorRangeGameMode* Range = GetRange(World);
+		return Range && Range->GetSlots().IsValidIndex(Index) ? Range->GetSlots()[Index].Get() : nullptr;
+	}
+
 	FFireOptions ParseOptions(const TArray<FString>& Args)
 	{
 		FFireOptions Options;
@@ -201,7 +224,7 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeAimCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GDoorRangeOpenCommand(
 	TEXT("DoorRange.Open"),
-	TEXT("Opens a free door right away with the given occupant, outside the wave's own roll. Argument: Hostile (default), Friendly or Taker."),
+	TEXT("Opens a free door right away with the given occupant, outside the wave's own roll. Arguments: Hostile (default), Friendly or Taker, and Slot=<n> to open that door."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		ADoorRangeGameMode* Range = DoorRangeDebug::GetRange(World);
@@ -213,10 +236,12 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeOpenCommand(
 		const UDoorRangeSettings* Cfg = Range->GetSettings();
 		const FDoorWaveSettings& Wave = Cfg->GetWave(FMath::Max(Range->GetCurrentWave(), 1));
 		const EDoorOccupant Occupant = DoorRangeDebug::ParseOccupant(Args);
+		const int32 WantedSlot = DoorRangeDebug::ParseSlotIndex(Args);
 
-		for (ADoorSlot* Slot : Range->GetSlots())
+		for (int32 Index = 0; Index < Range->GetSlots().Num(); ++Index)
 		{
-			if (Slot && Slot->IsAvailable())
+			ADoorSlot* Slot = Range->GetSlots()[Index];
+			if (Slot && Slot->IsAvailable() && (WantedSlot < 0 || WantedSlot == Index))
 			{
 				FDoorOpenParams Params;
 				Params.Occupant = Occupant;
@@ -232,6 +257,35 @@ static FAutoConsoleCommandWithWorldAndArgs GDoorRangeOpenCommand(
 			}
 		}
 		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Open: no free door"));
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GDoorRangeWatchCommand(
+	TEXT("DoorRange.Watch"),
+	TEXT("Turns the local player to look at a door, whatever it shows, for captures of its opening and closing. Argument: the slot index."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		ADoorSlot* Slot = DoorRangeDebug::GetSlot(World, DoorRangeDebug::ParseSlotIndex(Args));
+		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+		if (!Slot || !PC || !PC->GetPawn())
+		{
+			UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Watch: no such door or no player"));
+			return;
+		}
+		const FVector Point = Slot->GetActorLocation() + FVector(0.0f, 0.0f, 110.0f);
+		PC->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(PC->GetPawn()->GetPawnViewLocation(), Point));
+		UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Watch: looking at %s"), *Slot->GetName());
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GDoorRangeCloseCommand(
+	TEXT("DoorRange.Close"),
+	TEXT("Swings a door shut now, from wherever it is. Argument: the slot index."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		if (ADoorSlot* Slot = DoorRangeDebug::GetSlot(World, DoorRangeDebug::ParseSlotIndex(Args)))
+		{
+			Slot->ForceClose();
+			UE_LOG(LogDoorRangeDebug, Log, TEXT("DoorRange.Close: %s swings shut"), *Slot->GetName());
+		}
 	}));
 
 static FAutoConsoleCommandWithWorld GDoorRangeStatusCommand(

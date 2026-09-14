@@ -86,9 +86,14 @@ class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
 
 protected:
 
-	/** Yaw the panel swings to when fully open, positive swings away from the player side */
+	/** Yaw the panel swings to when fully open. The panel swings out towards the player, so its path never crosses the
+	 *  alcove the occupant stands in (D-076). */
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 10, ClampMax = 170, Units = "Degrees"))
 	float OpenAngle = 110.0f;
+
+	/** Sideways margin added to the occupant's reach before the closing panel counts as covering it */
+	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.0, Units = "cm"))
+	float OccupantCoverMargin = 6.0f;
 
 	/** Size of the hostile body against the mannequin, its physics asset scales with it */
 	UPROPERTY(EditAnywhere, Category="Door|Bodies", meta = (ClampMin = 0.5, ClampMax = 1.5))
@@ -156,6 +161,14 @@ protected:
 
 	/** Open fraction at the moment closing started, so an early close swings back from where it was */
 	float ClosingStartAlpha = 1.0f;
+
+	/** Open fraction at and below which the panel covers the whole occupant as seen from the front. The occupant shares the
+	 *  door's timeline (D-076): it is shown while the closed panel still covers it and hidden once the closing panel covers
+	 *  it again, so it never shows past the panel's edge and never pops into view. */
+	float OccupantCoverAlpha = 0.0f;
+
+	/** True while the occupant of the current opening is shown */
+	bool bOccupantShown = false;
 
 	/** Draw bonus fraction at the moment closing started, decays to zero with the panel */
 	float BonusAtCloseStart = 0.0f;
@@ -286,6 +299,9 @@ protected:
 	void ApplyPanelAlpha(float Alpha);
 	void ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Material);
 	void HideOccupant();
+
+	/** The open fraction at which the panel covers everything the shown occupant reaches, from its bounds in the slot's space */
+	float ComputeOccupantCoverAlpha() const;
 	void ApplyBodyScale();
 
 	/** Switches the bodies between shootable and not; a shootable body keeps its pose fresh off screen too */

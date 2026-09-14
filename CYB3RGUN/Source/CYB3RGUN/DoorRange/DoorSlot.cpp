@@ -742,6 +742,12 @@ void ADoorSlot::Tick(float DeltaSeconds)
 		const float CloseTime = FMath::Max(Params.CloseDuration * ClosingStartAlpha, 0.01f);
 		const float Alpha = ClosingStartAlpha * (1.0f - FMath::Clamp(StateElapsed / CloseTime, 0.0f, 1.0f));
 		ApplyPanelAlpha(Alpha);
+
+		// the occupant goes the moment the panel covers it, before the last part of the swing (D-076)
+		if (bOccupantShown && Alpha <= OccupantCoverAlpha)
+		{
+			HideOccupant();
+		}
 		if (StateElapsed >= CloseTime)
 		{
 			SetState(EDoorState::Closed);
@@ -793,6 +799,7 @@ void ADoorSlot::SetState(EDoorState NewState)
 		break;
 	case EDoorState::Closing:
 		ClosingStartAlpha = FMath::Max(PanelAlpha, 0.01f);
+		OccupantCoverAlpha = bOccupantShown ? ComputeOccupantCoverAlpha() : 0.0f;
 		break;
 	case EDoorState::Closed:
 	{
@@ -825,7 +832,46 @@ void ADoorSlot::SetState(EDoorState NewState)
 void ADoorSlot::ApplyPanelAlpha(float Alpha)
 {
 	PanelAlpha = Alpha;
-	Hinge->SetRelativeRotation(FRotator(0.0f, OpenAngle * Alpha, 0.0f));
+	// negative yaw turns the panel out of the door plane towards the player, the occupant stands behind that plane (D-076)
+	Hinge->SetRelativeRotation(FRotator(0.0f, -OpenAngle * Alpha, 0.0f));
+}
+
+float ADoorSlot::ComputeOccupantCoverAlpha() const
+{
+	// everything the occupant reaches, in the slot's own space: the panel covers a point from the front once its free edge
+	// has come round past the point's sideways position
+	const FTransform SlotSpace = GetActorTransform();
+	float FarSide = -TNumericLimits<float>::Max();
+	TInlineComponentArray<UPrimitiveComponent*> Parts;
+	GetComponents(Parts);
+	for (const UPrimitiveComponent* Part : Parts)
+	{
+		if (!Part || !Part->IsVisible() || !Part->IsAttachedTo(OccupantRoot))
+		{
+			continue;
+		}
+		const FBox Box = Part->Bounds.GetBox();
+		for (int32 Corner = 0; Corner < 8; ++Corner)
+		{
+			const FVector World((Corner & 1) ? Box.Max.X : Box.Min.X, (Corner & 2) ? Box.Max.Y : Box.Min.Y, (Corner & 4) ? Box.Max.Z : Box.Min.Z);
+			FarSide = FMath::Max(FarSide, static_cast<float>(SlotSpace.InverseTransformPosition(World).Y));
+		}
+	}
+	if (FarSide == -TNumericLimits<float>::Max())
+	{
+		return 0.0f;
+	}
+
+	// the panel is hinged at the hinge's side and as long as its scale says; a small margin covers the view not being exactly frontal
+	const float HingeSide = Hinge->GetRelativeLocation().Y;
+	const float PanelLength = DoorPanel->GetRelativeScale3D().Y * 100.0f;
+	const float Reach = (FarSide + OccupantCoverMargin - HingeSide) / FMath::Max(PanelLength, 1.0f);
+	if (Reach >= 1.0f)
+	{
+		return 0.0f;
+	}
+	const float CoverAngle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Reach, -1.0f, 1.0f)));
+	return FMath::Clamp(CoverAngle / FMath::Max(OpenAngle, 1.0f), 0.0f, 1.0f);
 }
 
 void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Material)
@@ -839,6 +885,8 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 	// a body that lost its character model since play began stands in as well (D-068)
 	FStandInBody::Ensure(HostileMesh, TEXT("the door range hostile"));
 	FStandInBody::Ensure(FriendlyMesh, TEXT("the door range friendly"));
+
+	bOccupantShown = true;
 
 	// the bodies can be shot from the moment they show; the pistol once its holder can shoot, see UpdateWeaponTarget
 	SetBodiesShootable(bHostile, bFriendly);
@@ -866,6 +914,7 @@ void ADoorSlot::HideOccupant()
 	FHitReactions::StopReactions(FriendlyMesh);
 	HostileMesh->SetVisibility(false, true);
 	FriendlyMesh->SetVisibility(false, true);
+	bOccupantShown = false;
 	bTipOver = false;
 	ApplyHitReaction(0.0f);
 	ApplyHostileLayout(false);
