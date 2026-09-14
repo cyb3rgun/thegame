@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. A rail set piece: a hostile machine holding a hostage in front of it.
 
 #include "HostageTaker.h"
+#include "StandInBody.h"
 #include "HitReactions.h"
 #include "HitZoneSettings.h"
 #include "TargetAnimInstance.h"
@@ -60,6 +61,7 @@ namespace HostageTakerParts
 			{
 				Body->SetMaterial(Index, Material);
 			}
+			FStandInBody::Paint(Body, Material);
 		}
 	}
 }
@@ -69,17 +71,15 @@ AHostageTaker::AHostageTaker()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> TakerBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HostageBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PistolMesh(TEXT("/Game/Weapons/Pistol/Meshes/SKM_Pistol.SKM_Pistol"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> AimAnim(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> IdleAnim(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> HitAnim(TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TakerLook(TEXT("/Game/CYB3RGUN/Enemies/Bodies/MI_Body_Hostile.MI_Body_Hostile"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HostageLook(TEXT("/Game/CYB3RGUN/Enemies/Bodies/MI_Body_Friendly.MI_Body_Friendly"));
-	TakerAimAnimation = AimAnim.Object;
-	HostageIdleAnimation = IdleAnim.Object;
-	HitAnimation = HitAnim.Object;
+	// character models and their animations may be absent with the closed tier, the bodies then stand in with primitives (D-068)
+	USkeletalMesh* const TakerBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	USkeletalMesh* const HostageBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TakerLook(TEXT("/Game/CYB3RGUN/Enemies/Materials/MI_Body_Hostile.MI_Body_Hostile"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HostageLook(TEXT("/Game/CYB3RGUN/Enemies/Materials/MI_Body_Friendly.MI_Body_Friendly"));
+	TakerAimAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
+	HostageIdleAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+	HitAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"));
 	TakerMaterial = TakerLook.Object;
 	HostageMaterial = HostageLook.Object;
 
@@ -92,7 +92,7 @@ AHostageTaker::AHostageTaker()
 	// the taker: pistol in the right hand. Shots land on its physics asset bodies, and on the pistol while it can shoot
 	TakerRoot = CreateDefaultSubobject<USceneComponent>(TEXT("TakerRoot"));
 	TakerRoot->SetupAttachment(Group);
-	TakerMesh = HostageTakerParts::MakeBody(this, TakerRoot, TEXT("TakerMesh"), TakerBodyMesh.Object, HostageTakerParts::ReferenceScale);
+	TakerMesh = HostageTakerParts::MakeBody(this, TakerRoot, TEXT("TakerMesh"), TakerBodyMesh, HostageTakerParts::ReferenceScale);
 	TakerWeapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TakerWeapon"));
 	TakerWeapon->SetupAttachment(TakerMesh, HostageTakerParts::WeaponSocket);
 	TakerWeapon->SetSkeletalMeshAsset(PistolMesh.Object);
@@ -101,7 +101,7 @@ AHostageTaker::AHostageTaker()
 	TakerWeapon->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 
 	// the hostage in front: the smaller mannequin, empty hands
-	HostageMesh = HostageTakerParts::MakeBody(this, Group, TEXT("HostageMesh"), HostageBodyMesh.Object, HostageTakerParts::HostageScale);
+	HostageMesh = HostageTakerParts::MakeBody(this, Group, TEXT("HostageMesh"), HostageBodyMesh, HostageTakerParts::HostageScale);
 
 	ApplyLayout();
 }
@@ -117,7 +117,7 @@ void AHostageTaker::OnConstruction(const FTransform& Transform)
 	// in the editor the pair stands where it ends up, so the set piece can be placed by eye
 	const bool bEditorPreview = GetWorld() && !GetWorld()->IsGameWorld();
 	TakerMesh->SetVisibility(bEditorPreview, true);
-	HostageMesh->SetVisibility(bEditorPreview);
+	HostageMesh->SetVisibility(bEditorPreview, true);
 }
 
 void AHostageTaker::BeginPlay()
@@ -142,6 +142,8 @@ void AHostageTaker::SetupTargets()
 		UTargetAnimInstance::Ensure(Body);
 		FHitReactions::SetupBodyTarget(Body);
 	}
+	FStandInBody::Ensure(TakerMesh, TEXT("the rail hostage taker"));
+	FStandInBody::Ensure(HostageMesh, TEXT("the rail hostage"));
 }
 
 void AHostageTaker::DisableStaleHitVolumes()
@@ -173,7 +175,7 @@ void AHostageTaker::SetShown(bool bShown)
 	FHitReactions::StopReactions(TakerMesh);
 	FHitReactions::StopReactions(HostageMesh);
 	TakerMesh->SetVisibility(bShown, true);
-	HostageMesh->SetVisibility(bShown);
+	HostageMesh->SetVisibility(bShown, true);
 	SetBodiesShootable(bShown);
 }
 
@@ -261,8 +263,11 @@ bool AHostageTaker::GetWeaponPoint(FVector& OutPoint) const
 	return FHitReactions::GetWeaponPoint(TakerWeapon, OutPoint);
 }
 
-bool AHostageTaker::NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy)
+bool AHostageTaker::NotifyShot(const FHitResult& InHit, const FVector& ShotDirection, AController* InstigatedBy)
 {
+	// a shot on a primitive stand in counts on the body it stands in for (D-068)
+	const FHitResult Hit = FStandInBody::Redirect(InHit);
+
 	UPrimitiveComponent* HitComponent = Hit.GetComponent();
 	if (!bActive || bResolved || !HitComponent)
 	{

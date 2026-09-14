@@ -3,6 +3,7 @@
 #include "DoorSlot.h"
 #include "HitReactions.h"
 #include "HitZoneSettings.h"
+#include "StandInBody.h"
 #include "TargetAnimInstance.h"
 #include "ThreatSubsystem.h"
 #include "StyleScoringComponent.h"
@@ -71,6 +72,7 @@ namespace DoorSlotParts
 			{
 				Body->SetMaterial(Index, Material);
 			}
+			FStandInBody::Paint(Body, Material);
 		}
 	}
 }
@@ -81,23 +83,20 @@ ADoorSlot::ADoorSlot()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HostileBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> FriendlyBodyMesh(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PistolMesh(TEXT("/Game/Weapons/Pistol/Meshes/SKM_Pistol.SKM_Pistol"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> DrawAnim(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Equip.MM_Pistol_Equip"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> AimAnim(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> IdleAnim(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> HitAnim(TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"));
+	// character models and their animations may be absent with the closed tier, the bodies then stand in with primitives (D-068)
+	USkeletalMesh* const HostileBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	USkeletalMesh* const FriendlyBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FrameLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Frame.MI_Door_Frame"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PanelLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Panel.MI_Door_Panel"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WallLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Wall_Alcove.MI_Wall_Alcove"));
 	FrameMaterial = FrameLook.Object;
 	PanelMaterial = PanelLook.Object;
 	WallMaterial = WallLook.Object;
-	HostileDrawAnimation = DrawAnim.Object;
-	HostileAimAnimation = AimAnim.Object;
-	FriendlyIdleAnimation = IdleAnim.Object;
-	HitAnimation = HitAnim.Object;
+	HostileDrawAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Equip.MM_Pistol_Equip"));
+	HostileAimAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
+	FriendlyIdleAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+	HitAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"));
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
@@ -127,7 +126,7 @@ ADoorSlot::ADoorSlot()
 
 	// Hostile: the taller mannequin with a pistol in the right hand. Shots land on its physics asset
 	// bodies, and on the pistol while it can shoot.
-	HostileMesh = DoorSlotParts::MakeBody(this, HostileRoot, TEXT("HostileMesh"), HostileBodyMesh.Object);
+	HostileMesh = DoorSlotParts::MakeBody(this, HostileRoot, TEXT("HostileMesh"), HostileBodyMesh);
 	HostileWeapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HostileWeapon"));
 	HostileWeapon->SetupAttachment(HostileMesh, DoorSlotParts::WeaponSocket);
 	HostileWeapon->SetSkeletalMeshAsset(PistolMesh.Object);
@@ -137,7 +136,7 @@ ADoorSlot::ADoorSlot()
 	HostileWeapon->SetVisibility(false);
 
 	// Friendly: the smaller mannequin, empty hands, at ease.
-	FriendlyMesh = DoorSlotParts::MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh.Object);
+	FriendlyMesh = DoorSlotParts::MakeBody(this, OccupantRoot, TEXT("FriendlyMesh"), FriendlyBodyMesh);
 
 	ApplyBodyScale();
 }
@@ -190,6 +189,8 @@ void ADoorSlot::SetupTargets()
 		UTargetAnimInstance::Ensure(Body);
 		FHitReactions::SetupBodyTarget(Body);
 	}
+	FStandInBody::Ensure(HostileMesh, TEXT("the door range hostile"));
+	FStandInBody::Ensure(FriendlyMesh, TEXT("the door range friendly"));
 }
 
 void ADoorSlot::DisableStaleHitVolumes()
@@ -535,8 +536,11 @@ bool ADoorSlot::GetOccupantWeaponPoint(FVector& OutPoint) const
 	return bArmed && FHitReactions::GetWeaponPoint(HostileWeapon, OutPoint);
 }
 
-bool ADoorSlot::NotifyShot(const FHitResult& Hit, const FVector& ShotDirection, AController* InstigatedBy)
+bool ADoorSlot::NotifyShot(const FHitResult& InHit, const FVector& ShotDirection, AController* InstigatedBy)
 {
+	// a shot on a primitive stand in counts on the body it stands in for (D-068)
+	const FHitResult Hit = FStandInBody::Redirect(InHit);
+
 	// only the occupant counts, hits on the frame or the panel are ignored
 	if (!IsOccupantComponent(Hit.GetComponent()))
 	{
@@ -832,11 +836,15 @@ void ADoorSlot::ShowOccupant(EDoorOccupant Occupant, UMaterialInterface* Materia
 
 	ApplyHostileLayout(bTaker);
 
+	// a body that lost its character model since play began stands in as well (D-068)
+	FStandInBody::Ensure(HostileMesh, TEXT("the door range hostile"));
+	FStandInBody::Ensure(FriendlyMesh, TEXT("the door range friendly"));
+
 	// the bodies can be shot from the moment they show; the pistol once its holder can shoot, see UpdateWeaponTarget
 	SetBodiesShootable(bHostile, bFriendly);
 
 	HostileMesh->SetVisibility(bHostile, true);
-	FriendlyMesh->SetVisibility(bFriendly);
+	FriendlyMesh->SetVisibility(bFriendly, true);
 
 	// a hostage taker wears the hostile look and its hostage the friendly one
 	if (bHostile)
@@ -857,7 +865,7 @@ void ADoorSlot::HideOccupant()
 	FHitReactions::StopReactions(HostileMesh);
 	FHitReactions::StopReactions(FriendlyMesh);
 	HostileMesh->SetVisibility(false, true);
-	FriendlyMesh->SetVisibility(false);
+	FriendlyMesh->SetVisibility(false, true);
 	bTipOver = false;
 	ApplyHitReaction(0.0f);
 	ApplyHostileLayout(false);

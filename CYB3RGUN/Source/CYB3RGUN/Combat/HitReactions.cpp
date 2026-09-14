@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. Hit reactions of target bodies, and the held weapon as a hit target of its own.
 
 #include "HitReactions.h"
+#include "StandInBody.h"
 #include "TargetAnimInstance.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -142,6 +143,7 @@ void FHitReactions::SetBodyShootable(USkeletalMeshComponent* Body, bool bShootab
 	if (Body)
 	{
 		Body->SetCollisionEnabled(bShootable ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+		FStandInBody::SetShootable(Body, bShootable);
 	}
 }
 
@@ -213,9 +215,16 @@ void FHitReactions::ResetWeapon(USkeletalMeshComponent* Weapon, USkeletalMeshCom
 	{
 		Weapon->SetSimulatePhysics(false);
 	}
-	if (Weapon->GetAttachParent() != Body || Weapon->GetAttachSocketName() != Socket)
+	// a body without its character model has no hand socket, the weapon goes to its stand in's hand (D-068)
+	const bool bStandIn = !Body->GetSkeletalMeshAsset();
+	const FName AttachSocket = bStandIn ? NAME_None : Socket;
+	if (Weapon->GetAttachParent() != Body || Weapon->GetAttachSocketName() != AttachSocket)
 	{
-		Weapon->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetIncludingScale, Socket);
+		Weapon->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetIncludingScale, AttachSocket);
+		if (bStandIn)
+		{
+			Weapon->SetRelativeTransform(FStandInBody::GetHandTransform());
+		}
 	}
 	SetWeaponShootable(Weapon, false);
 	Weapon->SetVisibility(Body->GetVisibleFlag());
@@ -251,6 +260,11 @@ bool FHitReactions::Grazes(USkeletalMeshComponent* Body, const FHitResult& Hit, 
 
 bool FHitReactions::GetBonePoint(const USkeletalMeshComponent* Body, FName Bone, FVector& OutPoint)
 {
+	// a body without its character model aims at its primitive stand in (D-068)
+	if (Body && !Body->GetSkeletalMeshAsset())
+	{
+		return FStandInBody::GetBonePoint(Body, Bone, OutPoint);
+	}
 	if (!Body || Bone.IsNone() || Body->GetBoneIndex(Bone) == INDEX_NONE)
 	{
 		return false;

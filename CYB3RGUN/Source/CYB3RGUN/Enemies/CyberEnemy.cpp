@@ -4,6 +4,7 @@
 #include "CyberEnemyController.h"
 #include "EnemyDefinition.h"
 #include "HitReactions.h"
+#include "StandInBody.h"
 #include "HitZoneSettings.h"
 #include "TargetAnimInstance.h"
 #include "StyleScoringComponent.h"
@@ -128,6 +129,8 @@ void ACyberEnemy::ApplyDefinition()
 	{
 		GetMesh()->SetVisibility(false);
 		BuildPlaceholder();
+		FStandInBody::ReportAbsent(FString::Printf(TEXT("enemy %s has no body model"), *GetNameSafe(Definition)),
+			FString::Printf(TEXT("its %d primitive parts"), Parts.Num()));
 	}
 	ApplyHitCollision();
 }
