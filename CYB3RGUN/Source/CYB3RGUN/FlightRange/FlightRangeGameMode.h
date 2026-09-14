@@ -125,7 +125,7 @@ public:
 	void SetSecondsLeft(float Seconds) { TimeLeft = FMath::Max(Seconds, 0.0f); }
 
 	//~ Begin IStyleScenario
-	virtual const UStyleSettings* GetStyleSettings() const override { return StyleSettings; }
+	virtual const UStyleSettings* GetStyleSettings() const override { return RoundStyle ? RoundStyle.Get() : StyleSettings.Get(); }
 	//~ End IStyleScenario
 
 	UPROPERTY(BlueprintAssignable, Category="Flight Range")
@@ -174,6 +174,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<ULogoCrosshairWidget> Crosshair;
 
+	/** The style values of the round: this scenario's or the project's, with Overclock locked, since slowed time would stretch the countdown */
+	UPROPERTY(Transient)
+	TObjectPtr<UStyleSettings> RoundStyle;
+
 	/** Copies of loadout weapons carrying this mode's magazine and reload */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWeaponDefinition>> RoundWeapons;
@@ -188,6 +192,7 @@ protected:
 	int32 LastBroadcastSeconds = -1;
 	FTimerHandle StartTimer;
 
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;

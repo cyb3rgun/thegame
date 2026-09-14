@@ -10,6 +10,7 @@
 #include "ShooterWeaponHolder.h"
 #include "StyleHUDWidget.h"
 #include "StyleScoringComponent.h"
+#include "StyleSettings.h"
 #include "WeaponDefinition.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
@@ -31,6 +32,18 @@ AFlightRangeGameMode::AFlightRangeGameMode()
 const UFlightRangeSettings* AFlightRangeGameMode::GetSettings() const
 {
 	return Settings ? Settings.Get() : GetDefault<UFlightRangeSettings>();
+}
+
+void AFlightRangeGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	// the countdown runs on game time, so Overclock's slowed world would lengthen the round: it is locked here through the
+	// style values' own switch, and everything else of the style system stays as the scenario or the project sets it
+	const UStyleSettings* Base = UStyleSettings::Get(this);
+	RoundStyle = DuplicateObject<UStyleSettings>(Base, this, TEXT("FlightRangeStyle"));
+	RoundStyle->bOverclockAllowed = false;
+	UE_LOG(LogFlightRange, Log, TEXT("Style values from %s, Overclock locked"), *GetNameSafe(Base));
 }
 
 void AFlightRangeGameMode::BeginPlay()
