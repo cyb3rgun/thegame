@@ -9,8 +9,15 @@ A shooting simulator with exchangeable scenarios, built in Unreal Engine 5.8. Co
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 ![Language](https://img.shields.io/badge/code-C%2B%2B%20%2F%20Blueprint-blue.svg)
 ![Status](https://img.shields.io/badge/status-in%20development-orange.svg)
-![Rating](https://img.shields.io/badge/target%20rating-18%2B-red.svg)
+![Age](https://img.shields.io/badge/age-18%2B%20only-red.svg)
+![Licence](https://img.shields.io/badge/licence-source%20available-yellow.svg)
+![Release](https://img.shields.io/badge/release-no%20binary%20release-critical.svg)
 ![Website](https://img.shields.io/badge/web-cyb3rgun.com-009FE3.svg)
+
+> [!IMPORTANT]
+> **For adults only.** This product is not suitable for anyone under 18 and is developed with an 18+ classification as its target.
+>
+> **No finished release is published, and none ever will be.** There is no download, no installer and no binary. Whoever wants to run it compiles, configures, sets up and administers it themselves.
 
 ---
 
@@ -24,13 +31,24 @@ Shoot. Train. Improve.
 
 ---
 
+## What This Repository Is
+
+This repository is **source available, not open source.** The code can be read, compiled and run for personal, non commercial evaluation under the terms in [LICENSE](LICENSE). It grants no right to redistribute the code or anything derived from it, which is exactly what the term open source would promise, so it is not used here.
+
+- **No release.** No download, no installer, no binary, now or later. The distribution is the source itself.
+- **Build it yourself.** Whoever wants to run it compiles, configures, sets up and administers it on their own machine. The steps are under [Development](#development).
+- **No finished content.** The repository contains no character models, no finished environments, no AI personalities and no depiction of violence. What runs from it is the simulator on primitive placeholder geometry: shapes stand in wherever a character would be, and the game says so in its log.
+- **Two content tiers.** Code, documentation, configuration, brand files and placeholder geometry are here. Characters, environments, enemy models, AI personalities, the soundtrack and licensed assets are a separate, closed tier. See [Content Tiers](#content-tiers).
+
+---
+
 ## The Law
 
 **NO TRIGGER, NO SHOT.**
 
 The machine calculates everything around the shot. Wind, range, drop, the exact moment. It never takes the shot. The hand decides, always. The same rule that governs the hardware governs the game, and it is not a warning screen but the scoring system itself.
 
-Targets are armed offenders, machines or the undead. Never innocents. Hitting a hostage or a bystander is the most expensive mistake in the game, and removing a threat without killing it is the most valuable achievement.
+Targets are armed offenders, machines or the undead. Never bystanders, never hostages. The rule protects the innocent, not the species: a law enforcement scenario without human offenders would not be one. Hitting a hostage or a bystander is the most expensive mistake in the game, and removing a threat without killing it is the most valuable achievement.
 
 | Action | Score | Effect |
 | --- | --- | --- |
@@ -353,6 +371,21 @@ thegame/
 
 ---
 
+## Content Tiers
+
+The content is split into an open tier, which is this repository, and a closed tier that never enters its git history.
+
+| Tier | Contains | Where |
+| --- | --- | --- |
+| **Open** | All source code, documentation, configuration and tools; brand files; data assets for weapons, enemies, encounters, scenarios, style and feel; blockout materials, effects and the primitive placeholder levels | `CYB3RGUN/Source`, `CYB3RGUN/Config`, `docs`, `tools`, `media`, and under `CYB3RGUN/Content/CYB3RGUN`: `Core`, `UI`, `VFX`, `Weapons`, `Scenarios`, `Maps` and `Enemies` without `Bodies` |
+| **Closed** | Characters, finished environments, enemy models, AI personalities, the soundtrack and any purchased or licensed asset | Under `CYB3RGUN/Content/CYB3RGUN`: `Characters`, `Enemies/Bodies`, `Environments`, `Audio`, `Personalities`, `Licensed`; and the engine's default import folders `Fab`, `Megascans` and `MetaHumans` |
+
+The closed tier is available only under a rental and server agreement with IT and More Systems.
+
+The open tier builds and runs on its own. Where closed content is missing, the game stands in with primitives, writes one clear line to the log and carries on; it never crashes and never blocks startup. The closed paths are ignored by git, and `tools/check_tiers.ps1` fails if any of them is ever tracked or staged. The full split with the reasons is in [docs/content-tiers.md](docs/content-tiers.md).
+
+---
+
 ## Status
 
 | Component | Status |
@@ -441,6 +474,8 @@ The editor is driven through the official Model Context Protocol plugin, which l
 | Resource | Link |
 | --- | --- |
 | Game concept, the living reference | [docs/game-concept.md](docs/game-concept.md) |
+| Open and closed content tiers | [docs/content-tiers.md](docs/content-tiers.md) |
+| Licence terms | [LICENSE](LICENSE) |
 | Architectural decisions with rationale | [docs/decisions.md](docs/decisions.md) |
 | Seasons and their goals | [docs/seasons.md](docs/seasons.md) |
 | Build backlog | [docs/backlog.md](docs/backlog.md) |
@@ -452,9 +487,15 @@ The editor is driven through the official Model Context Protocol plugin, which l
 
 ## License
 
-Proprietary. Copyright 2026 Sascha Daemgen, IT and More Systems. All rights reserved.
+Source available, not open source. Copyright 2026 Sascha Daemgen, IT and More Systems, Recklinghausen, Germany. All rights reserved.
 
-No part of this repository may be copied, distributed, published or used without written permission. This includes source code, assets, documentation and design material.
+- The source code may be viewed, compiled and run for personal, non commercial evaluation.
+- Redistribution of the source code or any derivative, in whole or in part, is not permitted without written permission.
+- Commercial use of any kind requires a written agreement.
+- The closed tier content is not covered by this licence and is licensed separately.
+- No warranty of any kind.
+
+The binding text is [LICENSE](LICENSE).
 
 ---
 
@@ -462,7 +503,13 @@ No part of this repository may be copied, distributed, published or used without
 
 All weapons, manufacturers, locations and organisations in this game are fictional. Any resemblance to real products, brands or trademarks is coincidental and unlicensed. No manufacturer endorses, sponsors or is affiliated with this project.
 
-Targets in this game are armed offenders, machines or fictional creatures. The product is made for an adult audience and is developed with an 18+ rating as its target classification.
+Targets in this game are armed offenders, machines or the undead. Never bystanders, never hostages.
+
+The product is made for adults. It is not suitable for anyone under 18 and is developed with an 18+ classification as its target.
+
+No finished release of this product is published, and none ever will be. Anyone who builds and runs it from this repository does so on their own responsibility, on their own machine, under the terms in [LICENSE](LICENSE).
+
+This repository contains no character models, no finished environments, no AI personalities and no depiction of violence. It is source available, not open source. Closed tier content is licensed separately and is not part of this repository.
 
 ---
 
