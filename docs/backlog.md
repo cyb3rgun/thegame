@@ -149,6 +149,15 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Environment art beyond blockout
 - [x] Canonical remote git@github.com:cyb3rgun/thegame.git over SSH, the old repository kept as a fetch only backup (G04)
 - [x] README as the project front page with banner, kept current every season (G04)
+- [x] README positioning: adults only and no release above the fold, source available and no binary release badges, what the repository is, content tiers, licence and legal notice (G04)
+- [x] Source available licence in LICENSE, pending a lawyer's review (G04)
+- [x] Content tiers defined in docs/content-tiers.md, closed paths ignored by git, tools/check_tiers.ps1 fails on tracked or staged closed content (G04)
+- [x] Open tier runs without the closed tier: door range occupants and the rail hostage taker stand in with primitives, one LogClosedContent line per kind (G04)
+- [x] Body look materials moved from Enemies/Bodies to Enemies/Materials, leaving Bodies to the closed tier (G04)
+- [ ] Closed tier repository: private repository with the closed paths, laid over an open tier checkout
+- [ ] Lawyer's review of LICENSE
+- [ ] Epic template content: check the redistribution terms of the committed template folders
+- [ ] Body look materials without template parents, so the stand ins keep their colours without the template mannequin materials
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
 - [ ] USB HID controller input from the real CYB3RGUN
 - [ ] IMU aiming input from the real CYB3RGUN
