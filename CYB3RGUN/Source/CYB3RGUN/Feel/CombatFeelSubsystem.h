@@ -110,6 +110,9 @@ protected:
 	float OverclockCharge = 0.0f;
 	float OverclockBlend = 0.0f;
 	float PlayerTimeScale = 1.0f;
+
+	/** World time dilation this subsystem last set */
+	float AppliedWorldDilation = 1.0f;
 	bool bOverclockHeld = false;
 	bool bOverclockActive = false;
 	double LastTickWallSeconds = 0.0;

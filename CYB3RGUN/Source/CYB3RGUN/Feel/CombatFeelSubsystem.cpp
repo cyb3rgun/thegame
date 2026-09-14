@@ -299,9 +299,11 @@ void UCombatFeelSubsystem::ApplyTime(float RealDelta)
 		UE_LOG(LogCombatFeel, Verbose, TEXT("Hit stop held the world for %.0f ms"), (Now - HitStopStarted) * 1000.0);
 	}
 
-	if (!FMath::IsNearlyEqual(WorldSettings->TimeDilation, WorldDilation, 0.0001f))
+	// the world's time is only set when the feel changes it, so a slomo from the console stands while nothing runs
+	if (!FMath::IsNearlyEqual(AppliedWorldDilation, WorldDilation, 0.0001f))
 	{
 		UGameplayStatics::SetGlobalTimeDilation(GetWorld(), WorldDilation);
+		AppliedWorldDilation = WorldDilation;
 	}
 
 	// the player's pawn runs at the player scale: its own dilation undoes the world's
