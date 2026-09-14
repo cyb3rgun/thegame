@@ -2,6 +2,22 @@
 
 Numbered newest first.
 
+## D-073 The age classification is a product fact
+
+The age classification is a product fact, stated once in the legal section of the README.
+
+## D-072 The README is a product page
+
+The README is a product page. Restrictions, warnings and legal statements appear exactly once, at the bottom, in a short legal section. They never appear in the banner area, in the badges, in the introduction or as a warning box, and no red or critical colouring is used anywhere.
+
+## D-071 Game content is licensed separately from the code
+
+Game content is licensed separately from the code, in its own file, LICENSE-CONTENT.md. Code and content are different copyrights, so the split needs no restriction inside the code licence.
+
+## D-070 The code is licensed under the Business Source License 1.1
+
+The code is licensed under the Business Source License 1.1, with a Change Date of four years and GPL-3.0 as the Change License. This supersedes D-066 and the source available positioning. The business model is service, content and shop, not the code. Anyone may install, configure, modify and operate the software for their own business, including commercially and including paying guests at their own premises; only offering it to third parties as a service or reselling it requires an agreement. AGPL was considered and rejected because it permits resale, which is exactly what must not be permitted. Apache was considered and rejected because it permits a competitor to offer the same service. GPL-3.0 is the Change License because the BSL covenants require compatibility with GPL-2.0 or later, which Apache-2.0 does not satisfy.
+
 ## D-069 Closed content never enters git history
 
 Closed tier content never enters git history. The ignore rule is in place before the assets arrive, and it is enforced by a check script, tools/check_tiers.ps1, not by discipline. An ignore rule never removes what is already committed, so the split has to exist first.
@@ -14,17 +30,25 @@ The open tier must build and run on its own. Missing closed content degrades to 
 
 The open tier is code, documentation, configuration, brand files and primitive placeholder geometry. The closed tier is characters, finished environments, enemy models, AI personalities, soundtrack and any purchased or licensed asset, available only under a rental and server agreement. The paths of each tier are in docs/content-tiers.md.
 
+**Partly superseded by D-071 (G04-B06).** The folder split stands. Game content is licensed under LICENSE-CONTENT.md and is available through the shop and through service agreements.
+
 ## D-066 Source available, not open source
 
 The correct term is source available, not open source. Open source implies a right to redistribute, which is not granted, and the wrong term invites criticism the project does not need.
+
+**Superseded by D-070 (G04-B06).** The code is licensed under the Business Source License 1.1.
 
 ## D-065 No binary release is ever published
 
 No binary release will ever be published. Anyone who wants to run the product compiles, configures, sets up and administers it themselves. This is a deliberate distribution decision, not a limitation.
 
+**Superseded by D-070 and D-071 (G04-B06).** The code is published under the Business Source License 1.1, and models, content packs, plugins and updates are available in the shop.
+
 ## D-064 The product is for adults
 
 The product is for adults: not suitable for anyone under 18, developed with an 18+ classification as its target. This is visible at the top of the README, not buried in a legal section.
+
+**Partly superseded by D-072 and D-073 (G04-B06).** The 18+ classification stands; it is stated once, in the legal section at the bottom of the README.
 
 ## D-063 Targets are armed offenders, machines or the undead
 
