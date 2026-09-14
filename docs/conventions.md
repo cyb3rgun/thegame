@@ -27,3 +27,7 @@ Shared textures live in `Content/CYB3RGUN/Core/Textures`, beside the materials i
 Template content stays where the template put it. It is not moved or renamed.
 
 C++ stays in `Source/CYB3RGUN`.
+
+## Commits
+
+Every commit builds on its own, not only the pushed head. When a planned split would leave a commit that cannot compile without the next one, the pieces go into one commit. Pushed history is not rewritten.
