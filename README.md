@@ -8,16 +8,9 @@ A shooting simulator with exchangeable scenarios, built in Unreal Engine 5.8. Co
 ![Engine](https://img.shields.io/badge/engine-Unreal%205.8-lightgrey.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 ![Language](https://img.shields.io/badge/code-C%2B%2B%20%2F%20Blueprint-blue.svg)
-![Status](https://img.shields.io/badge/status-in%20development-orange.svg)
-![Age](https://img.shields.io/badge/age-18%2B%20only-red.svg)
-![Licence](https://img.shields.io/badge/licence-source%20available-yellow.svg)
-![Release](https://img.shields.io/badge/release-no%20binary%20release-critical.svg)
+![Status](https://img.shields.io/badge/status-in%20development-blue.svg)
+![Licence](https://img.shields.io/badge/licence-BSL%201.1-blue.svg)
 ![Website](https://img.shields.io/badge/web-cyb3rgun.com-009FE3.svg)
-
-> [!IMPORTANT]
-> **For adults only.** This product is not suitable for anyone under 18 and is developed with an 18+ classification as its target.
->
-> **No finished release is published, and none ever will be.** There is no download, no installer and no binary. Whoever wants to run it compiles, configures, sets up and administers it themselves.
 
 ---
 
@@ -25,20 +18,9 @@ CYB3RGUN is a shooting simulator first and an arcade shooter second. The core is
 
 The software exists alongside real hardware. The same trigger modes, the same assist logic and the same law govern both, so what a player learns on screen transfers to the device in their hands. The long term goal is one product in two forms: a simulator that runs anywhere, and a physical weapon that plugs into it.
 
-Built as a system, not as a single game. Every module, weapon, enemy and scenario is a data asset. Adding content is content work, not a rewrite. That is the reason a new game mode takes days instead of months.
+Built as a system. Every module, weapon, enemy and scenario is a data asset, so new content is content work, and a new game mode takes days instead of months.
 
 Shoot. Train. Improve.
-
----
-
-## What This Repository Is
-
-This repository is **source available, not open source.** The code can be read, compiled and run for personal, non commercial evaluation under the terms in [LICENSE](LICENSE). It grants no right to redistribute the code or anything derived from it, which is exactly what the term open source would promise, so it is not used here.
-
-- **No release.** No download, no installer, no binary, now or later. The distribution is the source itself.
-- **Build it yourself.** Whoever wants to run it compiles, configures, sets up and administers it on their own machine. The steps are under [Development](#development).
-- **No finished content.** The repository contains no character models, no finished environments, no AI personalities and no depiction of violence. What runs from it is the simulator on primitive placeholder geometry: shapes stand in wherever a character would be, and the game says so in its log.
-- **Two content tiers.** Code, documentation, configuration, brand files and placeholder geometry are here. Characters, environments, enemy models, AI personalities, the soundtrack and licensed assets are a separate, closed tier. See [Content Tiers](#content-tiers).
 
 ---
 
@@ -46,9 +28,9 @@ This repository is **source available, not open source.** The code can be read, 
 
 **NO TRIGGER, NO SHOT.**
 
-The machine calculates everything around the shot. Wind, range, drop, the exact moment. It never takes the shot. The hand decides, always. The same rule that governs the hardware governs the game, and it is not a warning screen but the scoring system itself.
+The machine calculates everything around the shot: wind, range, drop, the exact moment. The hand takes the shot, always. The same rule governs the hardware and the game, and in the game it is the scoring system itself.
 
-Targets are armed offenders, machines or the undead. Never bystanders, never hostages. The rule protects the innocent, not the species: a law enforcement scenario without human offenders would not be one. Hitting a hostage or a bystander is the most expensive mistake in the game, and removing a threat without killing it is the most valuable achievement.
+Targets are armed offenders, machines or the undead. Bystanders and hostages are protected: the rule protects the innocent, which is why tactical scenarios have human offenders to face. Hitting a hostage or a bystander is the most expensive mistake in the game, and removing a threat without killing it is the most valuable achievement.
 
 | Action | Score | Effect |
 | --- | --- | --- |
@@ -65,7 +47,7 @@ Targets are armed offenders, machines or the undead. Never bystanders, never hos
 | **Bystander hit** | -300 | Full penalty, the same as a hostage hit. |
 | **Hostage hit** | -300 | Meter collapses to zero, combo resets, Overclock empties. |
 
-Every award is multiplied by the combo multiplier, which starts at x1.0 and rises by 0.5 for every three kills or disarms in the combo, up to x4.0. Misses and penalties are never multiplied. A clean run is worth several times a messy one with the same number of kills.
+Every award is multiplied by the combo multiplier, which starts at x1.0 and rises by 0.5 for every three kills or disarms in the combo, up to x4.0. Misses and penalties count at face value. A clean run is worth several times a messy one with the same number of kills.
 
 The door range also keeps its own range score beside the style score: a drawn hostile that escapes costs 50 there, and a hit on a friendly or a hostage costs 150.
 
@@ -90,7 +72,7 @@ A module is a reusable game mechanic. A scenario is the dressing around it. The 
 
 ### Door Range
 
-Twelve doors arranged in a circle around the player, two to four of them in play at a time depending on the preset and the wave. A door opens, an occupant appears, and the player has a fraction of a second to decide. An armed offender is a target. A friendly or a hostage is not.
+Twelve doors arranged in a circle around the player, two to four of them in play at a time depending on the preset and the wave. A door opens, an occupant appears, and the player has a fraction of a second to decide. An armed offender is a target. Friendlies and hostages are protected.
 
 - **Draw bonus.** Waiting until the target actually commits scores higher than firing at the first sight of movement. The bonus decays as the door swings shut, so a late shot is worth less than a timed one.
 - **Telegraph.** Hostiles announce themselves before they become shootable, so the bonus is earnable rather than a reflex lottery.
@@ -107,7 +89,7 @@ A person needs roughly 0.7 to 1.0 seconds to turn to a door and fire. Training l
 
 ### Rail
 
-The camera follows a spline route. The player controls aiming, not movement. This is the arcade light gun tradition, rebuilt with modern rendering and honest ballistics.
+The camera follows a spline route. The player aims while the route carries them. This is the arcade light gun tradition, rebuilt with modern rendering and honest ballistics.
 
 - **Beats.** Encounters trigger at distances along the route, not at hand placed volumes. A beat can hold the ride until it is cleared.
 - **Cover.** Taking cover pauses the ride, blocks incoming fire, refuses outgoing fire and starts the reload. Leaving cover early leaves the magazine unfinished.
@@ -130,7 +112,7 @@ The core knows nothing about cameras, scenarios or input devices. It resolves sh
 
 ### Aiming
 
-All aiming resolves through a single screen space path: the crosshair position is projected into the world, and that point is what every shot is aimed at. On the rail the shot is traced from the crosshair itself; the first person weapons fly their projectile toward the same point. The muzzle never chooses where a shot goes. This is a deliberate architectural decision, because it means mouse, gamepad, a light gun replacement and the planned CYB3RGUN device with gyro aiming all feed the same code.
+All aiming resolves through a single screen space path: the crosshair position is projected into the world, and that point is what every shot is aimed at. On the rail the shot is traced from the crosshair itself; the first person weapons fly their projectile toward the same point. The crosshair decides where a shot goes. This is a deliberate architectural decision, because it means mouse, gamepad, a light gun replacement and the planned CYB3RGUN device with gyro aiming all feed the same code.
 
 ### Hit Zones
 
@@ -147,7 +129,7 @@ A shot resolves against the bone it hits, not against a capsule. Every zone has 
 
 The leg effect is measured, not cosmetic: a shambler's walking speed drops from 130 to zero for the 0.7 second stagger, runs at 55 per cent until three seconds after the hit, then recovers fully. A target on the door range falls instead.
 
-A disarm requires a real projectile or trace on the weapon or the weapon arm, and the holder must still be able to shoot. Explosions never disarm. In practice the weapon itself is the reachable target, because a two handed aiming stance puts the off hand in front of the gun arm.
+A disarm takes a direct projectile or trace on the weapon or the weapon arm while the holder can still shoot; only direct hits disarm. In practice the weapon itself is the reachable target, because a two handed aiming stance puts the off hand in front of the gun arm.
 
 ### Style Scoring
 
@@ -155,7 +137,7 @@ Every resolved action feeds one system. The meter rises with clean work and coll
 
 | Rank | Meter | Meaning |
 | --- | --- | --- |
-| **COLD** | 0 | Nothing is happening. |
+| **COLD** | 0 | The meter is empty. |
 | **STEADY** | 20 | Clean work has started to count. |
 | **SHARP** | 45 | Accurate work, kept up. |
 | **CLEAN** | 70 | Consistent work, no mistakes. |
@@ -199,7 +181,7 @@ All weapon names, manufacturers and models in this game are fictional.
 
 ### The Pressure Model
 
-Pre charged pneumatic weapons do not carry a magazine. They carry compressed air, and the air is the ammunition. This is a real mechanic rather than a reskinned round counter, and it changes how the weapon is played.
+Pre charged pneumatic weapons carry compressed air instead of a magazine, and the air is the ammunition. This is a real mechanic rather than a reskinned round counter, and it changes how the weapon is played.
 
 | Property | Behaviour |
 | --- | --- |
@@ -215,7 +197,7 @@ A full reservoir is worth more than a topped up one, and the last shots in a fil
 
 ## Feel
 
-Feel is tuned through measured values in a data asset, never through constants scattered across the code.
+Feel is tuned through measured values in one data asset, so it changes without a rebuild.
 
 | Element | Value |
 | --- | --- |
@@ -245,7 +227,7 @@ The crosshair is the brand. The ring is the reticle, the arc around it is the ga
 
 ## Graphics
 
-Six presets, and every heavy feature is individually switchable on top of them. Nothing is withheld because it is expensive; the player decides.
+Six presets, and every heavy feature is individually switchable on top of them. Every feature is available, and the player decides what it is worth.
 
 | Preset | Scalability | Global illumination | Shadows | Anti aliasing | Nanite |
 | --- | --- | --- | --- | --- | --- |
@@ -269,7 +251,7 @@ Measured on an RTX 3090 at 5120 x 1440, each feature measured between two baseli
 
 Findings worth recording: global illumination is nearly free here, because Lumen replaces two ambient occlusion passes that the off setting still pays for. Native anti aliasing costs 6.5 ms more than the quality upscaler at this resolution. Nanite is gated behind virtual shadow maps after a reproducible renderer crash without them.
 
-Benchmarks run as a dedicated night pass, never during a working session.
+Benchmarks run as a dedicated night pass.
 
 ---
 
@@ -328,7 +310,7 @@ Four rules hold the structure together:
 
 1. **Data over code.** Weapons, enemies, encounters, hit zones, difficulty and feel are data assets. Code defines behaviour, data defines content.
 2. **One aiming path.** Every input device resolves to a screen position and from there into the world.
-3. **Modules are scenario agnostic.** A module never knows which scenario it is dressed as.
+3. **Modules are scenario agnostic.** A module works the same in every scenario that dresses it.
 4. **Decisions are recorded.** Every architectural choice is written down with its reason, so it can be revisited rather than rediscovered.
 
 ---
@@ -368,21 +350,6 @@ thegame/
 +-- tools/                      # Benchmark and maintenance scripts
 +-- .github/assets/             # Repository presentation
 ```
-
----
-
-## Content Tiers
-
-The content is split into an open tier, which is this repository, and a closed tier that never enters its git history.
-
-| Tier | Contains | Where |
-| --- | --- | --- |
-| **Open** | All source code, documentation, configuration and tools; brand files; data assets for weapons, enemies, encounters, scenarios, style and feel; blockout materials, effects and the primitive placeholder levels | `CYB3RGUN/Source`, `CYB3RGUN/Config`, `docs`, `tools`, `media`, and under `CYB3RGUN/Content/CYB3RGUN`: `Core`, `UI`, `VFX`, `Weapons`, `Scenarios`, `Maps` and `Enemies` without `Bodies` |
-| **Closed** | Characters, finished environments, enemy models, AI personalities, the soundtrack and any purchased or licensed asset | Under `CYB3RGUN/Content/CYB3RGUN`: `Characters`, `Enemies/Bodies`, `Environments`, `Audio`, `Personalities`, `Licensed`; and the engine's default import folders `Fab`, `Megascans` and `MetaHumans` |
-
-The closed tier is available only under a rental and server agreement with IT and More Systems.
-
-The open tier builds and runs on its own. Where closed content is missing, the game stands in with primitives, writes one clear line to the log and carries on; it never crashes and never blocks startup. The closed paths are ignored by git, and `tools/check_tiers.ps1` fails if any of them is ever tracked or staged. The full split with the reasons is in [docs/content-tiers.md](docs/content-tiers.md).
 
 ---
 
@@ -443,7 +410,7 @@ git lfs pull
 
 **4. Open**
 
-Open `CYB3RGUN.uproject` directly by double clicking it. Do not start the editor through the launcher without a project path. The engine then resolves the project after computing its binary paths and reports a false compile error.
+Open `CYB3RGUN.uproject` directly by double clicking it, or pass its path to the editor. Started from the launcher without a project path, the engine resolves the project after computing its binary paths and reports a false compile error.
 
 **Hard won notes**
 
@@ -461,11 +428,11 @@ Development runs in seasons. A season has a goal that fits in one sentence, ends
 
 Three rules have earned their place:
 
-- **Decisions are recorded with their reason.** The decision log is numbered and never rewritten, so a choice can be revisited instead of rediscovered.
-- **Bugs are fixed forward.** Nothing is reverted.
-- **Measurements beat opinions.** No performance claim enters the project without a number behind it, taken on real hardware.
+- **Decisions are recorded with their reason.** The decision log is numbered and only grows, so a choice can be revisited instead of rediscovered.
+- **Bugs are fixed forward.**
+- **Measurements beat opinions.** Every performance claim carries a number, taken on real hardware.
 
-The editor is driven through the official Model Context Protocol plugin, which lets tooling place actors, inspect the running game and capture evidence directly. Verification happens in play, not on paper.
+The editor is driven through the official Model Context Protocol plugin, which lets tooling place actors, inspect the running game and capture evidence directly. Verification happens in play.
 
 ---
 
@@ -474,8 +441,10 @@ The editor is driven through the official Model Context Protocol plugin, which l
 | Resource | Link |
 | --- | --- |
 | Game concept, the living reference | [docs/game-concept.md](docs/game-concept.md) |
-| Open and closed content tiers | [docs/content-tiers.md](docs/content-tiers.md) |
-| Licence terms | [LICENSE](LICENSE) |
+| Code and content licensing split | [docs/content-tiers.md](docs/content-tiers.md) |
+| Code licence, Business Source License 1.1 | [LICENSE](LICENSE) |
+| Game content licence | [LICENSE-CONTENT.md](LICENSE-CONTENT.md) |
+| Third party material | [LICENSE-THIRD-PARTY.md](LICENSE-THIRD-PARTY.md) |
 | Architectural decisions with rationale | [docs/decisions.md](docs/decisions.md) |
 | Seasons and their goals | [docs/seasons.md](docs/seasons.md) |
 | Build backlog | [docs/backlog.md](docs/backlog.md) |
@@ -485,31 +454,38 @@ The editor is driven through the official Model Context Protocol plugin, which l
 
 ---
 
-## License
+## Licensing
 
-Source available, not open source. Copyright 2026 Sascha Daemgen, IT and More Systems, Recklinghausen, Germany. All rights reserved.
+The code is published under the [Business Source License 1.1](LICENSE). You may install it, configure it, change it and run it, including in your own commercial operation and for your own guests at your own premises. Four years after each release, that version becomes available under GPL-3.0.
 
-- The source code may be viewed, compiled and run for personal, non commercial evaluation.
-- Redistribution of the source code or any derivative, in whole or in part, is not permitted without written permission.
-- Commercial use of any kind requires a written agreement.
-- The closed tier content is not covered by this licence and is licensed separately.
-- No warranty of any kind.
+The source code is here. Models, content packs, plugins and updates are available in the shop.
 
-The binding text is [LICENSE](LICENSE).
+Offering the software to third parties as a service, or reselling it, is what a commercial agreement covers. Game content, including models, environments and the soundtrack, is available through the shop and through service agreements under its own [content licence](LICENSE-CONTENT.md).
+
+The folders that hold code and those that hold game content are listed in [docs/content-tiers.md](docs/content-tiers.md).
+
+---
+
+## Support and Services
+
+IT and More Systems offers the services around running CYB3RGUN:
+
+| Service | What it covers |
+| --- | --- |
+| **Installation** | Setting up the simulator on your hardware |
+| **Configuration** | Scenarios, difficulty, graphics and input set up for your space |
+| **Custom scenarios** | Scenarios built for your venue, your training or your event |
+| **Content packs** | Characters, environments, enemies and soundtrack |
+| **Updates** | New versions of the simulator and the content |
+| **Operation** | Running the simulator for you |
+
+Enquiries through [cyb3rgun.com](https://cyb3rgun.com).
 
 ---
 
 ## Legal Notice
 
-All weapons, manufacturers, locations and organisations in this game are fictional. Any resemblance to real products, brands or trademarks is coincidental and unlicensed. No manufacturer endorses, sponsors or is affiliated with this project.
-
-Targets in this game are armed offenders, machines or the undead. Never bystanders, never hostages.
-
-The product is made for adults. It is not suitable for anyone under 18 and is developed with an 18+ classification as its target.
-
-No finished release of this product is published, and none ever will be. Anyone who builds and runs it from this repository does so on their own responsibility, on their own machine, under the terms in [LICENSE](LICENSE).
-
-This repository contains no character models, no finished environments, no AI personalities and no depiction of violence. It is source available, not open source. Closed tier content is licensed separately and is not part of this repository.
+All weapons and manufacturers in this game are fictional. CYB3RGUN is developed for an 18+ age classification. The code is licensed under [LICENSE](LICENSE), game content under [LICENSE-CONTENT.md](LICENSE-CONTENT.md), and third party material, including Epic's Unreal Engine content, under the terms listed in [LICENSE-THIRD-PARTY.md](LICENSE-THIRD-PARTY.md).
 
 ---
 
