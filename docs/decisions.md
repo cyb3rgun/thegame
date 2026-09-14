@@ -2,6 +2,18 @@
 
 Numbered newest first.
 
+## D-076 Door and occupant share one timeline
+
+A door and its occupant run on one timeline: the occupant is visible only where the door leaves it visible. The panel swings out towards the player, so its path never crosses the alcove the occupant stands in and the panel itself hides the occupant while the opening gap grows. On closing, the slot computes from the occupant's bounds the panel angle that covers its far side, plus a small margin for views that are not frontal, and hides the occupant at that angle, before the swing ends. This holds for the hostile, the friendly and the hostage taker pair alike, and was verified frame by frame in slow motion (G05-B01).
+
+## D-075 Tiling breaks up before the horizon
+
+Every tiling surface carries a second texture layer at a different scale, rotated about the vertical and offset, blended with the first by a large scale noise mask, so a repeat never forms a visible grid toward the horizon. M_Surface samples its sets world aligned on three planes with one sampler per texture, keeps texture reading direction the same on every wall, and exposes tiling size and aspect, the second layer's scale and rotation, the macro mask's size, contrast and balance, tint, and scale and offset for roughness, metallic, normal and ambient occlusion to each instance (G05-B01).
+
+## D-074 Seamless surfaces come from CC0 sets
+
+Seamless surface textures come from free CC0 PBR sets: Poly Haven, ambientCG, CraftPBR or AITextured. Every set is recorded with source, authors, licence, download date and size in docs/credits.md before it is committed, and lives in Core/Textures. Colour and ARM maps are taken as JPG and normal maps as PNG, which keeps the six G05-B01 sets at 340 MB instead of 801 MB for PNG throughout, under the raised budget of 400 MB (G05-B01).
+
 ## D-073 The age classification is a product fact
 
 The age classification is a product fact, stated once in the legal section of the README.
