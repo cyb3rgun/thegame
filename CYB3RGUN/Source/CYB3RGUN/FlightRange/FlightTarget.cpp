@@ -273,7 +273,7 @@ bool AFlightTarget::NotifyShot(const FHitResult& Hit, const FVector& ShotDirecti
 
 	bDown = true;
 	HitAt = Now;
-	SpeedAtHit = Motion.GetSpeed();
+	SpeedAtHit = Motion.GetPathSpeed();
 	DistanceAtHit = FVector::Dist(ShooterLocation, GetActorLocation());
 	FallVelocity = Motion.GetVelocity() * Definition->FallCarry + ShotDirection.GetSafeNormal() * 150.0f;
 

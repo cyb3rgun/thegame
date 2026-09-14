@@ -21,6 +21,9 @@ struct CYB3RGUN_API FFlightPathMotion
 	FVector GetLocation() const { return Location; }
 	FVector GetVelocity() const { return Velocity; }
 	float GetSpeed() const { return Velocity.Size(); }
+
+	/** Speed along the path: the flight speed on the heading and the climb or drop, without the bob, the jinks or the flutter's surges */
+	float GetPathSpeed() const { return FVector(Heading * Speed + FVector::UpVector * VerticalSpeed).Size(); }
 	EFlightPathType GetType() const { return Settings.Type; }
 
 	/** True once the target has covered the length of its path */

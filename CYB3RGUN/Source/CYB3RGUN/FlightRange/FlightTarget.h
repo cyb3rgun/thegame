@@ -51,8 +51,8 @@ public:
 	bool IsDown() const { return bDown; }
 	EFlightPathType GetPathType() const { return Motion.GetType(); }
 
-	/** Flight speed now, or at the moment of the hit once down */
-	float GetFlightSpeed() const { return bDown ? SpeedAtHit : Motion.GetSpeed(); }
+	/** Speed along the flight path now, or at the moment of the hit once down; the flutter's jinks do not count */
+	float GetFlightSpeed() const { return bDown ? SpeedAtHit : Motion.GetPathSpeed(); }
 
 	/** Distance from the shooter now, or at the moment of the hit once down */
 	float GetShooterDistance() const;
