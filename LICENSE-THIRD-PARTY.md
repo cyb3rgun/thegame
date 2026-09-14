@@ -30,6 +30,10 @@ The project is built on Unreal Engine 5.8 by Epic Games, Inc. The following mate
 
 **Engine content and plugins used at runtime.** The project's own assets and code refer to content that ships with Unreal Engine and is not stored in this repository: the basic shapes, engine materials, sky and cloud content, engine and editor sounds, the default font and the Model Context Protocol, All Toolsets, Modeling Tools, StateTree and Gameplay StateTree plugins. They are part of Unreal Engine and covered by the same EULA.
 
+## Poly Haven: CC0 texture sets
+
+The texture sets in `CYB3RGUN/Content/CYB3RGUN/Core/Textures/` come from Poly Haven under CC0 1.0 Universal and remain CC0; sources, authors and download dates are listed in [docs/credits.md](docs/credits.md).
+
 ## MariaDB: Business Source License text
 
 The text of the Business Source License 1.1 in [LICENSE](LICENSE) is copyright (c) 2017 MariaDB Corporation Ab. "Business Source License" is a trademark of MariaDB Corporation Ab. The text is used under the permission granted in the licence itself.
