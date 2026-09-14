@@ -155,19 +155,22 @@ EFlightSource AFlightSpawnDirector::PickSource() const
 	return Weights[2] > 0.0f ? EFlightSource::Cover : EFlightSource::Right;
 }
 
-bool AFlightSpawnDirector::PlanSideFlight(float SideSign, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const
+bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float MaxCrossing, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const
 {
 	const FVector Forward = Field.GetRotation().GetForwardVector().GetSafeNormal2D();
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 
-	// the path passes the player at the crossing distance, entering and leaving at the entry bearing to either side
-	OutCrossing = FMath::FRandRange(Settings->CrossingDistanceMin, FMath::Max(Settings->CrossingDistanceMin, Settings->CrossingDistanceMax));
-	const float Lateral = OutCrossing * FMath::Tan(FMath::DegreesToRadians(Settings->EntryBearingDegrees));
+	// the path's closest point to the player lies at the crossing distance, whatever the heading jitter; from there it runs out
+	// to the entry bearing on either side
+	const float Nearest = FMath::Min(Settings->CrossingDistanceMin, MaxCrossing);
+	OutCrossing = FMath::FRandRange(Nearest, FMath::Max(Nearest, FMath::Min(Settings->CrossingDistanceMax, MaxCrossing)));
+	const float HalfLength = OutCrossing * FMath::Tan(FMath::DegreesToRadians(Settings->EntryBearingDegrees));
 	const float Jitter = FMath::FRandRange(-Settings->HeadingJitterDegrees, Settings->HeadingJitterDegrees);
 
-	OutStart = Field.GetLocation() + Forward * OutCrossing + Right * (SideSign * Lateral);
 	OutHeading = (-SideSign * Right).RotateAngleAxis(Jitter, FVector::UpVector);
-	OutLength = 2.0f * Lateral / FMath::Max(FMath::Cos(FMath::DegreesToRadians(Jitter)), 0.5f);
+	const FVector Closest = Field.GetLocation() + Forward.RotateAngleAxis(Jitter, FVector::UpVector) * OutCrossing;
+	OutStart = Closest - OutHeading * HalfLength;
+	OutLength = 2.0f * HalfLength;
 	return true;
 }
 
@@ -236,8 +239,6 @@ void AFlightSpawnDirector::Launch()
 		{
 			Source = FMath::RandBool() ? EFlightSource::Left : EFlightSource::Right;
 		}
-		PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, Start, Heading, Length, Crossing);
-
 		// rising belongs to cover, a side entry crosses, dives or flutters; a definition with only rising paths still flies
 		Path = Definition->PickPath({ EFlightPathType::Straight, EFlightPathType::Diving, EFlightPathType::Flutter });
 		if (!Path)
@@ -246,7 +247,23 @@ void AFlightSpawnDirector::Launch()
 		}
 		if (Path)
 		{
-			Start.Z = Field.GetLocation().Z + FMath::FRandRange(Path->HeightMin, FMath::Max(Path->HeightMin, Path->HeightMax));
+			// every target comes within reach where it passes closest: its height there and its wobble go into the distance.
+			// A dive passes at its pull out height; a level flight too high for the nearest crossing is brought down
+			const float Reach = Settings->ReachDistance;
+			const float Wobble = Path->WobbleAmplitude;
+			float Height = FMath::FRandRange(Path->HeightMin, FMath::Max(Path->HeightMin, Path->HeightMax));
+			const float EyeHeight = ShooterLocation.Z - Field.GetLocation().Z;
+			const float HighestAbove = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Settings->CrossingDistanceMin), 0.0f)) - Wobble;
+			if (Path->Type != EFlightPathType::Diving)
+			{
+				Height = FMath::Min(Height, EyeHeight + FMath::Max(HighestAbove, 0.0f));
+			}
+			const float PassHeight = Path->Type == EFlightPathType::Diving ? Path->LevelOutHeight : Height;
+			const float Vertical = FMath::Abs(PassHeight - EyeHeight) + Wobble;
+			const float MaxCrossing = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Vertical), 0.0f));
+
+			PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, MaxCrossing, Start, Heading, Length, Crossing);
+			Start.Z = Field.GetLocation().Z + Height;
 		}
 	}
 

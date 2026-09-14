@@ -102,6 +102,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 100.0, Units = "cm"))
 	float CrossingDistanceMax = 2300.0f;
 
+	/**
+	 *  Every side entry passes the player within this distance at its closest point, height and wobble included, so every
+	 *  target flies within the weapons' reach at some point; keep it inside the shortest range of the loadout, the scattergun's 25 m
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 100.0, Units = "cm"))
+	float ReachDistance = 2200.0f;
+
 	/** Bearing from the player's forward direction where side entries start and end, outside a normal field of view */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 10.0, ClampMax = 80.0, Units = "Degrees"))
 	float EntryBearingDegrees = 62.0f;

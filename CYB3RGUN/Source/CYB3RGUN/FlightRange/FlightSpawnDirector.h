@@ -82,6 +82,6 @@ protected:
 	void Launch();
 
 	/** Start, heading and length of a flight from a side or from a launch point */
-	bool PlanSideFlight(float SideSign, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const;
+	bool PlanSideFlight(float SideSign, float MaxCrossing, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const;
 	bool PlanCoverFlight(FVector& OutStart, FVector& OutHeading, float& OutLength);
 };
