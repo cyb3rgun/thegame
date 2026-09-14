@@ -12,6 +12,10 @@ Local environment notes for working on the game track. Everything here applies t
 
 The project enables the Unreal MCP and All Toolsets plugins. The editor serves MCP at `http://127.0.0.1:8000/mcp` once the server is started.
 
+## Opening the project
+
+Open `CYB3RGUN/CYB3RGUN.uproject` directly, by double clicking it or by passing its path to `UnrealEditor.exe` as in the build loop below. Never start the editor through the Epic Games Launcher and pick the project afterwards: the engine then resolves the project only after it has computed its binary paths, and reports a compile error that is not real.
+
 ## Required local setting: background CPU throttle off
 
 The editor must not throttle itself when its window is in the background (D-022).
@@ -55,4 +59,4 @@ Scenarios ship console commands for automated runs in non shipping builds: `Door
 
 - **Console input.** Drive the editor console through the Slate inspector toolset. Select the main editor window first, because the Message Log window takes focus after a level load. Press Shift+F1 during play to release the mouse, then type into the console box.
 - **Screenshots.** The editor image capture tool returns PNG data inline. Decode it into `CYB3RGUN/Saved/Screenshots`.
-- **Enemy damage.** Encounter levels have no player respawn yet. For long automated runs, set enemy damage to zero in memory only and never save that change.
+- **Respawn.** Encounter levels respawn the player (D-059): the zombie test puts a fallen player back at a player start after 3 s with the starting loadout, and the rail rider gets back up after 3 s and the ride goes on. Long automated runs therefore need no change to enemy damage. `Player.Damage <amount>` takes health off the player to test it.
