@@ -149,13 +149,19 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Environment art beyond blockout
 - [x] Canonical remote git@github.com:cyb3rgun/thegame.git over SSH, the old repository kept as a fetch only backup (G04)
 - [x] README as the project front page with banner, kept current every season (G04)
-- [x] README positioning: adults only and no release above the fold, source available and no binary release badges, what the repository is, content tiers, licence and legal notice (G04)
-- [x] Source available licence in LICENSE, pending a lawyer's review (G04)
+- [x] README positioning: adults only and no release above the fold, source available and no binary release badges, what the repository is, content tiers, licence and legal notice (G04), replaced in G04-B06 by the product page below
+- [x] Source available licence in LICENSE, pending a lawyer's review (G04), replaced in G04-B06 by the Business Source License 1.1
+- [x] Business Source License 1.1 in LICENSE: own business use including commercial use at the operator's premises, agreements for hosted services and resale, GPL-3.0 after four years per version (G04)
+- [x] LICENSE-CONTENT.md for game content and LICENSE-THIRD-PARTY.md documenting Epic's engine, template content and template source, and the MariaDB licence text (G04)
+- [x] README as a product page: neutral badge row with the BSL 1.1 licence, Licensing and Support and Services sections after the technical content, one short legal notice at the bottom (G04)
+- [x] docs/content-tiers.md describes the code and content licensing split (G04)
 - [x] Content tiers defined in docs/content-tiers.md, closed paths ignored by git, tools/check_tiers.ps1 fails on tracked or staged closed content (G04)
 - [x] Open tier runs without the closed tier: door range occupants and the rail hostage taker stand in with primitives, one LogClosedContent line per kind (G04)
 - [x] Body look materials moved from Enemies/Bodies to Enemies/Materials, leaving Bodies to the closed tier (G04)
-- [ ] Closed tier repository: private repository with the closed paths, laid over an open tier checkout
-- [ ] Lawyer's review of LICENSE
+- [ ] Content repository: private repository with the game content folders, laid over a code checkout
+- [ ] Lawyer's review of LICENSE, LICENSE-CONTENT.md and LICENSE-THIRD-PARTY.md
+- [ ] Contact address for licensing enquiries in LICENSE-CONTENT.md and the README, which point to cyb3rgun.com for now
+- [ ] Shop listing for models, content packs, plugins and updates, which the README refers to
 - [ ] Epic template content: check the redistribution terms of the committed template folders
 - [ ] Body look materials without template parents, so the stand ins keep their colours without the template mannequin materials
 - [ ] Nanite on conventional shadow maps: recheck the D3D12 crash and 200 ms hitches after an engine update, until then Nanite runs only with Virtual Shadow Maps
