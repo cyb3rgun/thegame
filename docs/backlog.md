@@ -33,6 +33,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Bird range sounds: launches, hits and the countdown use the engine ping as a placeholder
 - [x] Bird range feel pass: magazine and reload overridden in the flight range settings, Overclock locked, score by path speed, every side entry within reach, grass and foliage sets on the meadow, trees and hedges (G05)
 - [ ] Bird range level card: retake it with the textured meadow and trees
+- [x] Bird range gallery controls: the view fixed forward, a free crosshair that slides the scene at the screen edges, keys and stick sliding too, reload on Space and the right mouse button, scene props that pay or cost points (G05)
+- [ ] Bird range scene: terrain, vegetation, rocks and the placement of the scoring props, designed with the architect
 - [ ] More flight targets as data: clay and drone definitions with the vanish behaviour
 - [ ] Laser Tag mode: match data, replays and rankings shared with real events
 - [ ] Play Together: local and online multiplayer, cooperative and competitive
@@ -120,6 +122,8 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] Holographic HUD: scanlines, a faint flicker and a glitch burst when the player is hit, legibility first (G04)
 - [x] Animated menu logo: boots on entry, the ring breathes, the arc turns and spins as the loading indicator (G04)
 - [x] Every in-game number formatted with the invariant culture (G04)
+- [x] Brand design system on every player facing widget: the website's fonts, text roles, colours, thin rules and corner brackets, no engine default font (G05)
+- [x] Animated menu background: rain on glass with condensation and a cyan glow, built as a user interface material rather than a video (G05)
 - [ ] Settings menu key as a rebindable Enhanced Input action
 - [ ] Scenario selection menu
 - [ ] Session statistics screen
@@ -153,7 +157,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [x] External asset sources and licences recorded in docs/credits.md (G05)
 - [ ] Remove the unconnected G03 nodes and their Legacy parameters from M_Surface in the Material Editor by hand; deleting material expressions through MCP crashes the editor
 - [ ] Benchmark grass and leaves on a texture set, they keep BasicShapeMaterial colours; rerun the benchmark, the walls and bark now sample 4K and 2K sets
-- [ ] Door panels and frames as meshes with UVs, so the wood grain follows the panel instead of world aligned projection
+- [x] Door panels and frames as meshes with UVs, so the wood grain follows the panel instead of world aligned projection (G05)
+- [ ] Night run: benchmark Nanite in High and Epic, the presets that turned it on in G05-B03 (D-086, D-026, D-030)
+- [ ] Settings version bumps must migrate saved settings instead of resetting them, from the first release on; version 3 reset them once (G05-B03)
 - [ ] Night run: measure the six presets and Ultra at 150 and 200 percent resolution scale, then refresh the menu cost figures
 - [ ] Real vegetation content so Nanite Foliage can be measured on foliage it was built for
 - [ ] Environment art beyond blockout
