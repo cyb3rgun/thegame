@@ -32,6 +32,10 @@ namespace DoorSlotParts
 	const FName HeadBone(TEXT("head"));
 	const FName ChestBone(TEXT("spine_03"));
 
+	/** Material slots of the panel model */
+	const FName WoodSlot(TEXT("Wood"));
+	const FName MetalSlot(TEXT("Metal"));
+
 	/** Hit volumes of slots saved before the physics asset bodies became the hit targets */
 	const TCHAR* const StaleVolumes[] = { TEXT("HostileBody"), TEXT("HostileArms"), TEXT("HostileHead"), TEXT("FriendlyBody"), TEXT("FriendlyHead") };
 
@@ -83,15 +87,19 @@ ADoorSlot::ADoorSlot()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> FrameModel(TEXT("/Game/CYB3RGUN/Core/Models/SM_DoorFrame.SM_DoorFrame"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> PanelModel(TEXT("/Game/CYB3RGUN/Core/Models/SM_DoorPanel.SM_DoorPanel"));
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PistolMesh(TEXT("/Game/Weapons/Pistol/Meshes/SKM_Pistol.SKM_Pistol"));
 	// character models and their animations may be absent with the closed tier, the bodies then stand in with primitives (D-068)
 	USkeletalMesh* const HostileBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
 	USkeletalMesh* const FriendlyBodyMesh = FStandInBody::LoadOptional<USkeletalMesh>(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FrameLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Frame.MI_Door_Frame"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PanelLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Panel.MI_Door_Panel"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PanelLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_PanelModel.MI_Door_PanelModel"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HardwareLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Door_Hardware.MI_Door_Hardware"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WallLook(TEXT("/Game/CYB3RGUN/Core/Materials/MI_Wall_Alcove.MI_Wall_Alcove"));
 	FrameMaterial = FrameLook.Object;
 	PanelMaterial = PanelLook.Object;
+	HardwareMaterial = HardwareLook.Object;
 	WallMaterial = WallLook.Object;
 	HostileDrawAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Equip.MM_Pistol_Equip"));
 	HostileAimAnimation = FStandInBody::LoadOptional<UAnimSequenceBase>(TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS.MF_Pistol_Idle_ADS"));
@@ -101,18 +109,18 @@ ADoorSlot::ADoorSlot()
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
 
-	// The actor's forward (+X) faces the player. The door plane is the YZ plane at X = 0.
-	// Basic shapes are 100 cm cubes, cylinders, spheres and cones, so scale is size in metres.
-	FramePostLeft = DoorSlotParts::MakeShape(this, Root, TEXT("FramePostLeft"), CubeMesh.Object, FVector(0.0f, -55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
-	FramePostRight = DoorSlotParts::MakeShape(this, Root, TEXT("FramePostRight"), CubeMesh.Object, FVector(0.0f, 55.0f, 100.0f), FVector(0.15f, 0.1f, 2.0f));
-	FrameTop = DoorSlotParts::MakeShape(this, Root, TEXT("FrameTop"), CubeMesh.Object, FVector(0.0f, 0.0f, 205.0f), FVector(0.15f, 1.2f, 0.1f));
+	// The actor's forward (+X) faces the player. The door plane is the YZ plane at X = 0. The frame model has a 100 by 200 cm
+	// opening, 15 cm deep jambs and its pivot on the floor in the door plane. The wall behind is a basic cube, scaled in metres.
+	Frame = DoorSlotParts::MakeShape(this, Root, TEXT("Frame"), FrameModel.Object, FVector::ZeroVector, FVector::OneVector);
 	BackWall = DoorSlotParts::MakeShape(this, Root, TEXT("BackWall"), CubeMesh.Object, FVector(-130.0f, 0.0f, 110.0f), FVector(0.1f, 1.6f, 2.4f));
 
+	// the panel hangs on the front edge of the left jamb, closes against the stop in the opening and swings clear of the casing
 	Hinge = CreateDefaultSubobject<USceneComponent>(TEXT("Hinge"));
 	Hinge->SetupAttachment(Root);
-	Hinge->SetRelativeLocation(FVector(0.0f, -50.0f, 0.0f));
+	Hinge->SetRelativeLocation(FVector(7.5f, -50.0f, 0.0f));
 
-	DoorPanel = DoorSlotParts::MakeShape(this, Hinge, TEXT("DoorPanel"), CubeMesh.Object, FVector(0.0f, 50.0f, 100.0f), FVector(0.06f, 1.0f, 2.0f));
+	// the panel model has its pivot in its centre, the hinge edge at -50 cm and the knuckles 3 cm in front of its centre plane
+	DoorPanel = DoorSlotParts::MakeShape(this, Hinge, TEXT("DoorPanel"), PanelModel.Object, FVector(-3.0f, 50.0f, 100.0f), FVector::OneVector);
 
 	SpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("SpawnPoint"));
 	SpawnPoint->SetupAttachment(Root);
@@ -150,16 +158,17 @@ void ADoorSlot::OnConstruction(const FTransform& Transform)
 
 void ADoorSlot::ApplyLookMaterials()
 {
-	for (UStaticMeshComponent* Part : { FramePostLeft, FramePostRight, FrameTop })
+	if (FrameMaterial)
 	{
-		if (FrameMaterial)
-		{
-			Part->SetMaterial(0, FrameMaterial);
-		}
+		Frame->SetMaterial(0, FrameMaterial);
 	}
 	if (PanelMaterial)
 	{
-		DoorPanel->SetMaterial(0, PanelMaterial);
+		DoorPanel->SetMaterialByName(DoorSlotParts::WoodSlot, PanelMaterial);
+	}
+	if (HardwareMaterial)
+	{
+		DoorPanel->SetMaterialByName(DoorSlotParts::MetalSlot, HardwareMaterial);
 	}
 	if (WallMaterial)
 	{
@@ -862,9 +871,9 @@ float ADoorSlot::ComputeOccupantCoverAlpha() const
 		return 0.0f;
 	}
 
-	// the panel is hinged at the hinge's side and as long as its scale says; a small margin covers the view not being exactly frontal
+	// the panel is hinged at the hinge's side and as long as its model is wide; a small margin covers the view not being exactly frontal
 	const float HingeSide = Hinge->GetRelativeLocation().Y;
-	const float PanelLength = DoorPanel->GetRelativeScale3D().Y * 100.0f;
+	const float PanelLength = DoorPanel->CalcLocalBounds().BoxExtent.Y * 2.0f * DoorPanel->GetRelativeScale3D().Y;
 	const float Reach = (FarSide + OccupantCoverMargin - HingeSide) / FMath::Max(PanelLength, 1.0f);
 	if (Reach >= 1.0f)
 	{

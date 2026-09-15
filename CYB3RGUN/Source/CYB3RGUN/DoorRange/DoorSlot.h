@@ -41,19 +41,14 @@ class CYB3RGUN_API ADoorSlot : public AActor, public IDoorRangeTarget
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* Root;
 
+	/** Jambs, head, casing and the stop the panel closes against, one model standing on the floor in the door plane */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* FramePostLeft;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* FramePostRight;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* FrameTop;
+	UStaticMeshComponent* Frame;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* BackWall;
 
-	/** Pivot for the door panel, sits on the left post */
+	/** Pivot for the door panel, on the front edge of the left jamb where the hinge knuckles are */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* Hinge;
 
@@ -138,13 +133,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Door", meta = (ClampMin = 0.05, Units = "s"))
 	float HitReactionDuration = 0.3f;
 
-	/** Surface of the frame posts and the lintel, darkest of the three so the opening reads */
+	/** Surface of the frame, darkest of the three so the opening reads */
 	UPROPERTY(EditAnywhere, Category="Door|Look")
 	TObjectPtr<UMaterialInterface> FrameMaterial;
 
-	/** Surface of the swinging panel, between frame and wall in value */
+	/** Surface of the swinging panel, between frame and wall in value. It samples the model's own UVs, so the grain stays
+	 *  on the panel as it swings */
 	UPROPERTY(EditAnywhere, Category="Door|Look")
 	TObjectPtr<UMaterialInterface> PanelMaterial;
+
+	/** Hinges, lever handles and key plates of the panel */
+	UPROPERTY(EditAnywhere, Category="Door|Look")
+	TObjectPtr<UMaterialInterface> HardwareMaterial;
 
 	/** Surface of the wall behind the occupant */
 	UPROPERTY(EditAnywhere, Category="Door|Look")
