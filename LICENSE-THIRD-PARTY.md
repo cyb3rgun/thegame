@@ -30,14 +30,16 @@ The project is built on Unreal Engine 5.8 by Epic Games, Inc. The following mate
 
 **Engine content and plugins used at runtime.** The project's own assets and code refer to content that ships with Unreal Engine and is not stored in this repository: the basic shapes, engine materials, sky and cloud content, engine and editor sounds, the default font and the Model Context Protocol, All Toolsets, Modeling Tools, StateTree and Gameplay StateTree plugins. They are part of Unreal Engine and covered by the same EULA.
 
-## Poly Haven and ambientCG: CC0 texture sets
+## Poly Haven and ambientCG: CC0 texture sets and models
 
-The texture sets in `CYB3RGUN/Content/CYB3RGUN/Core/Textures/` come from Poly Haven and ambientCG under CC0 1.0 Universal and remain CC0; sources, authors and download dates are listed in [docs/credits.md](docs/credits.md).
+The texture sets in `CYB3RGUN/Content/CYB3RGUN/Core/Textures/` and the models in `CYB3RGUN/Content/CYB3RGUN/Core/Models/` that are not made for the project come from Poly Haven and ambientCG under CC0 1.0 Universal and remain CC0; sources, authors and download dates are listed in [docs/credits.md](docs/credits.md).
 
 ## MariaDB: Business Source License text
 
 The text of the Business Source License 1.1 in [LICENSE](LICENSE) is copyright (c) 2017 MariaDB Corporation Ab. "Business Source License" is a trademark of MariaDB Corporation Ab. The text is used under the permission granted in the licence itself.
 
-## Fonts inside Unreal Engine
+## Fonts
 
-The interface uses the engine's default font, Roboto, which ships with Unreal Engine together with its licence at `Engine/Source/ThirdParty/Licenses/ROBOTO_License.txt`. It is not stored in this repository.
+The interface uses the brand fonts Michroma, Saira Condensed, Share Tech Mono and Source Sans 3, stored in the font face assets in `CYB3RGUN/Content/CYB3RGUN/UI/Fonts/`. They are licensed under the SIL Open Font License 1.1, not under the Business Source License; their licence texts with the copyright notices are in [docs/licenses](docs/licenses), and their sources are listed in [docs/credits.md](docs/credits.md). The reserved font names Saira, Share and Source stay with their owners.
+
+Where a brand font is missing, the interface falls back to the engine's default font, Roboto, which ships with Unreal Engine together with its licence at `Engine/Source/ThirdParty/Licenses/ROBOTO_License.txt`. It is not stored in this repository.
