@@ -229,7 +229,10 @@ void UFlightRangeHUD::HandleTargetScored(int32 Points, FVector Location)
 	{
 		return;
 	}
-	EventText->SetText(FText::Format(LOCTEXT("Hit", "+{0}"), FCyberText::Int(Points)));
+	// a penalty shows in the danger colour with its minus
+	const bool bPenalty = Points < 0;
+	EventText->SetText(bPenalty ? FCyberText::Int(Points) : FText::Format(LOCTEXT("Hit", "+{0}"), FCyberText::Int(Points)));
+	EventText->SetColorAndOpacity(FSlateColor(bPenalty ? FCyberMenuStyle::DangerColor() : FCyberMenuStyle::BrandColor()));
 	EventText->SetRenderOpacity(1.0f);
 	EventAge = 0.0f;
 	bEventVisible = true;
@@ -254,9 +257,10 @@ void UFlightRangeHUD::HandleRoundFinished(const FFlightRangeStats& Stats)
 		SummaryScoreText->SetText(FCyberText::Int(Stats.FinalScore));
 	}
 	const FText RoundSummary = FText::Format(
-		LOCTEXT("SummaryFormat", "HITS {0} OF {1} LAUNCHED\nMISSES {2}   ACCURACY {3} %\nBEST HIT {4}   ESCAPED {5}"),
+		LOCTEXT("SummaryFormat", "HITS {0} OF {1} LAUNCHED\nMISSES {2}   ACCURACY {3} %\nBEST HIT {4}   ESCAPED {5}\nSCENE BONUS {6}   SIGN {7}"),
 		FCyberText::Int(Stats.TargetsHit), FCyberText::Int(Stats.TargetsLaunched),
-		FCyberText::Int(Stats.Misses), FCyberText::Int(FMath::RoundToInt(Stats.Accuracy * 100.0f)), FCyberText::Int(Stats.BestHit), FCyberText::Int(Stats.TargetsEscaped));
+		FCyberText::Int(Stats.Misses), FCyberText::Int(FMath::RoundToInt(Stats.Accuracy * 100.0f)), FCyberText::Int(Stats.BestHit), FCyberText::Int(Stats.TargetsEscaped),
+		FCyberText::Int(Stats.BonusPoints), FCyberText::Int(-Stats.PenaltyPoints));
 
 	const FText Summary = FText::Format(LOCTEXT("SummaryWithStyle", "{0}\n\n{1}"), RoundSummary, UStyleHUDWidget::FormatRunSummary(GetOwningPlayer()));
 	UStyleHUDWidget::LogSummary(FText::Format(LOCTEXT("SummaryLog", "FINAL SCORE {0}\n{1}"), FCyberText::Int(Stats.FinalScore), Summary));

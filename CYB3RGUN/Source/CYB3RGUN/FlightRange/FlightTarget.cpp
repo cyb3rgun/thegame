@@ -161,6 +161,14 @@ void AFlightTarget::PlaceHitSpheres()
 	HeadLead->SetWorldLocation(Location + HeadLocal + Lead);
 }
 
+void AFlightTarget::SetShooterLocation(const FVector& InLocation)
+{
+	if (!bDown)
+	{
+		ShooterLocation = InLocation;
+	}
+}
+
 float AFlightTarget::GetShooterDistance() const
 {
 	return bDown ? DistanceAtHit : FVector::Dist(ShooterLocation, GetActorLocation());

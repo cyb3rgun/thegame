@@ -1,7 +1,9 @@
 // CYB3RGUN THEGAME. Game mode running the flight range: one countdown, one run, one score (D-077).
 
 #include "FlightRangeGameMode.h"
+#include "FlightGalleryControls.h"
 #include "FlightRangeHUD.h"
+#include "FlightScoringProp.h"
 #include "FlightRangeSettings.h"
 #include "FlightTarget.h"
 #include "FlightTargetDefinition.h"
@@ -118,7 +120,7 @@ void AFlightRangeGameMode::SetupPlayer()
 		return;
 	}
 
-	// the player stands still and turns (D-078): look input stays, movement and jumping go
+	// the player stands on the gallery rail (D-078): movement, jumping and turning go, the gallery controls take the input
 	if (ACharacter* Character = Cast<ACharacter>(Pawn))
 	{
 		Character->GetCharacterMovement()->StopMovementImmediately();
@@ -148,6 +150,13 @@ void AFlightRangeGameMode::SetupPlayer()
 		Feet.Z -= Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	}
 	FieldTransform = FTransform(FRotator(0.0f, Pawn->GetActorRotation().Yaw, 0.0f), Feet);
+
+	// the view faces the field and stays; the crosshair moves and the player slides along the scene
+	Gallery = UFlightGalleryControls::Attach(Pawn, Cfg, FieldTransform);
+	if (Director)
+	{
+		Director->SetGallery(Gallery);
+	}
 	FRotator ViewRotation;
 	PC->GetPlayerViewPoint(ShooterLocation, ViewRotation);
 
@@ -198,6 +207,10 @@ void AFlightRangeGameMode::StartRound()
 	if (Crosshair)
 	{
 		Crosshair->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	for (TActorIterator<AFlightScoringProp> It(GetWorld()); It; ++It)
+	{
+		It->ResetForRound();
 	}
 	if (Director)
 	{
@@ -292,6 +305,10 @@ void AFlightRangeGameMode::FinishRound()
 		Shooter->DoStopFiring();
 		Shooter->DisableInput(PC);
 	}
+	if (Gallery)
+	{
+		Gallery->SetControlsEnabled(false);
+	}
 	if (Crosshair)
 	{
 		Crosshair->SetVisibility(ESlateVisibility::Collapsed);
@@ -302,9 +319,9 @@ void AFlightRangeGameMode::FinishRound()
 	OnTimeChanged.Broadcast(0);
 	PlaySound2D(GetSettings()->EndSound);
 
-	UE_LOG(LogFlightRange, Log, TEXT("Round complete: score %d, hits %d of %d launched, escaped %d, shots %d, misses %d, accuracy %.0f%%, best hit %d, launches left %d right %d cover %d"),
+	UE_LOG(LogFlightRange, Log, TEXT("Round complete: score %d, hits %d of %d launched, escaped %d, shots %d, misses %d, accuracy %.0f%%, best hit %d, launches left %d right %d cover %d, bonus %d, penalties %d for %d"),
 		Stats.FinalScore, Stats.TargetsHit, Stats.TargetsLaunched, Stats.TargetsEscaped, Stats.ShotsFired, Stats.Misses, Stats.Accuracy * 100.0f,
-		Stats.BestHit, Stats.LaunchesLeft, Stats.LaunchesRight, Stats.LaunchesCover);
+		Stats.BestHit, Stats.LaunchesLeft, Stats.LaunchesRight, Stats.LaunchesCover, Stats.BonusPoints, Stats.PenaltyHits, Stats.PenaltyPoints);
 	OnRoundFinished.Broadcast(Stats);
 }
 
@@ -342,6 +359,28 @@ void AFlightRangeGameMode::HandleTargetHit(AFlightTarget* Target, EHitZone Zone,
 
 	OnScoreChanged.Broadcast(Score, Points);
 	OnTargetScored.Broadcast(Points, Target->GetActorLocation());
+}
+
+void AFlightRangeGameMode::AddPropPoints(AFlightScoringProp* Prop, int32 Points, const FVector& Location)
+{
+	if (RoundState != EFlightRoundState::Running || Points == 0)
+	{
+		return;
+	}
+
+	Score += Points;
+	if (Points > 0)
+	{
+		Stats.BonusPoints += Points;
+	}
+	else
+	{
+		++Stats.PenaltyHits;
+		Stats.PenaltyPoints -= Points;
+	}
+	UE_LOG(LogFlightRange, Log, TEXT("Score %+d -> %d (%s)"), Points, Score, *GetNameSafe(Prop));
+	OnScoreChanged.Broadcast(Score, Points);
+	OnTargetScored.Broadcast(Points, Location);
 }
 
 void AFlightRangeGameMode::HandleTargetDone(AFlightTarget* Target, bool bWasHit)

@@ -10,7 +10,9 @@
 #include "FlightRangeGameMode.generated.h"
 
 class AController;
+class AFlightScoringProp;
 class AFlightTarget;
+class UFlightGalleryControls;
 class ULogoCrosshairWidget;
 class UFlightRangeHUD;
 class UFlightRangeSettings;
@@ -70,6 +72,17 @@ struct FFlightRangeStats
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 LaunchesCover = 0;
+
+	/** Points the windmill, the scarecrow and other bonus props paid */
+	UPROPERTY(BlueprintReadOnly)
+	int32 BonusPoints = 0;
+
+	/** Shots that landed on a penalty prop, the sign, and the points they cost */
+	UPROPERTY(BlueprintReadOnly)
+	int32 PenaltyHits = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 PenaltyPoints = 0;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFlightRangeTimeDelegate, int32, SecondsLeft);
@@ -79,9 +92,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFlightRangeStateDelegate, EFlightRo
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFlightRangeFinishedDelegate, const FFlightRangeStats&, Stats);
 
 /**
- *  The arcade range: the player stands still and turns (D-078), a spawn director keeps targets crossing the field, every
- *  hit scores by the target's distance, speed and size, and when the countdown runs out the round ends with a summary.
- *  No waves, no telegraphs, no hostages, no difficulty ramp. The style meter, combo and controlled pairs run as everywhere.
+ *  The arcade range: a gallery (D-078), the view fixed forward with a free crosshair that slides the player along the scene
+ *  at the screen edges, a spawn director keeps targets crossing the field, every hit scores by the target's distance, speed
+ *  and size, props in the scene pay a bonus or cost a penalty, and when the countdown runs out the round ends with a
+ *  summary. No waves, no telegraphs, no hostages, no difficulty ramp. The style meter, combo and controlled pairs run as everywhere.
  */
 UCLASS()
 class CYB3RGUN_API AFlightRangeGameMode : public AGameModeBase, public IStyleScenario
@@ -120,6 +134,11 @@ public:
 	const UFlightRangeSettings* GetSettings() const;
 
 	AFlightSpawnDirector* GetDirector() const { return Director; }
+
+	UFlightGalleryControls* GetGallery() const { return Gallery; }
+
+	/** A scene prop was shot while the round runs: its points go on the score, a bonus or a penalty */
+	void AddPropPoints(AFlightScoringProp* Prop, int32 Points, const FVector& Location);
 
 	/** Sets the time left, for tests */
 	void SetSecondsLeft(float Seconds) { TimeLeft = FMath::Max(Seconds, 0.0f); }
@@ -165,6 +184,9 @@ protected:
 	TObjectPtr<AFlightSpawnDirector> Director;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UFlightGalleryControls> Gallery;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UFlightRangeHUD> HUD;
 
 	UPROPERTY(Transient)
@@ -200,7 +222,7 @@ protected:
 
 	void CreateHUD(APlayerController* Player);
 
-	/** Plants the player: no movement, free look, the loadout, and the field taken from where it stands */
+	/** Plants the player on the gallery: no movement, the fixed view and the free crosshair, the loadout, and the field taken from where it stands */
 	void SetupPlayer();
 
 	/** The weapon to hand out: the definition itself, or a copy with the overrides of the settings */

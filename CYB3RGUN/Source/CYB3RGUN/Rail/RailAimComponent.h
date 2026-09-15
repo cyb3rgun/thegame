@@ -109,6 +109,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Aim")
 	ERailAimInputMode GetInputMode() const { return InputMode; }
 
+	/** How far inside the screen edges the crosshair stays, as a fraction of the screen */
+	float GetEdgeMargin() const { return EdgeMargin; }
+
 	/** Places the crosshair directly, 0 to 1 across the viewport. The entry point for light guns and gyro aiming. */
 	UFUNCTION(BlueprintCallable, Category="Aim")
 	void SetCrosshairNormalized(FVector2D Normalized);

@@ -121,6 +121,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 500.0, Units = "cm"))
 	float CoverFlightLength = 3500.0f;
 
+	/** Width of the whole scene in screen widths at the gallery depth. The view slides across it between hard stops (D-078). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 1.0, ClampMax = 10.0))
+	float MapWidthScreens = 3.5f;
+
+	/** Distance in front of the player where a screen width is measured, about where the targets cross */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 100.0, Units = "cm"))
+	float GalleryDepth = 1500.0f;
+
+	/** Share of the screen width at either side where the crosshair slides the view; the middle stands still */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.03, ClampMax = 0.45))
+	float EdgeZone = 0.12f;
+
+	/** Slide speed in screen widths per second with the crosshair at the very edge, or a key or the stick held; it grows from nothing at the zone's inner border */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))
+	float ScrollSpeed = 0.45f;
+
+	/** Share of the screen the crosshair moves per unit of mouse input */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))
+	float MouseAimSensitivity = 0.0012f;
+
+	/** Screens per second the crosshair moves at full right stick deflection */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))
+	float StickAimSpeed = 0.8f;
+
+	/** Pitch of the fixed view, positive looks up over the field */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = -30.0, ClampMax = 30.0, Units = "Degrees"))
+	float ViewPitchDegrees = 3.0f;
+
 	/** The speed a charge is taken to fly at for the lead of hitscan pellets (D-078) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 1000.0, Units = "cm/s"))
 	float LeadShotSpeed = 35000.0f;

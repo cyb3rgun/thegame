@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. Keeps the flight range sky busy: launches targets from the sides and from behind cover.
 
 #include "FlightSpawnDirector.h"
+#include "FlightGalleryControls.h"
 #include "FlightLaunchPoint.h"
 #include "FlightPath.h"
 #include "FlightRangeSettings.h"
@@ -15,6 +16,10 @@ namespace FlightDirectorTuning
 {
 	/** Launches remembered for weighting the sources against their recent use */
 	constexpr int32 RecentLaunches = 6;
+
+	/** Share of side entries planned near the current view on the gallery, and how far from it in screen widths; the rest go anywhere on the rail */
+	constexpr float NearViewShare = 0.6f;
+	constexpr float NearViewScreens = 0.6f;
 }
 
 AFlightSpawnDirector::AFlightSpawnDirector()
@@ -45,6 +50,11 @@ void AFlightSpawnDirector::StartLaunching(const UFlightRangeSettings* InSettings
 	bLaunching = Settings != nullptr;
 	UE_LOG(LogFlightDirector, Log, TEXT("Launching with %d launch points, %d targets in flight, field at %s facing yaw %.0f"),
 		LaunchPoints.Num(), Settings ? Settings->TargetsInFlight : 0, *Field.GetLocation().ToCompactString(), Field.Rotator().Yaw);
+}
+
+void AFlightSpawnDirector::SetGallery(UFlightGalleryControls* InGallery)
+{
+	Gallery = InGallery;
 }
 
 void AFlightSpawnDirector::StopLaunching(bool bRetireTargets)
@@ -92,6 +102,17 @@ void AFlightSpawnDirector::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	Targets.RemoveAll([](const TWeakObjectPtr<AFlightTarget>& Target) { return !Target.IsValid(); });
+
+	// the player slides along the gallery: distances, leads and new plans follow the eyes where they are now
+	if (const UFlightGalleryControls* Controls = Gallery.Get())
+	{
+		ShooterLocation = Controls->GetEyeLocation();
+		for (const TWeakObjectPtr<AFlightTarget>& Target : Targets)
+		{
+			Target->SetShooterLocation(ShooterLocation);
+		}
+	}
+
 	if (!bLaunching || !Settings)
 	{
 		return;
@@ -155,7 +176,23 @@ EFlightSource AFlightSpawnDirector::PickSource() const
 	return Weights[2] > 0.0f ? EFlightSource::Cover : EFlightSource::Right;
 }
 
-bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float MaxCrossing, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const
+float AFlightSpawnDirector::PickGalleryOffset() const
+{
+	const UFlightGalleryControls* Controls = Gallery.Get();
+	if (!Controls)
+	{
+		return 0.0f;
+	}
+	const float Half = Controls->GetHalfTravel();
+	if (FMath::FRand() < FlightDirectorTuning::NearViewShare)
+	{
+		const float Near = FlightDirectorTuning::NearViewScreens * Controls->GetScreenWidth();
+		return FMath::Clamp(Controls->GetOffset() + FMath::FRandRange(-Near, Near), -Half, Half);
+	}
+	return FMath::FRandRange(-Half, Half);
+}
+
+bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float MaxCrossing, const FVector& Lateral, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const
 {
 	const FVector Forward = Field.GetRotation().GetForwardVector().GetSafeNormal2D();
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
@@ -168,7 +205,7 @@ bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float MaxCrossing, FVe
 	const float Jitter = FMath::FRandRange(-Settings->HeadingJitterDegrees, Settings->HeadingJitterDegrees);
 
 	OutHeading = (-SideSign * Right).RotateAngleAxis(Jitter, FVector::UpVector);
-	const FVector Closest = Field.GetLocation() + Forward.RotateAngleAxis(Jitter, FVector::UpVector) * OutCrossing;
+	const FVector Closest = Field.GetLocation() + Lateral + Forward.RotateAngleAxis(Jitter, FVector::UpVector) * OutCrossing;
 	OutStart = Closest - OutHeading * HalfLength;
 	OutLength = 2.0f * HalfLength;
 	return true;
@@ -262,7 +299,9 @@ void AFlightSpawnDirector::Launch()
 			const float Vertical = FMath::Abs(PassHeight - EyeHeight) + Wobble;
 			const float MaxCrossing = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Vertical), 0.0f));
 
-			PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, MaxCrossing, Start, Heading, Length, Crossing);
+			// on the gallery the flight is planned for a place along the rail; the field lies under the middle of the rail
+			const FVector Lateral = Gallery.IsValid() ? Gallery->GetRailRight() * PickGalleryOffset() : FVector::ZeroVector;
+			PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, MaxCrossing, Lateral, Start, Heading, Length, Crossing);
 			Start.Z = Field.GetLocation().Z + Height;
 		}
 	}

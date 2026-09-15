@@ -57,6 +57,9 @@ public:
 	/** Distance from the shooter now, or at the moment of the hit once down */
 	float GetShooterDistance() const;
 
+	/** The player slides along the gallery: distance and lead follow where it is now, until the hit */
+	void SetShooterLocation(const FVector& InLocation);
+
 	/** Where a charge at the lead shot speed would meet the body, for aiming helpers */
 	FVector GetLeadPoint() const;
 
