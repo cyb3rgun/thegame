@@ -2,6 +2,30 @@
 
 Numbered newest first.
 
+## D-086 Nanite runs in every preset with Virtual Shadow Maps
+
+Nanite is on in High, Epic, Ultra and Cinematic, the presets that run Virtual Shadow Maps; Medium and Low keep it off. The High preset had Nanite off "until real production geometry exists" (G03-B03). That geometry exists now: the G05-B03 plants are Nanite meshes, and with Nanite off the bird range's trees drew their fallback meshes, whose simplification had dropped every leaf (4,151 triangles of 1,072,212 for island_tree_02, the leaf slot's UV density 0). D-027 stands unchanged: it concerns presets without Virtual Shadow Maps only, and its crash condition does not apply here. For Medium and Low the plant meshes build their fallback with area preservation, so the leaves survive the simplification (island_tree_02: 8,823 triangles). The settings version goes to 3, so saved settings take the new preset values. The measurement D-026 and D-030 ask for is still open: the benchmark of Nanite in High and Epic runs as a night run (G05-B03).
+
+## D-085 Vegetation is generated, not placed by hand
+
+Vegetation is generated, not placed by hand: the engine's procedural vegetation tooling where it is stable, otherwise instanced foliage. The bird range must read as a landscape, not as a green plane with spheres on sticks (G05-B03).
+
+## D-084 Free sources only, in this order
+
+Free sources only, in this order: Unreal engine content and Epic sample packs, Fab items marked free, Poly Haven models, ambientCG, Kenney. Every item is recorded in docs/credits.md with its source, licence and date. No purchases (G05-B03).
+
+## D-083 Environments move from primitives to models
+
+Environments move from primitives to real models. A textured box is still a box. From here on, anything the player looks at closely is a model with geometry, not a scaled cube. In G05-B03 the door range went first: door panel, frame and lanterns are models, the doors carry their grain on their own UVs instead of a world aligned projection, and the wet floor was dried from a mirror to a damp surface.
+
+## D-082 Typography follows the website
+
+Typography follows the website: small capitals with wide letter spacing for labels, large numerals for values, thin rules and corner brackets as framing. No default engine font anywhere in player facing user interface (G05-B03).
+
+## D-081 The brand design system comes from the website
+
+The brand design system comes from the website and is defined once in the project, in MPC_Brand and DA_BrandStyle. Colours: cyan 2BE3FF as the primary, danger red FF2A2A, near white F2FEFF and a deep black background; the older 009FE3 stays inside the logo artwork only. Fonts, all free for software use: the wordmark and the headings in Michroma, labels and technical readouts in Share Tech Mono, titles, buttons and values in Saira Condensed, body text in Source Sans 3. The briefing named Bruno Ace for the wordmark and Barlow for body text. The website's own code uses neither: its wordmark is Michroma with a gradient and its body text is Source Sans 3, and where briefing and website disagree the website wins, with the case reported. Reason: menu, HUD and website must read as one product, not as three designs (G05-B03).
+
 ## D-080 The scattergun is the bird range weapon
 
 The scattergun is the intended weapon of the bird range, which comes up in hand; the 3R stays in the loadout. It is the only place in the game where a spread pattern beats a precise shot, which gives that weapon a home. Its weapon definition is shared and was not changed for the mode (G05-B02). In the bird range the flight range settings override magazine and reload per loadout weapon on a copy of the definition handed out for the round: the scattergun carries 10 shells and reloads in 1.0 s, the 3R keeps 17 rounds and reloads in 1.0 s, so reloading is a rhythm and not a pause (G05-B02 addendum).
@@ -10,13 +34,13 @@ The scattergun is the intended weapon of the bird range, which comes up in hand;
 
 A flying target is a UFlightTargetDefinition: a single mesh or a body of primitive parts with flapping pivots, size, hit spheres, flight speed, the weighted paths it flies with their values, base score, hit behaviour (fall or vanish) and sounds. The range settings list the definitions and their weights. Birds, drones, clay or anything else fly the same module by swapping data assets, without touching code (G05-B02).
 
-## D-078 The player stands still and turns; targets cross on ballistic paths
+## D-078 The player aims from a gallery; targets cross on ballistic paths
 
-The player stands on a fixed spot with free look and no movement, and aims through the one screen space aiming path. Targets cross the field of view on four path types with their values in data: straight crossing, rising under its own gravity, diving and pulling out, and an erratic flutter. Leading a moving target is the skill this mode trains: projectiles meet the target where it has moved to, and for hitscan pellets the target's hit spheres sit ahead of its body by the distance it covers while a charge at the lead shot speed of the settings crosses the range, so both weapons ask for the same lead (G05-B02). Every side entry passes the player within the reach distance of the settings, 22 m, at its closest point, height and wobble included, so no target is out of reach for its whole flight; the score takes the speed along the path, not the flutter's jinks (G05-B02 addendum).
+The player stands on a fixed spot with no movement and aims through the one screen space aiming path. Since G05-B03 the view no longer turns: it looks along the field and keeps its pitch, the crosshair moves freely over the screen, and when it enters the edge zone at either side the player slides sideways along a rail across the scene, faster the further out the crosshair is. A/D, the arrow keys and the left stick slide the same way, and the reload sits on Space and the right mouse button next to its own binding. The scene is as wide as the settings' scene width in screen widths, measured at the gallery depth, with hard stops at both ends and the start in the middle; the spawn director spreads side entries over that width and keeps every target's distance on the player as it slides. Targets cross the field of view on four path types with their values in data: straight crossing, rising under its own gravity, diving and pulling out, and an erratic flutter. Leading a moving target is the skill this mode trains: projectiles meet the target where it has moved to, and for hitscan pellets the target's hit spheres sit ahead of its body by the distance it covers while a charge at the lead shot speed of the settings crosses the range, so both weapons ask for the same lead (G05-B02). Every side entry passes the player within the reach distance of the settings, 22 m, at its closest point, height and wobble included, so no target is out of reach for its whole flight; the score takes the speed along the path, not the flutter's jinks (G05-B02 addendum).
 
 ## D-077 Bird Shooting is a countdown mode, not a wave mode
 
-The bird range runs one countdown, one run and one score: 90 seconds by default in the settings asset, continuous launches that hold a steady number of targets in flight, and a summary at the end. No waves, telegraphs, hostages, penalty targets or difficulty ramp. A hit scores by difficulty, BaseScore x clamp((distance / reference distance) x (speed / reference speed) x (reference size / size), 0.5, 4) rounded to steps of 5, with the references in the settings; the style meter, combo and controlled pairs run beside it unchanged, as in every scenario. It is the deliberate counterpoint to the other three modes (G05-B02). Overclock is locked in this mode through the style values' bOverclockAllowed, because slowed time would stretch a countdown on game time; the rest of the style system stays active (G05-B02 addendum).
+The bird range runs one countdown, one run and one score: 90 seconds by default in the settings asset, continuous launches that hold a steady number of targets in flight, and a summary at the end. No waves, telegraphs, hostages or difficulty ramp. Fixed props in the scene score through the mode (G05-B03): a bonus prop pays its points once per round, so it cannot be farmed, and a penalty prop costs its points on every shot that lands on it; the sign that asks not to shoot the birds is the mode's only penalty. A hit scores by difficulty, BaseScore x clamp((distance / reference distance) x (speed / reference speed) x (reference size / size), 0.5, 4) rounded to steps of 5, with the references in the settings; the style meter, combo and controlled pairs run beside it unchanged, as in every scenario. It is the deliberate counterpoint to the other three modes (G05-B02). Overclock is locked in this mode through the style values' bOverclockAllowed, because slowed time would stretch a countdown on game time; the rest of the style system stays active (G05-B02 addendum).
 
 ## D-076 Door and occupant share one timeline
 
