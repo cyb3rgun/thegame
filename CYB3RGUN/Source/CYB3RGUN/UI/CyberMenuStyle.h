@@ -1,4 +1,4 @@
-// CYB3RGUN THEGAME. The shared look of the front end: colours, fonts and the menu button.
+// CYB3RGUN THEGAME. The shared look of the front end and the HUDs: colours, text roles, framing and the menu button.
 
 #pragma once
 
@@ -17,11 +17,11 @@ class UVerticalBox;
 class UWidget;
 class UWidgetTree;
 
-/** What every menu screen shares, so the main menu, the level selection and the pause menu read as one front end */
+/** What every screen and HUD shares, so menus, HUDs and the website read as one product (D-081, D-082) */
 struct CYB3RGUN_API FCyberMenuStyle
 {
-	/** The colours come from the brand style (UBrandStyle): brand, counter and danger from MPC_Brand, the neutrals from the
-	 *  style asset. Nothing here types a colour (D-047). */
+	/** The colours come from the brand style (UBrandStyle): brand, counter, danger and near white from MPC_Brand, the neutrals
+	 *  from the style asset. Nothing here types a colour (D-047). */
 	static FLinearColor BrandColor();
 	static FLinearColor CounterColor();
 	static FLinearColor DangerColor();
@@ -40,7 +40,8 @@ struct CYB3RGUN_API FCyberMenuStyle
 	static FLinearColor GroundColor();
 	static FLinearColor HairlineColor();
 
-	/** The font of a text role at a size (D-082): its face, typeface and tracking from the brand style */
+	/** The font of a text role at a size: its face, typeface and tracking from the brand style. There is no other way to get a
+	 *  font, so no engine default font reaches player facing UI. */
 	static FSlateFontInfo MakeFont(EBrandText Role, int32 Size);
 
 	/** A text block set in a role: font, tracking and capitals as the website sets that role */
@@ -49,20 +50,20 @@ struct CYB3RGUN_API FCyberMenuStyle
 	/** Sets an existing text block, for example one laid out in a Blueprint, in a role */
 	static void ApplyRole(UTextBlock* Block, EBrandText Role, int32 Size);
 
+	/** A small capital label over a large value, the website's readout. Returns the column; the value block comes back in OutValue. */
+	static UVerticalBox* MakeReadout(UWidgetTree* Tree, const FName& Name, const FText& Label, int32 ValueSize, const FLinearColor& ValueColor, UTextBlock*& OutValue,
+		EHorizontalAlignment Alignment = HAlign_Left);
+
 	/** A hard edged plate with a one pixel frame and, unless turned off, corner brackets */
 	static UBrandFrame* MakeFrame(UWidgetTree* Tree, const FName& Name, const FMargin& Padding, bool bCornerTicks = true);
 
 	/** A thin rule fading in towards its bright end */
 	static UBrandRule* MakeRule(UWidgetTree* Tree, float Length, bool bFadeFromStart = true);
 
-	static FSlateFontInfo MakeFont(int32 Size, const FName& Typeface = TEXT("Bold"), int32 LetterSpacing = 0);
-
-	static UTextBlock* MakeText(UWidgetTree* Tree, const FName& Name, const FText& Text, int32 Size, const FLinearColor& Color, const FName& Typeface = TEXT("Bold"));
-
-	/** Flat button without content, its brush takes the colour UpdateHighlight gives it */
+	/** Hard edged button without content, framed; UpdateHighlight frames it in the brand colour while it holds the focus */
 	static UButton* MakePlainButton(UWidgetTree* Tree, const FName& Name);
 
-	/** Flat button with a left aligned label */
+	/** Hard edged button with a centred label in the button role */
 	static UButton* MakeButton(UWidgetTree* Tree, const FName& Name, const FText& Label, int32 Size);
 
 	static USizeBox* WrapWidth(UWidgetTree* Tree, UWidget* Content, float Width);

@@ -2,6 +2,7 @@
 
 #include "PauseMenuWidget.h"
 #include "CyberMenuStyle.h"
+#include "BrandFrame.h"
 #include "GameMenuSubsystem.h"
 #include "WeaponStatus.h"
 #include "Blueprint/WidgetTree.h"
@@ -36,31 +37,29 @@ void UPauseMenuWidget::BuildLayout()
 		VeilSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Panel"));
-	Panel->SetBrushColor(FCyberMenuStyle::PanelColor());
-	Panel->SetPadding(FMargin(56.0f, 44.0f));
+	UBrandFrame* Panel = FCyberMenuStyle::MakeFrame(WidgetTree, TEXT("Panel"), FMargin(56.0f, 44.0f));
 	Veil->SetContent(Panel);
 
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PauseColumn"));
 	Panel->SetContent(Column);
 
-	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "PAUSED"), 48, FCyberMenuStyle::TextColor());
-	Title->SetFont(FCyberMenuStyle::MakeFont(48, TEXT("Bold"), 200));
-	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(0.0f, 0.0f, 0.0f, 32.0f));
+	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "PAUSED"), EBrandText::Heading, 34, FCyberMenuStyle::BrandColor());
+	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+	FCyberMenuStyle::AddToColumn(Column, FCyberMenuStyle::MakeRule(WidgetTree, 420.0f, false), FMargin(0.0f, 0.0f, 0.0f, 28.0f));
 	AddLoadout(Column);
 
-	UButton* ResumeButton = AddMenuButton(TEXT("Resume"), LOCTEXT("Resume", "Resume"), 26);
-	UButton* SettingsButton = AddMenuButton(TEXT("Settings"), LOCTEXT("Settings", "Settings"), 26);
-	UButton* MainMenuButton = AddMenuButton(TEXT("MainMenu"), LOCTEXT("MainMenu", "Return to Main Menu"), 26);
+	UButton* ResumeButton = AddMenuButton(TEXT("Resume"), LOCTEXT("Resume", "Resume"), 20);
+	UButton* SettingsButton = AddMenuButton(TEXT("Settings"), LOCTEXT("Settings", "Settings"), 20);
+	UButton* MainMenuButton = AddMenuButton(TEXT("MainMenu"), LOCTEXT("MainMenu", "Main Menu"), 20);
 	for (UButton* Button : { ResumeButton, SettingsButton, MainMenuButton })
 	{
-		FCyberMenuStyle::AddToColumn(Column, FCyberMenuStyle::WrapWidth(WidgetTree, Button, 420.0f), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+		FCyberMenuStyle::AddToColumn(Column, FCyberMenuStyle::WrapWidth(WidgetTree, Button, 430.0f), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 	}
 	ResumeButton->OnClicked.AddUniqueDynamic(this, &UPauseMenuWidget::HandleResume);
 	SettingsButton->OnClicked.AddUniqueDynamic(this, &UPauseMenuWidget::HandleSettings);
 	MainMenuButton->OnClicked.AddUniqueDynamic(this, &UPauseMenuWidget::HandleMainMenu);
 
-	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Esc or B to resume"), 14, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Esc or B to resume"), EBrandText::Label, 12, FCyberMenuStyle::FaintTextColor());
 	FCyberMenuStyle::AddToColumn(Column, Hint, FMargin(0.0f, 24.0f, 0.0f, 0.0f));
 }
 
@@ -80,8 +79,7 @@ void UPauseMenuWidget::AddLoadout(UVerticalBox* Column)
 		return;
 	}
 
-	UTextBlock* Heading = FCyberMenuStyle::MakeText(WidgetTree, TEXT("LoadoutHeading"), LOCTEXT("Loadout", "LOADOUT"), 16, FCyberMenuStyle::BrandColor());
-	Heading->SetFont(FCyberMenuStyle::MakeFont(16, TEXT("Bold"), 240));
+	UTextBlock* Heading = FCyberMenuStyle::MakeText(WidgetTree, TEXT("LoadoutHeading"), LOCTEXT("Loadout", "LOADOUT"), EBrandText::Label, 13, FCyberMenuStyle::FaintTextColor());
 	FCyberMenuStyle::AddToColumn(Column, Heading, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 
 	for (const FWeaponStatus& Weapon : Loadout)
@@ -101,7 +99,7 @@ void UPauseMenuWidget::AddLoadout(UVerticalBox* Column)
 				MarkSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 			}
 		}
-		UTextBlock* Name = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Weapon.WeaponName, 22, Color);
+		UTextBlock* Name = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Weapon.WeaponName, EBrandText::Title, 24, Color);
 		if (UHorizontalBoxSlot* NameSlot = Row->AddChildToHorizontalBox(Name))
 		{
 			NameSlot->SetVerticalAlignment(VAlign_Center);
@@ -110,7 +108,7 @@ void UPauseMenuWidget::AddLoadout(UVerticalBox* Column)
 		// what kind of weapon it is, quieter beside the name (D-053)
 		if (!Weapon.Subtitle.IsEmpty())
 		{
-			UTextBlock* Subtitle = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Weapon.Subtitle, 16, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+			UTextBlock* Subtitle = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Weapon.Subtitle, EBrandText::Body, 16, FCyberMenuStyle::DimTextColor());
 			if (UHorizontalBoxSlot* SubtitleSlot = Row->AddChildToHorizontalBox(Subtitle))
 			{
 				SubtitleSlot->SetVerticalAlignment(VAlign_Center);
@@ -121,7 +119,7 @@ void UPauseMenuWidget::AddLoadout(UVerticalBox* Column)
 	}
 
 	// the loadout and the buttons are two groups
-	UTextBlock* Spacer = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, FText::GetEmpty(), 8, FCyberMenuStyle::DimTextColor());
+	UTextBlock* Spacer = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, FText::GetEmpty(), EBrandText::Body, 8, FCyberMenuStyle::DimTextColor());
 	FCyberMenuStyle::AddToColumn(Column, Spacer, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
 }
 

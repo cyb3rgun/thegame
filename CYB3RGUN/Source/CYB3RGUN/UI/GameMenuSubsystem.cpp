@@ -403,6 +403,18 @@ static FAutoConsoleCommandWithWorld GGameMenuBackCommand(
 		}
 	}));
 
+static FAutoConsoleCommandWithWorld GGameMenuLevelSelectCommand(
+	TEXT("Menu.LevelSelect"),
+	TEXT("Opens the level selection over the main menu, like Play."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		if (UGameMenuSubsystem* Subsystem = GameInstance ? GameInstance->GetSubsystem<UGameMenuSubsystem>() : nullptr)
+		{
+			Subsystem->OpenLevelSelect();
+		}
+	}));
+
 static FAutoConsoleCommandWithWorld GGameMenuPauseCommand(
 	TEXT("Menu.Pause"),
 	TEXT("Opens the pause menu in a gameplay level, like Escape."),

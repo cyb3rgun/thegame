@@ -44,6 +44,7 @@ public:
 	void Refresh(const FText& Label, const FText& Value, bool bExperimental, const FText& Cost);
 
 	ECyberSettingOption GetOption() const { return Option; }
+	UButton* GetPrevButton() const { return PrevButton; }
 	UButton* GetNextButton() const { return NextButton; }
 
 protected:

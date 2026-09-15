@@ -9,7 +9,6 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
-#include "Styling/CoreStyle.h"
 
 TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
 {
@@ -18,26 +17,19 @@ TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Row"));
 		WidgetTree->RootWidget = Row;
 
-		auto MakeText = [this](const FName& Name, int32 Size, const FLinearColor& Color)
+		auto MakeText = [this](const FName& Name, EBrandText Role, int32 Size, const FLinearColor& Color)
 		{
-			UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
-			Text->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", Size));
-			Text->SetColorAndOpacity(FSlateColor(Color));
-			return Text;
+			return FCyberMenuStyle::MakeText(WidgetTree, Name, FText::GetEmpty(), Role, Size, Color);
 		};
 
-		auto MakeButton = [this, &MakeText](const FName& Name, const TCHAR* Glyph)
+		auto MakeButton = [this](const FName& Name, const TCHAR* Glyph)
 		{
-			UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
-			UTextBlock* Text = MakeText(*(Name.ToString() + TEXT("Text")), 18, FCyberMenuStyle::TextColor());
-			Text->SetText(FText::FromString(Glyph));
-			Button->AddChild(Text);
-			return Button;
+			return FCyberMenuStyle::MakeButton(WidgetTree, Name, FText::FromString(Glyph), 16);
 		};
 
 		USizeBox* LabelBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("LabelBox"));
 		LabelBox->SetWidthOverride(520.0f);
-		LabelText = MakeText(TEXT("Label"), 18, FCyberMenuStyle::TextColor());
+		LabelText = MakeText(TEXT("Label"), EBrandText::Body, 18, FCyberMenuStyle::TextColor());
 		LabelBox->AddChild(LabelText);
 		if (UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(LabelBox))
 		{
@@ -49,7 +41,7 @@ TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
 
 		USizeBox* ValueBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ValueBox"));
 		ValueBox->SetWidthOverride(360.0f); // wide enough for "On, needs virtual shadows"
-		ValueText = MakeText(TEXT("Value"), 18, FCyberMenuStyle::TextColor());
+		ValueText = MakeText(TEXT("Value"), EBrandText::Title, 20, FCyberMenuStyle::TextColor());
 		ValueText->SetJustification(ETextJustify::Center);
 		ValueBox->AddChild(ValueText);
 		if (UHorizontalBoxSlot* ValueSlot = Row->AddChildToHorizontalBox(ValueBox))
@@ -63,7 +55,7 @@ TSharedRef<SWidget> USettingsMenuRow::RebuildWidget()
 		// measured cost of the shown value, right aligned so the figures line up
 		USizeBox* CostBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CostBox"));
 		CostBox->SetWidthOverride(150.0f);
-		CostText = MakeText(TEXT("Cost"), 16, FCyberMenuStyle::DimTextColor());
+		CostText = MakeText(TEXT("Cost"), EBrandText::Readout, 13, FCyberMenuStyle::DimTextColor());
 		CostText->SetJustification(ETextJustify::Right);
 		CostBox->AddChild(CostText);
 		if (UHorizontalBoxSlot* CostSlot = Row->AddChildToHorizontalBox(CostBox))

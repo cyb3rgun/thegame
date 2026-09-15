@@ -22,7 +22,7 @@
 #include "DynamicRHI.h"
 #include "Engine/GameInstance.h"
 #include "Misc/App.h"
-#include "Styling/CoreStyle.h"
+#include "BrandFrame.h"
 
 #define LOCTEXT_NAMESPACE "SettingsMenu"
 
@@ -40,25 +40,15 @@ void USettingsMenuWidget::BuildLayout()
 	UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("MenuCanvas"));
 	WidgetTree->RootWidget = Canvas;
 
-	auto MakeText = [this](const FName& Name, int32 Size, const FLinearColor& Color, const FText& Text)
+	auto MakeButton = [this](const FName& Name, const FText& Text)
 	{
-		UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
-		Block->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", Size));
-		Block->SetColorAndOpacity(FSlateColor(Color));
-		Block->SetText(Text);
-		return Block;
+		return FCyberMenuStyle::MakeButton(WidgetTree, Name, Text, 16);
 	};
 
-	auto MakeButton = [this, &MakeText](const FName& Name, const FText& Text)
-	{
-		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
-		Button->AddChild(MakeText(*(Name.ToString() + TEXT("Text")), 20, FCyberMenuStyle::TextColor(), Text));
-		return Button;
-	};
-
-	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MenuPanel"));
+	// the many rows need a nearly opaque plate to stay readable over any scene
+	UBrandFrame* Panel = FCyberMenuStyle::MakeFrame(WidgetTree, TEXT("MenuPanel"), FMargin(36.0f, 28.0f));
+	Panel->bPanelFill = false;
 	Panel->SetBrushColor(FCyberMenuStyle::PanelSolidColor());
-	Panel->SetPadding(FMargin(36.0f, 28.0f));
 	if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
 	{
 		PanelSlot->SetAnchors(FAnchors(0.5f, 0.5f));
@@ -71,12 +61,12 @@ void USettingsMenuWidget::BuildLayout()
 
 	// header: title on the left, live frame rate on the right
 	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Header"));
-	Header->AddChildToHorizontalBox(MakeText(TEXT("Title"), 30, FCyberMenuStyle::TextColor(), LOCTEXT("Title", "SETTINGS")));
+	Header->AddChildToHorizontalBox(FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "SETTINGS"), EBrandText::Heading, 26, FCyberMenuStyle::BrandColor()));
 	if (UHorizontalBoxSlot* SpacerSlot = Header->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("HeaderSpacer"))))
 	{
 		SpacerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	}
-	FrameRateText = MakeText(TEXT("FrameRate"), 22, FCyberMenuStyle::BrandColor(), FText::GetEmpty());
+	FrameRateText = FCyberMenuStyle::MakeText(WidgetTree, TEXT("FrameRate"), FText::GetEmpty(), EBrandText::Readout, 15, FCyberMenuStyle::BrandColor());
 	if (UHorizontalBoxSlot* RateSlot = Header->AddChildToHorizontalBox(FrameRateText))
 	{
 		RateSlot->SetVerticalAlignment(VAlign_Center);
@@ -93,10 +83,7 @@ void USettingsMenuWidget::BuildLayout()
 	Column->AddChildToVerticalBox(Scroll);
 
 	// where the grey cost figures next to the options come from
-	NoteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CostNote"));
-	NoteText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
-	NoteText->SetColorAndOpacity(FSlateColor(FCyberMenuStyle::DimTextColor()));
-	NoteText->SetText(FSettingsMeasuredCosts::GetSourceNote());
+	NoteText = FCyberMenuStyle::MakeText(WidgetTree, TEXT("CostNote"), FSettingsMeasuredCosts::GetSourceNote(), EBrandText::Body, 14, FCyberMenuStyle::DimTextColor());
 	if (UVerticalBoxSlot* NoteSlot = Column->AddChildToVerticalBox(NoteText))
 	{
 		NoteSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
@@ -113,7 +100,7 @@ void USettingsMenuWidget::BuildLayout()
 		Rows.Add(Row);
 	}
 
-	StatusText = MakeText(TEXT("Status"), 18, FCyberMenuStyle::CounterColor(), FText::GetEmpty());
+	StatusText = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Status"), FText::GetEmpty(), EBrandText::Body, 17, FCyberMenuStyle::CounterColor());
 	if (UVerticalBoxSlot* StatusSlot = Column->AddChildToVerticalBox(StatusText))
 	{
 		StatusSlot->SetPadding(FMargin(0.0f, 14.0f, 0.0f, 10.0f));
@@ -261,6 +248,20 @@ void USettingsMenuWidget::SetStatus(const FText& Text)
 void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// the focused button is framed in the brand colour, as in every other menu
+	for (UButton* Button : { ResetButton.Get(), ApplyButton.Get(), CloseButton.Get() })
+	{
+		FCyberMenuStyle::UpdateHighlight(Button);
+	}
+	for (USettingsMenuRow* Row : Rows)
+	{
+		if (Row)
+		{
+			FCyberMenuStyle::UpdateHighlight(Row->GetPrevButton());
+			FCyberMenuStyle::UpdateHighlight(Row->GetNextButton());
+		}
+	}
 
 	// real frame time, unaffected by pause or time dilation
 	FrameAccumulator += static_cast<float>(FApp::GetDeltaTime());

@@ -25,7 +25,11 @@ protected:
 
 	/** Width of the dark band on the left that carries the title and the buttons */
 	UPROPERTY(EditAnywhere, Category="Menu", meta = (ClampMin = 200.0))
-	float BandWidth = 680.0f;
+	float BandWidth = 760.0f;
+
+	/** Size of the wordmark in the band */
+	UPROPERTY(EditAnywhere, Category="Menu", meta = (ClampMin = 12))
+	int32 WordmarkSize = 54;
 
 	/** The mark above the name: boots up with the menu, spins while the background level streams in */
 	UPROPERTY(Transient)

@@ -31,9 +31,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogStyleHUD, Log, All);
 // a named namespace with unique names, unity builds merge this file with other HUDs that have their own helpers
 namespace StyleHudLook
 {
-	UTextBlock* MakeLine(UWidgetTree* Tree, const FName& Name, int32 Size, const FLinearColor& Color, ETextJustify::Type Justify)
+	UTextBlock* MakeLine(UWidgetTree* Tree, const FName& Name, EBrandText Role, int32 Size, const FLinearColor& Color, ETextJustify::Type Justify)
 	{
-		UTextBlock* Block = FCyberMenuStyle::MakeText(Tree, Name, FText::GetEmpty(), Size, Color);
+		UTextBlock* Block = FCyberMenuStyle::MakeText(Tree, Name, FText::GetEmpty(), Role, Size, Color);
 		Block->SetJustification(Justify);
 		Block->SetShadowOffset(FVector2D(2.0f, 2.0f));
 		Block->SetShadowColorAndOpacity(FCyberMenuStyle::ShadowColor());
@@ -125,12 +125,12 @@ void UStyleHUDWidget::BuildLayout()
 
 	// top right, over the sky: rank, meter, style points, combo, the last style event, Overclock
 	UVerticalBox* StyleColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StyleColumn"));
-	RankText = StyleHudLook::MakeLine(WidgetTree, TEXT("RankText"), 34, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	RankText = StyleHudLook::MakeLine(WidgetTree, TEXT("RankText"), EBrandText::Title, 36, FCyberMenuStyle::TextColor(), ETextJustify::Right);
 	MeterBar = StyleHudLook::MakeBar(WidgetTree, TEXT("MeterBar"), FCyberMenuStyle::BrandColor());
-	StyleText = StyleHudLook::MakeLine(WidgetTree, TEXT("StyleText"), 20, FCyberMenuStyle::TextColor(), ETextJustify::Right);
-	ComboText = StyleHudLook::MakeLine(WidgetTree, TEXT("ComboText"), 26, FCyberMenuStyle::BrandColor(), ETextJustify::Right);
-	EventText = StyleHudLook::MakeLine(WidgetTree, TEXT("EventText"), 18, FCyberMenuStyle::TextColor(), ETextJustify::Right);
-	OverclockText = StyleHudLook::MakeLine(WidgetTree, TEXT("OverclockText"), 18, FCyberMenuStyle::CounterColor(), ETextJustify::Right);
+	StyleText = StyleHudLook::MakeLine(WidgetTree, TEXT("StyleText"), EBrandText::Readout, 16, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	ComboText = StyleHudLook::MakeLine(WidgetTree, TEXT("ComboText"), EBrandText::Value, 28, FCyberMenuStyle::BrandColor(), ETextJustify::Right);
+	EventText = StyleHudLook::MakeLine(WidgetTree, TEXT("EventText"), EBrandText::Label, 13, FCyberMenuStyle::TextColor(), ETextJustify::Right);
+	OverclockText = StyleHudLook::MakeLine(WidgetTree, TEXT("OverclockText"), EBrandText::Label, 13, FCyberMenuStyle::CounterColor(), ETextJustify::Right);
 	StyleHudLook::AddLine(StyleColumn, RankText, HAlign_Right, 2.0f);
 	StyleHudLook::AddBar(WidgetTree, StyleColumn, MeterBar, 300.0f, 10.0f, HAlign_Right, 6.0f);
 	StyleHudLook::AddLine(StyleColumn, StyleText, HAlign_Right, 2.0f);
@@ -147,9 +147,9 @@ void UStyleHUDWidget::BuildLayout()
 
 	// bottom left, above the round counter of the shooter HUD: the weapon, its reload and the empty cue
 	UVerticalBox* WeaponColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("WeaponColumn"));
-	WeaponText = StyleHudLook::MakeLine(WidgetTree, TEXT("WeaponText"), 28, FCyberMenuStyle::TextColor(), ETextJustify::Left);
+	WeaponText = StyleHudLook::MakeLine(WidgetTree, TEXT("WeaponText"), EBrandText::Title, 28, FCyberMenuStyle::TextColor(), ETextJustify::Left);
 	ReloadBar = StyleHudLook::MakeBar(WidgetTree, TEXT("ReloadBar"), FCyberMenuStyle::BrandColor());
-	CueText = StyleHudLook::MakeLine(WidgetTree, TEXT("CueText"), 22, FCyberMenuStyle::DangerColor(), ETextJustify::Left);
+	CueText = StyleHudLook::MakeLine(WidgetTree, TEXT("CueText"), EBrandText::Label, 15, FCyberMenuStyle::DangerColor(), ETextJustify::Left);
 	// the maker's mark sits in front of the weapon name, in the neutral text colour: it is the maker's, not the product's (D-056)
 	UHorizontalBox* WeaponRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("WeaponRow"));
 	MakerMarkImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("MakerMark"));

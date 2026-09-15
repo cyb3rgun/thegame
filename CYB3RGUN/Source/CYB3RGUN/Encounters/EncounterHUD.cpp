@@ -14,7 +14,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
-#include "Styling/CoreStyle.h"
+#include "BrandFrame.h"
 
 #define LOCTEXT_NAMESPACE "EncounterHUD"
 
@@ -50,9 +50,8 @@ void UEncounterHUD::BuildFallbackLayout()
 
 	auto MakeText = [this](const FName& Name, int32 Size, const FLinearColor& Color) -> UTextBlock*
 	{
-		UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
-		Block->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", Size));
-		Block->SetColorAndOpacity(FSlateColor(Color));
+		// the fallback lines take their roles in NativeConstruct, like the lines of a Blueprint layout
+		UTextBlock* Block = FCyberMenuStyle::MakeText(WidgetTree, Name, FText::GetEmpty(), EBrandText::Readout, Size, Color);
 		Block->SetShadowOffset(FVector2D(2.0f, 2.0f));
 		Block->SetShadowColorAndOpacity(FCyberMenuStyle::ShadowColor());
 		return Block;
@@ -95,9 +94,7 @@ void UEncounterHUD::BuildFallbackLayout()
 
 	if (!SummaryPanel)
 	{
-		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SummaryPanel"));
-		Border->SetBrushColor(FCyberMenuStyle::PanelColor());
-		Border->SetPadding(FMargin(32.0f, 24.0f));
+		UBorder* Border = FCyberMenuStyle::MakeFrame(WidgetTree, TEXT("SummaryPanel"), FMargin(40.0f, 30.0f));
 		SummaryText = MakeText(TEXT("SummaryText"), 28, EncounterHudLook::Neutral());
 		SummaryText->SetJustification(ETextJustify::Center);
 		Border->SetContent(SummaryText);
@@ -115,7 +112,12 @@ void UEncounterHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// the Blueprint layout bakes its own colours, the brand style decides them
+	// the Blueprint layout bakes its own fonts and colours, the brand style decides them (D-082)
+	FCyberMenuStyle::ApplyRole(WaveText, EBrandText::Value, 40);
+	FCyberMenuStyle::ApplyRole(AliveText, EBrandText::Readout, 18);
+	FCyberMenuStyle::ApplyRole(KillsText, EBrandText::Readout, 18);
+	FCyberMenuStyle::ApplyRole(EventText, EBrandText::Title, 40);
+	FCyberMenuStyle::ApplyRole(SummaryText, EBrandText::Readout, 18);
 	EncounterHudLook::Restyle(WaveText, EncounterHudLook::Neutral());
 	EncounterHudLook::Restyle(AliveText, EncounterHudLook::Warn());
 	EncounterHudLook::Restyle(KillsText, EncounterHudLook::Neutral());

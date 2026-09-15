@@ -14,7 +14,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/World.h"
-#include "Styling/CoreStyle.h"
+#include "BrandFrame.h"
 
 #define LOCTEXT_NAMESPACE "DoorRangeHUD"
 
@@ -53,10 +53,8 @@ void UDoorRangeHUD::BuildFallbackLayout()
 
 	auto MakeText = [this](const FName& Name, int32 Size, const FLinearColor& Color) -> UTextBlock*
 	{
-		UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
-		FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle("Bold", Size);
-		Block->SetFont(Font);
-		Block->SetColorAndOpacity(FSlateColor(Color));
+		// the fallback lines take their roles in NativeConstruct, like the lines of a Blueprint layout
+		UTextBlock* Block = FCyberMenuStyle::MakeText(WidgetTree, Name, FText::GetEmpty(), EBrandText::Readout, Size, Color);
 		Block->SetShadowOffset(FVector2D(2.0f, 2.0f));
 		Block->SetShadowColorAndOpacity(FCyberMenuStyle::ShadowColor());
 		return Block;
@@ -99,9 +97,7 @@ void UDoorRangeHUD::BuildFallbackLayout()
 
 	if (!SummaryPanel)
 	{
-		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SummaryPanel"));
-		Border->SetBrushColor(FCyberMenuStyle::PanelColor());
-		Border->SetPadding(FMargin(32.0f, 24.0f));
+		UBorder* Border = FCyberMenuStyle::MakeFrame(WidgetTree, TEXT("SummaryPanel"), FMargin(40.0f, 30.0f));
 		SummaryText = MakeText(TEXT("SummaryText"), 28, DoorRangeHudLook::Neutral());
 		SummaryText->SetJustification(ETextJustify::Center);
 		Border->SetContent(SummaryText);
@@ -119,7 +115,12 @@ void UDoorRangeHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// the Blueprint layout bakes its own colours, the brand style decides them
+	// the Blueprint layout bakes its own fonts and colours, the brand style decides them (D-082)
+	FCyberMenuStyle::ApplyRole(ScoreText, EBrandText::Value, 44);
+	FCyberMenuStyle::ApplyRole(WaveText, EBrandText::Readout, 18);
+	FCyberMenuStyle::ApplyRole(HostilesText, EBrandText::Readout, 18);
+	FCyberMenuStyle::ApplyRole(EventText, EBrandText::Title, 40);
+	FCyberMenuStyle::ApplyRole(SummaryText, EBrandText::Readout, 18);
 	DoorRangeHudLook::Restyle(ScoreText, DoorRangeHudLook::Neutral());
 	DoorRangeHudLook::Restyle(WaveText, DoorRangeHudLook::Neutral());
 	DoorRangeHudLook::Restyle(HostilesText, DoorRangeHudLook::Warn());

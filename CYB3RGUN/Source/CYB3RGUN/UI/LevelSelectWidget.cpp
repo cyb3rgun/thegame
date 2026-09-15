@@ -2,6 +2,7 @@
 
 #include "LevelSelectWidget.h"
 #include "CyberMenuStyle.h"
+#include "BrandFrame.h"
 #include "GameMenuSubsystem.h"
 #include "LevelCardWidget.h"
 #include "PlayableLevelDefinition.h"
@@ -36,9 +37,9 @@ void ULevelSelectWidget::BuildLayout()
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SelectColumn"));
 	Veil->SetContent(Column);
 
-	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "SELECT LEVEL"), 44, FCyberMenuStyle::TextColor());
-	Title->SetFont(FCyberMenuStyle::MakeFont(44, TEXT("Bold"), 160));
-	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(8.0f, 0.0f, 0.0f, 24.0f));
+	UTextBlock* Title = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Title"), LOCTEXT("Title", "SELECT LEVEL"), EBrandText::Heading, 34, FCyberMenuStyle::BrandColor());
+	FCyberMenuStyle::AddToColumn(Column, Title, FMargin(8.0f, 0.0f, 0.0f, 6.0f));
+	FCyberMenuStyle::AddToColumn(Column, FCyberMenuStyle::MakeRule(WidgetTree, 420.0f, false), FMargin(8.0f, 0.0f, 0.0f, 22.0f));
 
 	const TArray<UPlayableLevelDefinition*> Levels = UPlayableLevelDefinition::LoadAll();
 	for (const EPlayableLevelKind Kind : { EPlayableLevelKind::Scenario, EPlayableLevelKind::TestMap })
@@ -50,8 +51,7 @@ void ULevelSelectWidget::BuildLayout()
 		}
 
 		const FText Heading = Kind == EPlayableLevelKind::Scenario ? LOCTEXT("Scenarios", "SCENARIOS") : LOCTEXT("TestMaps", "TEST MAPS");
-		UTextBlock* HeadingText = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Heading, 16, FCyberMenuStyle::BrandColor());
-		HeadingText->SetFont(FCyberMenuStyle::MakeFont(16, TEXT("Bold"), 200));
+		UTextBlock* HeadingText = FCyberMenuStyle::MakeText(WidgetTree, NAME_None, Heading, EBrandText::Label, 13, FCyberMenuStyle::FaintTextColor());
 		FCyberMenuStyle::AddToColumn(Column, HeadingText, FMargin(8.0f, 8.0f, 0.0f, 4.0f));
 
 		UUniformGridPanel* Grid = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
@@ -69,15 +69,15 @@ void ULevelSelectWidget::BuildLayout()
 
 	if (Cards.Num() == 0)
 	{
-		UTextBlock* Empty = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Empty"), LOCTEXT("Empty", "No playable levels found. Level definitions live in Core/Levels."), 18, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+		UTextBlock* Empty = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Empty"), LOCTEXT("Empty", "No playable levels found. Level definitions live in Core/Levels."), EBrandText::Body, 18, FCyberMenuStyle::DimTextColor());
 		FCyberMenuStyle::AddToColumn(Column, Empty, FMargin(8.0f, 0.0f, 0.0f, 12.0f));
 	}
 
-	UButton* BackButton = AddMenuButton(TEXT("Back"), LOCTEXT("Back", "Back"), 22);
+	UButton* BackButton = AddMenuButton(TEXT("Back"), LOCTEXT("Back", "Back"), 18);
 	BackButton->OnClicked.AddUniqueDynamic(this, &ULevelSelectWidget::HandleBack);
 	FCyberMenuStyle::AddToColumn(Column, FCyberMenuStyle::WrapWidth(WidgetTree, BackButton, 220.0f), FMargin(8.0f, 16.0f, 0.0f, 0.0f));
 
-	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Enter or A to start, Esc or B to go back"), 14, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+	UTextBlock* Hint = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Hint"), LOCTEXT("Hint", "Enter or A to start, Esc or B to go back"), EBrandText::Label, 12, FCyberMenuStyle::FaintTextColor());
 	FCyberMenuStyle::AddToColumn(Column, Hint, FMargin(8.0f, 18.0f, 0.0f, 0.0f));
 }
 

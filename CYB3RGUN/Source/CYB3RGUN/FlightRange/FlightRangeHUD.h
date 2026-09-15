@@ -31,6 +31,13 @@ protected:
 	TObjectPtr<UTextBlock> HitsText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> MissesText;
+
+	/** The final score, the large number of the summary plate */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SummaryScoreText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> EventText;
 
 	UPROPERTY(Transient)

@@ -57,14 +57,13 @@ void ULevelCardWidget::Setup(UPlayableLevelDefinition* InLevel)
 	FCyberMenuStyle::AddToColumn(Column, PreviewBox, FMargin(0.0f, 0.0f, 0.0f, 10.0f), HAlign_Fill);
 
 	const FText Kind = Level->Kind == EPlayableLevelKind::Scenario ? LOCTEXT("Scenario", "SCENARIO") : LOCTEXT("TestMap", "TEST MAP");
-	UTextBlock* KindText = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Kind"), Kind, 12, FCyberMenuStyle::BrandColor());
-	KindText->SetFont(FCyberMenuStyle::MakeFont(12, TEXT("Bold"), 200));
+	UTextBlock* KindText = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Kind"), Kind, EBrandText::Label, 11, FCyberMenuStyle::BrandColor());
 	FCyberMenuStyle::AddToColumn(Column, KindText, FMargin(0.0f, 0.0f, 0.0f, 2.0f));
 
-	UTextBlock* Name = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Name"), Level->GetDisplayText(), 22, FCyberMenuStyle::TextColor());
+	UTextBlock* Name = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Name"), Level->GetDisplayText(), EBrandText::Title, 24, FCyberMenuStyle::TextColor());
 	FCyberMenuStyle::AddToColumn(Column, Name, FMargin(0.0f, 0.0f, 0.0f, 4.0f));
 
-	UTextBlock* Description = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Description"), Level->Description, 14, FCyberMenuStyle::DimTextColor(), TEXT("Regular"));
+	UTextBlock* Description = FCyberMenuStyle::MakeText(WidgetTree, TEXT("Description"), Level->Description, EBrandText::Body, 15, FCyberMenuStyle::DimTextColor());
 	Description->SetAutoWrapText(true);
 	FCyberMenuStyle::AddToColumn(Column, Description, FMargin(0.0f, 0.0f, 0.0f, 4.0f), HAlign_Fill);
 }

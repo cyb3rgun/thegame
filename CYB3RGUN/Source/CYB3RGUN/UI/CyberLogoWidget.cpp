@@ -161,7 +161,7 @@ void SCyberLoadingScreen::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(NSLOCTEXT("CyberLogo", "Loading", "LOADING"))
-				.Font(FCyberMenuStyle::MakeFont(18, TEXT("Bold"), 320))
+				.Font(FCyberMenuStyle::MakeFont(EBrandText::Label, 16))
 				.ColorAndOpacity(FCyberMenuStyle::TextColor())
 			]
 		]
