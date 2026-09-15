@@ -14,8 +14,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogCyberSettings, Log, All);
 
 namespace CyberSettings
 {
-	/** Bump when the saved layout or the preset table changes; older saves reset to the preset defaults. 2: G03-B03 presets */
-	constexpr int32 CurrentVersion = 2;
+	/** Bump when the saved layout or the preset table changes; older saves reset to the preset defaults. 2: G03-B03 presets,
+	 *  3: Nanite on in High and Epic (D-086) */
+	constexpr int32 CurrentVersion = 3;
 
 	/** Above this many desktop pixels hardware detection stops at High (D-031) */
 	constexpr int64 LargeDisplayPixels = 4000000;
@@ -102,7 +103,7 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.VirtualShadowMaps = ECyberShadowQuality::Low;
 		F.VolumetricFog = ECyberFogQuality::Off;
 		F.AntiAliasing = ECyberAntiAliasing::TSRBalanced;
-		// Nanite stays off until real production geometry exists: on the placeholder content it only costs time
+		// Nanite stays off in Medium (D-086): its plants draw their fallback meshes, which keep their leaves
 		F.bNanite = false;
 		F.EffectsQuality = 1;
 		F.ViewDistanceQuality = 1;
@@ -117,7 +118,8 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.VirtualShadowMaps = ECyberShadowQuality::High;
 		F.VolumetricFog = ECyberFogQuality::Low;
 		F.AntiAliasing = ECyberAntiAliasing::TSRQuality;
-		F.bNanite = false;
+		// production geometry exists now, the imported plants among it: Nanite runs here, Virtual Shadow Maps are on (D-086)
+		F.bNanite = true;
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = false;
@@ -130,7 +132,8 @@ FCyberFeatureSettings UCyberGameUserSettings::GetPresetFeatures(ECyberQualityPre
 		F.VolumetricFog = ECyberFogQuality::Medium;
 		// TSR Native costs 6.5 ms more than Quality at 5120 x 1440; native resolution is left to Ultra
 		F.AntiAliasing = ECyberAntiAliasing::TSRQuality;
-		F.bNanite = false;
+		// Nanite with Virtual Shadow Maps Epic, as in High (D-086)
+		F.bNanite = true;
 		F.EffectsQuality = 3;
 		F.ViewDistanceQuality = 3;
 		F.bMotionBlur = false;
