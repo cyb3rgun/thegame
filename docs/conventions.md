@@ -13,6 +13,8 @@
 | M_ | Material |
 | MI_ | Material Instance |
 | T_ | Texture |
+| F_ | Font |
+| FF_ | Font Face |
 | SM_ | Static Mesh |
 | SK_ | Skeletal Mesh |
 | NS_ | Niagara System |

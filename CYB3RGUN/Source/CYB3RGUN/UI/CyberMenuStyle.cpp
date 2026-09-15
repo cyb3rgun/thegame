@@ -2,6 +2,8 @@
 
 #include "CyberMenuStyle.h"
 #include "BrandStyle.h"
+#include "BrandFrame.h"
+#include "Engine/Font.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Components/Button.h"
@@ -25,6 +27,60 @@ FLinearColor FCyberMenuStyle::ButtonIdleColor() { return UBrandStyle::Get().Butt
 FLinearColor FCyberMenuStyle::TrackColor() { return UBrandStyle::Get().Track; }
 FLinearColor FCyberMenuStyle::ShadowColor() { return UBrandStyle::Get().Shadow; }
 FLinearColor FCyberMenuStyle::PlaceholderColor() { return UBrandStyle::Get().Placeholder; }
+FLinearColor FCyberMenuStyle::NearWhiteColor() { return UBrandStyle::Get().GetNearWhite(); }
+FLinearColor FCyberMenuStyle::FaintTextColor() { return UBrandStyle::Get().FaintText; }
+FLinearColor FCyberMenuStyle::GroundColor() { return UBrandStyle::Get().Ground; }
+FLinearColor FCyberMenuStyle::HairlineColor() { return UBrandStyle::Get().GetHairline(); }
+
+FSlateFontInfo FCyberMenuStyle::MakeFont(EBrandText Role, int32 Size)
+{
+	const FBrandTextStyle& Style = UBrandStyle::Get().GetTextStyle(Role);
+	FSlateFontInfo Font = Style.Font ? FSlateFontInfo(Style.Font.Get(), Size, Style.Typeface) : FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), Size);
+	Font.LetterSpacing = Style.LetterSpacing;
+	if (Role == EBrandText::Wordmark)
+	{
+		// the website fills the word with a gradient and gives Michroma weight with a thin light stroke
+		Font.FontMaterial = UBrandStyle::Get().WordmarkMaterial;
+		Font.OutlineSettings.OutlineSize = 1;
+		Font.OutlineSettings.OutlineColor = UBrandStyle::Get().GetNearWhite().CopyWithNewOpacity(0.9f);
+	}
+	return Font;
+}
+
+UTextBlock* FCyberMenuStyle::MakeText(UWidgetTree* Tree, const FName& Name, const FText& Text, EBrandText Role, int32 Size, const FLinearColor& Color)
+{
+	UTextBlock* Block = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
+	ApplyRole(Block, Role, Size);
+	Block->SetColorAndOpacity(FSlateColor(Color));
+	Block->SetText(Text);
+	return Block;
+}
+
+void FCyberMenuStyle::ApplyRole(UTextBlock* Block, EBrandText Role, int32 Size)
+{
+	if (!Block)
+	{
+		return;
+	}
+	Block->SetFont(MakeFont(Role, Size));
+	Block->SetTextTransformPolicy(UBrandStyle::Get().GetTextStyle(Role).bUppercase ? ETextTransformPolicy::ToUpper : ETextTransformPolicy::None);
+}
+
+UBrandFrame* FCyberMenuStyle::MakeFrame(UWidgetTree* Tree, const FName& Name, const FMargin& Padding, bool bCornerTicks)
+{
+	UBrandFrame* Frame = Tree->ConstructWidget<UBrandFrame>(UBrandFrame::StaticClass(), Name);
+	Frame->bCornerTicks = bCornerTicks;
+	Frame->SetPadding(Padding);
+	return Frame;
+}
+
+UBrandRule* FCyberMenuStyle::MakeRule(UWidgetTree* Tree, float Length, bool bFadeFromStart)
+{
+	UBrandRule* Rule = Tree->ConstructWidget<UBrandRule>(UBrandRule::StaticClass());
+	Rule->Length = Length;
+	Rule->bFadeFromStart = bFadeFromStart;
+	return Rule;
+}
 
 FLinearColor FCyberMenuStyle::ButtonActiveColor()
 {

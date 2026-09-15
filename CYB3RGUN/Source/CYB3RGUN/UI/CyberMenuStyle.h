@@ -6,7 +6,10 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Layout/Margin.h"
 #include "Types/SlateEnums.h"
+#include "BrandStyle.h"
 
+class UBrandFrame;
+class UBrandRule;
 class UButton;
 class USizeBox;
 class UTextBlock;
@@ -32,6 +35,25 @@ struct CYB3RGUN_API FCyberMenuStyle
 	static FLinearColor TrackColor();
 	static FLinearColor ShadowColor();
 	static FLinearColor PlaceholderColor();
+	static FLinearColor NearWhiteColor();
+	static FLinearColor FaintTextColor();
+	static FLinearColor GroundColor();
+	static FLinearColor HairlineColor();
+
+	/** The font of a text role at a size (D-082): its face, typeface and tracking from the brand style */
+	static FSlateFontInfo MakeFont(EBrandText Role, int32 Size);
+
+	/** A text block set in a role: font, tracking and capitals as the website sets that role */
+	static UTextBlock* MakeText(UWidgetTree* Tree, const FName& Name, const FText& Text, EBrandText Role, int32 Size, const FLinearColor& Color);
+
+	/** Sets an existing text block, for example one laid out in a Blueprint, in a role */
+	static void ApplyRole(UTextBlock* Block, EBrandText Role, int32 Size);
+
+	/** A hard edged plate with a one pixel frame and, unless turned off, corner brackets */
+	static UBrandFrame* MakeFrame(UWidgetTree* Tree, const FName& Name, const FMargin& Padding, bool bCornerTicks = true);
+
+	/** A thin rule fading in towards its bright end */
+	static UBrandRule* MakeRule(UWidgetTree* Tree, float Length, bool bFadeFromStart = true);
 
 	static FSlateFontInfo MakeFont(int32 Size, const FName& Typeface = TEXT("Bold"), int32 LetterSpacing = 0);
 
