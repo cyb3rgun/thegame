@@ -3,6 +3,7 @@
 #include "MainMenuPlayerController.h"
 #include "GameMenuSubsystem.h"
 #include "MenuCameraRig.h"
+#include "MenuBackgroundWidget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -47,6 +48,9 @@ void AMainMenuPlayerController::BeginPlay()
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	// rain on glass in front of the night range, under every menu screen of the front end
+	UMenuBackgroundWidget::CreateFor(this);
 
 	// the front end opens on the title screen, which brings its own input mode and focus
 	UGameInstance* GameInstance = GetGameInstance();

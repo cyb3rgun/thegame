@@ -56,6 +56,8 @@ UBrandStyle::UBrandStyle()
 
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WordmarkFill(TEXT("/Game/CYB3RGUN/UI/Materials/M_UI_Wordmark.M_UI_Wordmark"));
 	WordmarkMaterial = WordmarkFill.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> RainGlass(TEXT("/Game/CYB3RGUN/UI/Materials/M_UI_MenuRainGlass.M_UI_MenuRainGlass"));
+	MenuBackgroundMaterial = RainGlass.Object;
 
 	// the faces the website ships: Michroma for the wordmark and headings, Saira Condensed and Share Tech Mono for labels and
 	// values, Source Sans 3 for running text (D-081, corrected to the site)

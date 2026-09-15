@@ -204,6 +204,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
 	TObjectPtr<UMaterialInterface> WordmarkMaterial;
 
+	/** The front end's background: rain on glass in front of the night range, a user interface material */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
+	TObjectPtr<UMaterialInterface> MenuBackgroundMaterial;
+
 	/** The arc of the mark as an alpha mask, tinted in the brand colour (D-048) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Assets")
 	TObjectPtr<UTexture2D> LogoArc;
