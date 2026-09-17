@@ -192,20 +192,18 @@ float AFlightSpawnDirector::PickGalleryOffset() const
 	return FMath::FRandRange(-Half, Half);
 }
 
-bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float MaxCrossing, const FVector& Lateral, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const
+bool AFlightSpawnDirector::PlanSideFlight(float SideSign, float Crossing, const FVector& Lateral, FVector& OutStart, FVector& OutHeading, float& OutLength) const
 {
 	const FVector Forward = Field.GetRotation().GetForwardVector().GetSafeNormal2D();
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 
 	// the path's closest point to the player lies at the crossing distance, whatever the heading jitter; from there it runs out
 	// to the entry bearing on either side
-	const float Nearest = FMath::Min(Settings->CrossingDistanceMin, MaxCrossing);
-	OutCrossing = FMath::FRandRange(Nearest, FMath::Max(Nearest, FMath::Min(Settings->CrossingDistanceMax, MaxCrossing)));
-	const float HalfLength = OutCrossing * FMath::Tan(FMath::DegreesToRadians(Settings->EntryBearingDegrees));
+	const float HalfLength = Crossing * FMath::Tan(FMath::DegreesToRadians(Settings->EntryBearingDegrees));
 	const float Jitter = FMath::FRandRange(-Settings->HeadingJitterDegrees, Settings->HeadingJitterDegrees);
 
 	OutHeading = (-SideSign * Right).RotateAngleAxis(Jitter, FVector::UpVector);
-	const FVector Closest = Field.GetLocation() + Lateral + Forward.RotateAngleAxis(Jitter, FVector::UpVector) * OutCrossing;
+	const FVector Closest = Field.GetLocation() + Lateral + Forward.RotateAngleAxis(Jitter, FVector::UpVector) * Crossing;
 	OutStart = Closest - OutHeading * HalfLength;
 	OutLength = 2.0f * HalfLength;
 	return true;
@@ -284,24 +282,27 @@ void AFlightSpawnDirector::Launch()
 		}
 		if (Path)
 		{
-			// every target comes within reach where it passes closest: its height there and its wobble go into the distance.
-			// A dive passes at its pull out height; a level flight too high for the nearest crossing is brought down
+			// how close it passes is picked first, over the whole range, so a round holds easy close birds and hard far
+			// ones (G05-B05). The height then follows the distance, because a close target high above the player would
+			// sit outside a view that does not turn, and because every target must come within the weapons' reach.
 			const float Reach = Settings->ReachDistance;
 			const float Wobble = Path->WobbleAmplitude;
-			float Height = FMath::FRandRange(Path->HeightMin, FMath::Max(Path->HeightMin, Path->HeightMax));
 			const float EyeHeight = ShooterLocation.Z - Field.GetLocation().Z;
-			const float HighestAbove = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Settings->CrossingDistanceMin), 0.0f)) - Wobble;
+			const float Farthest = FMath::Max(Settings->CrossingDistanceMin, FMath::Min(Settings->CrossingDistanceMax, Reach * 0.98f));
+			Crossing = FMath::FRandRange(FMath::Min(Settings->CrossingDistanceMin, Farthest), Farthest);
+
+			const float InView = Crossing * FMath::Tan(FMath::DegreesToRadians(Settings->MaxPassElevationDegrees));
+			const float InReach = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Crossing), 0.0f));
+			const float HighestAbove = FMath::Max(FMath::Min(InView, InReach) - Wobble, 0.0f);
+			float Height = FMath::FRandRange(Path->HeightMin, FMath::Max(Path->HeightMin, Path->HeightMax));
 			if (Path->Type != EFlightPathType::Diving)
 			{
-				Height = FMath::Min(Height, EyeHeight + FMath::Max(HighestAbove, 0.0f));
+				Height = FMath::Min(Height, EyeHeight + HighestAbove);
 			}
-			const float PassHeight = Path->Type == EFlightPathType::Diving ? Path->LevelOutHeight : Height;
-			const float Vertical = FMath::Abs(PassHeight - EyeHeight) + Wobble;
-			const float MaxCrossing = FMath::Sqrt(FMath::Max(FMath::Square(Reach) - FMath::Square(Vertical), 0.0f));
 
 			// on the gallery the flight is planned for a place along the rail; the field lies under the middle of the rail
 			const FVector Lateral = Gallery.IsValid() ? Gallery->GetRailRight() * PickGalleryOffset() : FVector::ZeroVector;
-			PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, MaxCrossing, Lateral, Start, Heading, Length, Crossing);
+			PlanSideFlight(Source == EFlightSource::Left ? -1.0f : 1.0f, Crossing, Lateral, Start, Heading, Length);
 			Start.Z = Field.GetLocation().Z + Height;
 		}
 	}

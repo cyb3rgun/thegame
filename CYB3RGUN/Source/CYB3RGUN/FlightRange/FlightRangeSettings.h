@@ -95,9 +95,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Spawning", meta = (ClampMin = 1))
 	int32 MaxSameSourceInRow = 2;
 
-	/** Nearest and farthest the path of a side entry passes in front of the player */
+	/** Nearest and farthest the path of a side entry passes in front of the player. The spread is what makes a round
+	    read: a close bird is large and easy, a far one small and worth more (G05-B05). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 100.0, Units = "cm"))
-	float CrossingDistanceMin = 900.0f;
+	float CrossingDistanceMin = 500.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 100.0, Units = "cm"))
 	float CrossingDistanceMax = 2300.0f;
@@ -112,6 +113,11 @@ public:
 	/** Bearing from the player's forward direction where side entries start and end, outside a normal field of view */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 10.0, ClampMax = 80.0, Units = "Degrees"))
 	float EntryBearingDegrees = 62.0f;
+
+	/** Highest a target may pass above the player's eye at its closest point, as an angle. A bird five metres away and
+	    twelve metres up would be over the player's head and outside a fixed forward view, so the height follows the distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 2.0, ClampMax = 60.0, Units = "Degrees"))
+	float MaxPassElevationDegrees = 20.0f;
 
 	/** Largest angle a side entry's heading turns off the straight crossing */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Field", meta = (ClampMin = 0.0, ClampMax = 45.0, Units = "Degrees"))
@@ -137,9 +143,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))
 	float ScrollSpeed = 0.45f;
 
-	/** Share of the screen the crosshair moves per unit of mouse input */
+	/**
+	 *  Share of the screen the crosshair moves per unit of mouse input. The project's input config scales raw mouse
+	 *  movement by 0.07, so a 15 cm sweep of an 800 dpi mouse arrives as about 330 units. At 0.0030 that crosses the
+	 *  whole screen once, which is what a reticle mode needs (D-097). The player's own multiplier rides on top.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))
-	float MouseAimSensitivity = 0.0012f;
+	float MouseAimSensitivity = 0.0030f;
 
 	/** Screens per second the crosshair moves at full right stick deflection */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Gallery", meta = (ClampMin = 0.0))

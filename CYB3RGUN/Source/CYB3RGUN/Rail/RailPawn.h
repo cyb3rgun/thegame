@@ -69,9 +69,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	TObjectPtr<UInputAction> StickAimAction;
 
-	/** Viewport fraction the crosshair moves per unit of mouse input */
+	/** Viewport fraction the crosshair moves per unit of mouse input. Calibrated like the flight range: one hand sweep
+	    crosses the screen (D-097). The player's own multiplier rides on top. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", meta = (ClampMin = 0.0))
-	float MouseAimSensitivity = 0.0015f;
+	float MouseAimSensitivity = 0.0030f;
 
 	/** Viewport fractions per second the crosshair moves at full stick deflection */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", meta = (ClampMin = 0.0))

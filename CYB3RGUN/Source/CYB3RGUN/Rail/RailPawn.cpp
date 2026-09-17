@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. The pawn that rides a rail route.
 
 #include "RailPawn.h"
+#include "CyberGameUserSettings.h"
 #include "EncounterDefinition.h"
 #include "RailAimComponent.h"
 #include "WeaponDefinition.h"
@@ -245,7 +246,7 @@ void ARailPawn::MouseAimInput(const FInputActionValue& Value)
 {
 	// IMC_MouseLook negates the raw mouse Y, which is positive upward, so this value already grows downward like the screen
 	const FVector2D Delta = Value.Get<FVector2D>();
-	Aim->AddAimInput(FVector2D(Delta.X, Delta.Y) * MouseAimSensitivity);
+	Aim->AddAimInput(FVector2D(Delta.X, Delta.Y) * MouseAimSensitivity * UCyberGameUserSettings::GetAimSensitivityOrDefault());
 }
 
 void ARailPawn::StickAimInput(const FInputActionValue& Value)

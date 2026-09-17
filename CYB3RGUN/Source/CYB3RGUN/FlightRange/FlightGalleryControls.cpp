@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. The flight range's gallery controls: a free crosshair on a fixed forward view that slides along the scene (D-078).
 
 #include "FlightGalleryControls.h"
+#include "CyberGameUserSettings.h"
 #include "FlightRangeSettings.h"
 #include "RailAimComponent.h"
 #include "ShooterCharacter.h"
@@ -211,7 +212,7 @@ void UFlightGalleryControls::HandleMouseAim(const FInputActionValue& Value)
 	const FVector2D Delta = Value.Get<FVector2D>();
 	if (Aim && bControlsEnabled && Settings)
 	{
-		Aim->AddAimInput(FVector2D(Delta.X, -Delta.Y) * Settings->MouseAimSensitivity);
+		Aim->AddAimInput(FVector2D(Delta.X, -Delta.Y) * Settings->MouseAimSensitivity * UCyberGameUserSettings::GetAimSensitivityOrDefault());
 	}
 }
 

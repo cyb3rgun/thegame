@@ -92,6 +92,6 @@ protected:
 	float PickGalleryOffset() const;
 
 	/** Start, heading and length of a flight from a side or from a launch point. Lateral shifts the field along the gallery rail. */
-	bool PlanSideFlight(float SideSign, float MaxCrossing, const FVector& Lateral, FVector& OutStart, FVector& OutHeading, float& OutLength, float& OutCrossing) const;
+	bool PlanSideFlight(float SideSign, float Crossing, const FVector& Lateral, FVector& OutStart, FVector& OutHeading, float& OutLength) const;
 	bool PlanCoverFlight(FVector& OutStart, FVector& OutHeading, float& OutLength);
 };
