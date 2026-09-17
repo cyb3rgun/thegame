@@ -34,7 +34,24 @@ namespace LogoCrosshairLook
 		FName Collapse = TEXT("Collapse");
 		FName Opacity = TEXT("Opacity");
 		FName Glitch = TEXT("Glitch");
+		FName PlayerColour = TEXT("PlayerColour");
 	};
+
+	/**
+	 *  One colour per player (D-096). They differ in brightness as well as in hue, so they stay apart for a player who
+	 *  cannot tell red from green: the relative luminance runs 0.96, 0.70, 0.52 and 0.42, and no two sit in the same
+	 *  hue family. The first is the brand cyan.
+	 */
+	const TArray<FLinearColor>& PlayerColours()
+	{
+		static const TArray<FLinearColor> Colours = {
+			FLinearColor::FromSRGBColor(FColor(0x2B, 0xE3, 0xFF)),   // cyan, the brand primary
+			FLinearColor::FromSRGBColor(FColor(0xFF, 0xA5, 0x1E)),   // amber
+			FLinearColor::FromSRGBColor(FColor(0xFF, 0x4F, 0xD8)),   // magenta
+			FLinearColor::FromSRGBColor(FColor(0xF2, 0xFE, 0xFF)),   // near white, the brand's own
+		};
+		return Colours;
+	}
 
 	const FParams& Params()
 	{
@@ -43,7 +60,18 @@ namespace LogoCrosshairLook
 	}
 }
 
-ULogoCrosshairWidget* ULogoCrosshairWidget::CreateFor(APlayerController* Player)
+FLinearColor ULogoCrosshairWidget::GetPlayerColour(int32 InPlayerIndex)
+{
+	const TArray<FLinearColor>& Colours = LogoCrosshairLook::PlayerColours();
+	return Colours[FMath::Abs(InPlayerIndex) % Colours.Num()];
+}
+
+int32 ULogoCrosshairWidget::GetPlayerColourCount()
+{
+	return LogoCrosshairLook::PlayerColours().Num();
+}
+
+ULogoCrosshairWidget* ULogoCrosshairWidget::CreateFor(APlayerController* Player, int32 InPlayerIndex)
 {
 	if (!Player || !Player->IsLocalController())
 	{
@@ -53,8 +81,9 @@ ULogoCrosshairWidget* ULogoCrosshairWidget::CreateFor(APlayerController* Player)
 	ULogoCrosshairWidget* Widget = CreateWidget<ULogoCrosshairWidget>(Player, ULogoCrosshairWidget::StaticClass());
 	if (Widget)
 	{
+		Widget->PlayerIndex = FMath::Max(InPlayerIndex, 0);
 		Widget->AddToViewport(2);
-		UE_LOG(LogLogoCrosshair, Log, TEXT("Logo crosshair created for %s"), *GetNameSafe(Player));
+		UE_LOG(LogLogoCrosshair, Log, TEXT("Logo crosshair created for %s, player %d"), *GetNameSafe(Player), Widget->PlayerIndex);
 	}
 	return Widget;
 }
@@ -252,4 +281,7 @@ void ULogoCrosshairWidget::UpdateMark(const FGeometry& MyGeometry)
 	// the projection glitches for a moment when the player is hit (D-051)
 	const UCombatFeelSubsystem* FeelNow = UCombatFeelSubsystem::Get(this);
 	MarkMaterial->SetScalarParameterValue(Param.Glitch, FeelNow ? FeelNow->GetDamageGlitch() : 0.0f);
+
+	// every player's reticle carries their own colour, whatever the brand colour in the material says (D-096)
+	MarkMaterial->SetVectorParameterValue(Param.PlayerColour, GetPlayerColour(PlayerIndex));
 }

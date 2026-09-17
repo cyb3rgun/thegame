@@ -28,8 +28,20 @@ class CYB3RGUN_API ULogoCrosshairWidget : public UUserWidget
 
 public:
 
-	/** Creates the crosshair for a local player and puts it on screen, between the scenario HUD and the style HUD */
-	static ULogoCrosshairWidget* CreateFor(APlayerController* Player);
+	/**
+	 *  Creates the crosshair for a local player and puts it on screen, between the scenario HUD and the style HUD.
+	 *  PlayerIndex picks the reticle's colour, so several players on one screen can tell theirs apart (D-096).
+	 */
+	static ULogoCrosshairWidget* CreateFor(APlayerController* Player, int32 InPlayerIndex = 0);
+
+	/** The colour of a player's reticle. Four are prepared; further indices wrap around. */
+	static FLinearColor GetPlayerColour(int32 InPlayerIndex);
+
+	/** How many colours are prepared */
+	static int32 GetPlayerColourCount();
+
+	/** The player this reticle belongs to, counted from zero */
+	int32 GetPlayerIndex() const { return PlayerIndex; }
 
 	/** Follows this aim component. Without one the widget finds the owning pawn's own. */
 	UFUNCTION(BlueprintCallable, Category="Crosshair")
@@ -81,6 +93,10 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> MarkMaterial;
+
+	/** Which player this reticle belongs to; it decides the colour (D-096) */
+	UPROPERTY(EditAnywhere, Category="Crosshair", meta = (ClampMin = 0))
+	int32 PlayerIndex = 0;
 
 	TWeakObjectPtr<URailAimComponent> Aim;
 	TWeakObjectPtr<UStyleScoringComponent> BoundStyle;
