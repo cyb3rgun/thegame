@@ -2,6 +2,37 @@
 
 Numbered newest first.
 
+## D-097 Reticle modes measure sensitivity in screen travel
+
+In every mode where the mouse moves a reticle instead of turning the camera, sensitivity is measured in screen travel,
+not in camera degrees: one comfortable hand movement crosses the whole screen. The project's input configuration scales
+raw mouse movement by 0.07, so a 15 cm sweep of an 800 dpi mouse arrives as about 330 units, and the crosshair must move
+one screen width for it. The bird range sat at 0.0012 screens per unit, about a fifth of a screen per sweep, and the rail
+at 0.0015; both are 0.0030 now. A player multiplier rides on top, in the settings menu. This was a usability defect, not
+a preference (G05-B05).
+
+## D-096 The crosshair belongs to a player, with a colour of its own
+
+Every player has their own reticle in their own colour, drawn from the logo shape. Four colours are prepared even though
+multiplayer does not exist yet, because a crosshair that belongs to nobody would have to be retrofitted into every mode
+later. The colours differ in brightness as well as in hue, so they stay apart for a player who cannot tell red from
+green: cyan 2BE3FF, the brand primary, amber FFA51E, magenta FF4FD8 and the brand near white F2FEFF, with relative
+luminances of 0.70, 0.52, 0.42 and 0.96. Single player uses player one (G05-B05).
+
+## D-095 A drawn weapon stays available as a setting
+
+A drawn weapon stays available as a setting for home play with a mouse or a gamepad, where an empty screen reads as
+unfinished. It is off by default and it is a settings value, not a branch in the code: the same build serves the venue
+and the living room (G05-B05).
+
+## D-094 The weapon is not drawn on screen
+
+The weapon is not drawn on screen. The crosshair is the weapon. In the venue the player holds the real device, so a
+second, drawn weapon pointing somewhere else breaks the illusion the product sells, and with four players on one screen
+a single drawn weapon makes no sense at all. The arcade light gun tradition solves it the same way: no weapon, one
+reticle per player. The weapon still exists, still fires, still reloads and still runs out of ammunition; only its
+rendering is off (G05-B05).
+
 ## D-093 Flying targets are flat sprites that face the camera
 
 Flying targets are drawn as a flat quad that turns its face to the camera, not as a body of meshes. One profile view
