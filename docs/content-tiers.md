@@ -34,6 +34,7 @@ These folders hold game content. They are kept in their own content repository a
 | `CYB3RGUN/Content/CYB3RGUN/VFX/` | Niagara systems, decals, neon materials, the grade | Effects built from engine features |
 | `CYB3RGUN/Content/CYB3RGUN/Weapons/` | Weapon definitions, placeholder body materials | Weapons are data with placeholder bodies (D-052, D-054) |
 | `CYB3RGUN/Content/CYB3RGUN/Enemies/` beside `Bodies/` | Enemy definitions, state trees, placeholder and body look materials | Definitions and behaviour are code-like data |
+| `CYB3RGUN/Content/CYB3RGUN/Enemies/Birds/` | Packed sprite sheets of the family friendly characters and the material that draws them | The finished sheets of that series belong to the game, the source frames never leave the private model repository (D-090, D-091) |
 | `CYB3RGUN/Content/CYB3RGUN/Scenarios/` | Game modes, presets and encounter data per scenario | Data assets the simulator needs to run |
 | `CYB3RGUN/Content/CYB3RGUN/Maps/` | Menu, playable, test and benchmark levels built from primitives | Primitive placeholder geometry (D-067); a level dressed with finished art moves to `Environments` |
 | `CYB3RGUN/Content/Splash/` | The splash screen bitmap | Brand file |

@@ -2,6 +2,36 @@
 
 Numbered newest first.
 
+## D-093 Flying targets are flat sprites that face the camera
+
+Flying targets are drawn as a flat quad that turns its face to the camera, not as a body of meshes. One profile view
+carries the whole character; a target crossing the other way mirrors the same sheet in the material, so a character
+never needs a second set of frames. The flight loop runs at a constant rate whatever the target's speed, size or
+distance, a hit switches the quad to the crash sheet, and a second hit to the knockout cell. Size on screen comes from
+distance alone, as it does for any object in the world. Reason: the art is drawn, not modelled, and a drawn bird at 10 m
+reads better than a modelled one would at the budget this project has. The hit spheres, the leading and the score do
+not know the difference (M01-B01).
+
+## D-092 Every character ships a description and the pipeline reads it
+
+Every character folder carries a DESCRIPTION.txt from the artist with the frame order, and the processing pipeline
+reads it. The frame order is never guessed from file names and the files are never sorted: a set whose names run out of
+order still animates correctly, and a set whose order changes is corrected in the description rather than by renaming
+the artist's files (M01-B01).
+
+## D-091 Processed sheets of the family friendly series live in the game repository
+
+The packed sheets of the family friendly series live in the public game repository, as any other texture does. Only the
+finished sheets go, never the source frames. A later series that is not family friendly keeps its sheets in the private
+model repository and is loaded from outside the public history (M01-B01).
+
+## D-090 Source art lives in a private repository of its own
+
+Source art lives in THEMODELS, a private repository beside the game, never in the public game repository. The frames
+are large, the game does not need them to run, and a public repository cannot take anything back out of its history.
+The repository carries its own licence: the game's code is published under the Business Source License, the art is not.
+The game repository receives only what the pipeline packs (M01-B01).
+
 ## D-086 Nanite runs in every preset with Virtual Shadow Maps
 
 Nanite is on in High, Epic, Ultra and Cinematic, the presets that run Virtual Shadow Maps; Medium and Low keep it off. The High preset had Nanite off "until real production geometry exists" (G03-B03). That geometry exists now: the G05-B03 plants are Nanite meshes, and with Nanite off the bird range's trees drew their fallback meshes, whose simplification had dropped every leaf (4,151 triangles of 1,072,212 for island_tree_02, the leaf slot's UV density 0). D-027 stands unchanged: it concerns presets without Virtual Shadow Maps only, and its crash condition does not apply here. For Medium and Low the plant meshes build their fallback with area preservation, so the leaves survive the simplification (island_tree_02: 8,823 triangles). The settings version goes to 3, so saved settings take the new preset values. The measurement D-026 and D-030 ask for is still open: the benchmark of Nanite in High and Epic runs as a night run (G05-B03).

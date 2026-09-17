@@ -35,6 +35,9 @@ Index of everything known to be built. Items marked (G02) belong to season G02.
 - [ ] Bird range level card: retake it with the textured meadow and trees
 - [x] Bird range gallery controls: the view fixed forward, a free crosshair that slides the scene at the screen edges, keys and stick sliding too, reload on Space and the right mouse button, scene props that pay or cost points (G05)
 - [ ] Bird range scene: terrain, vegetation, rocks and the placement of the scoring props, designed with the architect
+- [x] Bird range targets as drawn sprites: the aviator sparrow's flight and crash sheets, camera facing quads, mirroring, crash and knockout (M01)
+- [ ] Bird range targets: decide which frames form the side glance loop and give it a weight (M01, the art offers frames 3, 4 and 9)
+- [ ] Bird range targets: a second character through the same pipeline, to prove that no code changes are needed (M01)
 - [ ] More flight targets as data: clay and drone definitions with the vanish behaviour
 - [ ] Laser Tag mode: match data, replays and rankings shared with real events
 - [ ] Play Together: local and online multiplayer, cooperative and competitive

@@ -58,3 +58,9 @@ The brand fonts follow the website (D-081) and are licensed under the SIL Open F
 ## Made for the project
 
 These were built for the project in Blender from code and carry no third party material: the door frame `SM_DoorFrame` and the door panel `SM_DoorPanel` with its hinges and handles, and the cast iron post of `SM_Lantern`. They are textured with the CC0 sets above through `M_ModelSurface`.
+
+### Characters
+
+| What | Where it came from | Licence | Added |
+|------|--------------------|---------|-------|
+| Aviator Sparrow, ten flight frames and three crash frames | Made for the project, kept in the private repository THEMODELS | All rights reserved, Sascha Daemgen, IT and More Systems | 2026-09-18 |
