@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CYB3RGUNCharacter.h"
+#include "CyberGameUserSettings.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -117,4 +118,27 @@ void ACYB3RGUNCharacter::DoJumpEnd()
 {
 	// pass StopJumping to the character
 	StopJumping();
+}
+
+void ACYB3RGUNCharacter::ApplyWeaponVisibility()
+{
+	const UCyberGameUserSettings* Settings = UCyberGameUserSettings::Get();
+	const bool bHideWeapon = Settings ? !Settings->IsWeaponShownOnScreen() : true;
+	if (!FirstPersonMesh)
+	{
+		return;
+	}
+
+	// the weapon and its parts hang under the arms, so the whole branch goes at once; sockets and muzzle points are
+	// untouched by hiding, which is what the weapon code reads
+	FirstPersonMesh->SetHiddenInGame(bHideWeapon);
+	TArray<USceneComponent*> Attached;
+	FirstPersonMesh->GetChildrenComponents(true, Attached);
+	for (USceneComponent* Child : Attached)
+	{
+		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Child))
+		{
+			Primitive->SetHiddenInGame(bHideWeapon);
+		}
+	}
 }

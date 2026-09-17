@@ -1,6 +1,7 @@
 // CYB3RGUN THEGAME. Player facing graphics settings: presets, feature toggles, hardware detection.
 
 #include "CyberGameUserSettings.h"
+#include "CYB3RGUNCharacter.h"
 #include "CyberSettingsOptions.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/Engine.h"
@@ -215,6 +216,8 @@ void UCyberGameUserSettings::SetToDefaults()
 	QualityPreset = GetStartingPreset();
 	Features = GetPresetFeatures(QualityPreset);
 	FieldOfView = 90.0f;
+	bShowWeaponOnScreen = false;
+	AimSensitivity = 1.0f;
 	bExperimentalNaniteSkinnedMeshes = false;
 	bExperimentalNaniteFoliage = false;
 	FullscreenMode = EWindowMode::WindowedFullscreen;
@@ -408,6 +411,8 @@ FCyberSettingsState UCyberGameUserSettings::GetState() const
 	State.Resolution = GetScreenResolution();
 	State.WindowMode = static_cast<int32>(GetFullscreenMode());
 	State.FieldOfView = FieldOfView;
+	State.bShowWeaponOnScreen = bShowWeaponOnScreen;
+	State.AimSensitivity = AimSensitivity;
 	State.bExperimentalNaniteSkinnedMeshes = bExperimentalNaniteSkinnedMeshes;
 	State.bExperimentalNaniteFoliage = bExperimentalNaniteFoliage;
 	return State;
@@ -418,6 +423,8 @@ void UCyberGameUserSettings::SetState(const FCyberSettingsState& State, bool bAp
 	QualityPreset = State.Preset;
 	Features = State.Features;
 	FieldOfView = FMath::Clamp(State.FieldOfView, 60.0f, 120.0f);
+	bShowWeaponOnScreen = State.bShowWeaponOnScreen;
+	AimSensitivity = FMath::Clamp(State.AimSensitivity, 0.1f, 5.0f);
 	const bool bUltra = FCyberSettingsOptions::IsUltraOrAbove(QualityPreset);
 	Features.ResolutionScale = bUltra ? FMath::Clamp(Features.ResolutionScale, 100, 200) : 100;
 	bExperimentalNaniteSkinnedMeshes = bUltra && State.bExperimentalNaniteSkinnedMeshes;
@@ -451,6 +458,8 @@ FCyberSettingsState UCyberGameUserSettings::GetDefaultState() const
 	State.Resolution = GetDesktopResolution();
 	State.WindowMode = static_cast<int32>(EWindowMode::WindowedFullscreen);
 	State.FieldOfView = 90.0f;
+	State.bShowWeaponOnScreen = false;
+	State.AimSensitivity = 1.0f;
 	State.bExperimentalNaniteSkinnedMeshes = false;
 	State.bExperimentalNaniteFoliage = false;
 	return State;
@@ -482,6 +491,30 @@ ECyberQualityPreset UCyberGameUserSettings::RunHardwareDetection()
 		Display.X, Display.Y, *GetPresetName(DetectedPreset), DetectedPreset != Rated ? TEXT(" (capped for a display above 4 megapixels)") : TEXT(""));
 
 	return DetectedPreset;
+}
+
+float UCyberGameUserSettings::GetAimSensitivityOrDefault()
+{
+	const UCyberGameUserSettings* Settings = Get();
+	return Settings ? Settings->GetAimSensitivity() : 1.0f;
+}
+
+void UCyberGameUserSettings::ApplyWeaponVisibility(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (const APlayerController* Player = It->Get())
+		{
+			if (ACYB3RGUNCharacter* Character = Cast<ACYB3RGUNCharacter>(Player->GetPawn()))
+			{
+				Character->ApplyWeaponVisibility();
+			}
+		}
+	}
 }
 
 void UCyberGameUserSettings::ApplyFieldOfView(UWorld* World) const

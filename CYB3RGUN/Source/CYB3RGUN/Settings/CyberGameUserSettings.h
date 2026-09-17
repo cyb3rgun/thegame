@@ -35,6 +35,14 @@ protected:
 	UPROPERTY(Config)
 	float FieldOfView = 90.0f;
 
+	/** The weapon is not drawn in the player's hands unless this is on (D-094, D-095) */
+	UPROPERTY(Config)
+	bool bShowWeaponOnScreen = false;
+
+	/** Multiplies the reticle speed where the mouse moves the crosshair (D-097) */
+	UPROPERTY(Config)
+	float AimSensitivity = 1.0f;
+
 	UPROPERTY(Config)
 	bool bExperimentalNaniteSkinnedMeshes = false;
 
@@ -81,6 +89,18 @@ public:
 	ECyberQualityPreset GetQualityPreset() const { return QualityPreset; }
 	const FCyberFeatureSettings& GetFeatures() const { return Features; }
 	float GetFieldOfView() const { return FieldOfView; }
+
+	/** True when the first person weapon and arms are drawn. Off by default (D-094). */
+	bool IsWeaponShownOnScreen() const { return bShowWeaponOnScreen; }
+
+	/** Multiplies the reticle speed of the mouse in the modes that move a crosshair (D-097) */
+	float GetAimSensitivity() const { return AimSensitivity; }
+
+	/** The multiplier the running game uses, 1 when there are no saved settings yet */
+	static float GetAimSensitivityOrDefault();
+
+	/** Applies the weapon visibility to every local player's pawn */
+	static void ApplyWeaponVisibility(UWorld* World);
 
 	/** True when a feature differs from the defaults of the selected preset */
 	bool IsCustomized() const { return Features != GetPresetFeatures(QualityPreset); }

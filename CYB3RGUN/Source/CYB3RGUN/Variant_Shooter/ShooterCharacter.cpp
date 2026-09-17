@@ -50,6 +50,9 @@ void AShooterCharacter::BeginPlay()
 	// reset HP to max
 	CurrentHP = MaxHP;
 
+	// the crosshair is the weapon unless the player asked for the weapon itself (D-094)
+	ApplyWeaponVisibility();
+
 	// update the HUD
 	OnDamaged.Broadcast(1.0f);
 }
@@ -203,6 +206,9 @@ void AShooterCharacter::DoSwitchWeapon()
 
 		// activate the new weapon
 		CurrentWeapon->ActivateWeapon(PlayerTag);
+
+		// the weapon builds its placeholder body when it activates
+		ApplyWeaponVisibility();
 	}
 }
 
@@ -216,6 +222,9 @@ void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
 	// attach the weapon meshes
 	Weapon->GetFirstPersonMesh()->AttachToComponent(GetFirstPersonMesh(), AttachmentRule, FirstPersonWeaponSocket);
 	Weapon->GetThirdPersonMesh()->AttachToComponent(GetMesh(), AttachmentRule, FirstPersonWeaponSocket);
+
+	// a mesh attached now does not inherit the hidden state, so the branch is set again
+	ApplyWeaponVisibility();
 	
 }
 

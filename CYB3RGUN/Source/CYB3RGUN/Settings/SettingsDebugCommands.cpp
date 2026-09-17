@@ -61,7 +61,7 @@ static FAutoConsoleCommand GSettingsDumpCommand(
 
 static FAutoConsoleCommand GSettingsSetCommand(
 	TEXT("Settings.Set"),
-	TEXT("Settings.Set <Option> <Value>. Options: Preset MegaLights GI VSM Fog AA Nanite Effects ViewDistance MotionBlur FrameCap VSync Resolution WindowMode FOV NaniteSkinned NaniteFoliage. Applies and saves."),
+	TEXT("Settings.Set <Option> <Value>. Options: Preset MegaLights GI VSM Fog AA Nanite Effects ViewDistance MotionBlur FrameCap VSync Resolution WindowMode FOV ShowWeapon Sensitivity NaniteSkinned NaniteFoliage. Applies and saves."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		if (Args.Num() < 2)

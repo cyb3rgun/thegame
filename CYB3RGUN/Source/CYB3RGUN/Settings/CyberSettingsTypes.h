@@ -137,6 +137,14 @@ struct FCyberSettingsState
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	float FieldOfView = 90.0f;
 
+	/** Draws the weapon in the player's hands. Off by default: in the venue the player holds the real device (D-094, D-095). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
+	bool bShowWeaponOnScreen = false;
+
+	/** Multiplies the reticle speed in the modes where the mouse moves the crosshair, 1 is the calibrated default (D-097) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta = (ClampMin = 0.1, ClampMax = 5.0))
+	float AimSensitivity = 1.0f;
+
 	/** Experimental, Ultra and Cinematic only, needs a restart */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	bool bExperimentalNaniteSkinnedMeshes = false;
@@ -166,6 +174,8 @@ enum class ECyberSettingOption : uint8
 	Resolution,
 	WindowMode,
 	FieldOfView,
+	ShowWeapon,
+	AimSensitivity,
 	ExperimentalNaniteSkinnedMeshes,
 	ExperimentalNaniteFoliage,
 	Count UMETA(Hidden)

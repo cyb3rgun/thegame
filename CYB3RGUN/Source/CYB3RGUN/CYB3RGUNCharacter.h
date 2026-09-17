@@ -87,6 +87,13 @@ public:
 	/** Returns the first person mesh **/
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 
+	/**
+	 *  Draws or hides everything the player sees of their own body and weapon: the arms, the weapon meshes attached to
+	 *  them and the weapon's placeholder parts. The weapon itself keeps working, only its rendering goes (D-094). Call
+	 *  it again after attaching a weapon, since a component attached later does not inherit the state.
+	 */
+	void ApplyWeaponVisibility();
+
 	/** Returns first person camera component **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 

@@ -48,6 +48,12 @@ const TArray<float>& FCyberSettingsOptions::GetFieldOfViews()
 	return Values;
 }
 
+const TArray<float>& FCyberSettingsOptions::GetAimSensitivities()
+{
+	static const TArray<float> Values = { 0.5f, 0.65f, 0.8f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f };
+	return Values;
+}
+
 const TArray<float>& FCyberSettingsOptions::GetResolutionScales()
 {
 	// TSR accepts at most twice the display resolution per axis (kMaxTSRResolutionFraction)
@@ -97,6 +103,8 @@ FText FCyberSettingsOptions::GetOptionLabel(ECyberSettingOption Option)
 	case ECyberSettingOption::Resolution: return LOCTEXT("Resolution", "Resolution");
 	case ECyberSettingOption::WindowMode: return LOCTEXT("WindowMode", "Window mode");
 	case ECyberSettingOption::FieldOfView: return LOCTEXT("Fov", "Field of view");
+	case ECyberSettingOption::ShowWeapon: return LOCTEXT("ShowWeapon", "Show weapon on screen");
+	case ECyberSettingOption::AimSensitivity: return LOCTEXT("AimSensitivity", "Reticle speed");
 	case ECyberSettingOption::ExperimentalNaniteSkinnedMeshes: return LOCTEXT("NaniteSkinned", "EXPERIMENTAL Nanite skeletal meshes (restart)");
 	case ECyberSettingOption::ExperimentalNaniteFoliage: return LOCTEXT("NaniteFoliage", "EXPERIMENTAL Nanite foliage (restart)");
 	default: return FText::GetEmpty();
@@ -123,6 +131,8 @@ FString FCyberSettingsOptions::GetOptionName(ECyberSettingOption Option)
 	case ECyberSettingOption::Resolution: return TEXT("Resolution");
 	case ECyberSettingOption::WindowMode: return TEXT("WindowMode");
 	case ECyberSettingOption::FieldOfView: return TEXT("FOV");
+	case ECyberSettingOption::ShowWeapon: return TEXT("ShowWeapon");
+	case ECyberSettingOption::AimSensitivity: return TEXT("Sensitivity");
 	case ECyberSettingOption::ExperimentalNaniteSkinnedMeshes: return TEXT("NaniteSkinned");
 	case ECyberSettingOption::ExperimentalNaniteFoliage: return TEXT("NaniteFoliage");
 	default: return FString();
@@ -149,6 +159,8 @@ FString FCyberSettingsOptions::GetDrivenCVars(ECyberSettingOption Option)
 	case ECyberSettingOption::Resolution: return TEXT("r.SetRes (through UGameUserSettings)");
 	case ECyberSettingOption::WindowMode: return TEXT("r.SetRes window mode suffix (through UGameUserSettings)");
 	case ECyberSettingOption::FieldOfView: return TEXT("none, sets the view target camera's field of view");
+	case ECyberSettingOption::ShowWeapon: return TEXT("none, hides or shows the first person weapon and arms");
+	case ECyberSettingOption::AimSensitivity: return TEXT("none, multiplies the reticle speed of the mouse");
 	case ECyberSettingOption::ExperimentalNaniteSkinnedMeshes: return TEXT("r.Nanite.AllowSkinnedMeshes (read only, startup)");
 	case ECyberSettingOption::ExperimentalNaniteFoliage: return TEXT("r.Nanite.Foliage and r.Nanite.AllowAssemblies (read only, startup)");
 	default: return FString();
@@ -171,6 +183,7 @@ int32 FCyberSettingsOptions::GetValueCount(ECyberSettingOption Option)
 	case ECyberSettingOption::Resolution: return GetResolutions().Num();
 	case ECyberSettingOption::WindowMode: return 3;
 	case ECyberSettingOption::FieldOfView: return GetFieldOfViews().Num();
+	case ECyberSettingOption::AimSensitivity: return GetAimSensitivities().Num();
 	default: return 2;
 	}
 }
@@ -213,6 +226,8 @@ FText FCyberSettingsOptions::GetValueLabel(ECyberSettingOption Option, int32 Ind
 		return FText::FromString(FString::Printf(TEXT("%d deg"), FMath::RoundToInt(GetFieldOfViews()[Index])));
 	case ECyberSettingOption::ResolutionScale:
 		return FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(GetResolutionScales()[Index])));
+	case ECyberSettingOption::AimSensitivity:
+		return FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(GetAimSensitivities()[Index] * 100.0f)));
 	default:
 		return OffOn(Index);
 	}
@@ -249,6 +264,8 @@ int32 FCyberSettingsOptions::GetValueIndex(ECyberSettingOption Option, const FCy
 		return State.FrameRateLimit <= 0.0f ? Caps.Num() - 1 : ClosestIndex(Caps, State.FrameRateLimit);
 	}
 	case ECyberSettingOption::VSync: return State.bVSync ? 1 : 0;
+	case ECyberSettingOption::ShowWeapon: return State.bShowWeaponOnScreen ? 1 : 0;
+	case ECyberSettingOption::AimSensitivity: return ClosestIndex(GetAimSensitivities(), State.AimSensitivity);
 	case ECyberSettingOption::Resolution:
 	{
 		const TArray<FIntPoint>& Res = GetResolutions();
@@ -293,6 +310,8 @@ void FCyberSettingsOptions::SetValueIndex(ECyberSettingOption Option, FCyberSett
 	case ECyberSettingOption::MotionBlur: F.bMotionBlur = Index == 1; break;
 	case ECyberSettingOption::FrameRateCap: State.FrameRateLimit = GetFrameRateCaps()[Index]; break;
 	case ECyberSettingOption::VSync: State.bVSync = Index == 1; break;
+	case ECyberSettingOption::ShowWeapon: State.bShowWeaponOnScreen = Index == 1; break;
+	case ECyberSettingOption::AimSensitivity: State.AimSensitivity = GetAimSensitivities()[Index]; break;
 	case ECyberSettingOption::Resolution: State.Resolution = GetResolutions()[Index]; break;
 	case ECyberSettingOption::WindowMode: State.WindowMode = Index; break;
 	case ECyberSettingOption::FieldOfView: State.FieldOfView = GetFieldOfViews()[Index]; break;
@@ -371,6 +390,12 @@ bool FCyberSettingsOptions::ParseValue(ECyberSettingOption Option, const FString
 		if (Option == ECyberSettingOption::ResolutionScale)
 		{
 			OutIndex = ClosestIndex(GetResolutionScales(), Number);
+			return true;
+		}
+		if (Option == ECyberSettingOption::AimSensitivity)
+		{
+			// a percentage on the console as well as in the menu
+			OutIndex = ClosestIndex(GetAimSensitivities(), Number > 5.0f ? Number * 0.01f : Number);
 			return true;
 		}
 		OutIndex = FMath::Clamp(FMath::RoundToInt(Number), 0, GetValueCount(Option) - 1);

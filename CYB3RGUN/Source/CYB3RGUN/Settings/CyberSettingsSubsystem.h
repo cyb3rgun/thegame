@@ -19,6 +19,9 @@ class CYB3RGUN_API UCyberSettingsSubsystem : public UGameInstanceSubsystem, publ
 	/** The engine was still initialising when the subsystem started, so the settings apply on the first tick */
 	bool bApplyOnFirstTick = false;
 
+	/** The weapon setting as last applied to the pawns, -1 before the first tick */
+	int8 LastWeaponShown = -1;
+
 	/** Applies the settings in full once the engine runs, and saves them in a standalone game */
 	void ApplyWhenEngineReady(class UCyberGameUserSettings* Settings);
 

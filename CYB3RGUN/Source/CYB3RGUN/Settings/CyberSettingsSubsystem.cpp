@@ -54,6 +54,14 @@ void UCyberSettingsSubsystem::Tick(float DeltaTime)
 			ApplyWhenEngineReady(Settings);
 		}
 		Settings->ApplyFieldOfView(GetTickableGameObjectWorld());
+
+		// a change to the weapon setting reaches the pawns that are already playing
+		const int8 ShowWeapon = Settings->IsWeaponShownOnScreen() ? 1 : 0;
+		if (ShowWeapon != LastWeaponShown)
+		{
+			LastWeaponShown = ShowWeapon;
+			UCyberGameUserSettings::ApplyWeaponVisibility(GetTickableGameObjectWorld());
+		}
 	}
 }
 

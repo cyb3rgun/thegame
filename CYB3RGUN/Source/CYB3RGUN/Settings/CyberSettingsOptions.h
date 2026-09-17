@@ -56,6 +56,9 @@ struct CYB3RGUN_API FCyberSettingsOptions
 	static const TArray<float>& GetFrameRateCaps();
 	static const TArray<float>& GetFieldOfViews();
 
+	/** Reticle speed multipliers offered in the menu, 1 is the calibrated default (D-097) */
+	static const TArray<float>& GetAimSensitivities();
+
 	/** Resolution scale steps in percent, 100 is the anti aliasing mode's own resolution, 200 the TSR maximum */
 	static const TArray<float>& GetResolutionScales();
 };
