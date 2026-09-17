@@ -9,6 +9,7 @@
 class UMaterialInterface;
 class USoundBase;
 class UStaticMesh;
+class UTexture2D;
 
 /** How a target moves across the field of view (D-078) */
 UENUM(BlueprintType)
@@ -83,6 +84,100 @@ struct FFlightPathSettings
 	float WobbleFrequency = 0.6f;
 };
 
+/** One packed sheet: the grid of cells over the whole texture and how many of them hold a frame (D-093) */
+USTRUCT(BlueprintType)
+struct FFlightSpriteSheet
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sheet")
+	TObjectPtr<UTexture2D> Texture;
+
+	/** Cells across the texture, the whole grid, not only the used ones: the width of the sheet divided by the cell */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sheet", meta = (ClampMin = 1))
+	int32 Columns = 4;
+
+	/** Cells down the texture, the whole grid */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sheet", meta = (ClampMin = 1))
+	int32 Rows = 4;
+
+	/** Cells that hold a frame, counted from the top left along the rows */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sheet", meta = (ClampMin = 1))
+	int32 Frames = 1;
+
+	bool IsValid() const { return Texture != nullptr && Columns > 0 && Rows > 0 && Frames > 0; }
+};
+
+/** A run of frames of the flight sheet that loops on its own. The pipeline keeps the artist's order, the loops cut it up. */
+USTRUCT(BlueprintType)
+struct FFlightSpriteLoop
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Loop", meta = (ClampMin = 0))
+	int32 FirstFrame = 0;
+
+	/** Frames in the loop, zero runs to the end of the sheet */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Loop", meta = (ClampMin = 0))
+	int32 FrameCount = 0;
+
+	/** Relative chance this loop is picked for a target */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Loop", meta = (ClampMin = 0.0))
+	float Weight = 1.0f;
+};
+
+/**
+ *  A target drawn as a flat sprite that faces the camera, from two packed sheets: one loop of flight frames and one
+ *  crash sequence (D-093). The art holds one profile view; a target flying the other way mirrors the same sheet, so a
+ *  character needs no second set of frames. The sheets come out of the model repository's pipeline, which also writes
+ *  the grid numbers below.
+ */
+USTRUCT(BlueprintType)
+struct FFlightSpriteBody
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	FFlightSpriteSheet Flight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	FFlightSpriteSheet Crash;
+
+	/** A masked material with a Sheet texture parameter and the Columns, Rows, Frame and Mirror scalars */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	TObjectPtr<UMaterialInterface> Material;
+
+	/** The quad the sprite is drawn on: a flat unit plane. Empty takes the engine's plane. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	TObjectPtr<UStaticMesh> Quad;
+
+	/** Width of the sprite in the world at size 1. The cells are square, so this is its height as well. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite", meta = (ClampMin = 1.0, Units = "cm"))
+	float Width = 100.0f;
+
+	/** Moves the quad off the target's centre, in cell widths: right on the screen and up */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	FVector2D Offset = FVector2D::ZeroVector;
+
+	/** Frames per second of the flight loop, the same at every distance and size */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite", meta = (ClampMin = 0.1, Units = "Hz"))
+	float FrameRate = 14.0f;
+
+	/** The loops of the flight sheet, one picked per target. Empty runs the whole sheet. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite")
+	TArray<FFlightSpriteLoop> Loops;
+
+	/** Frames per second of the crash sheet while the target falls */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite", meta = (ClampMin = 0.1, Units = "Hz"))
+	float CrashFrameRate = 7.0f;
+
+	/** Crash frames played by the fall; the cells after them are the knockout pose a second hit switches to */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sprite", meta = (ClampMin = 1))
+	int32 FallFrames = 2;
+
+	bool IsValid() const { return Flight.IsValid() && Material != nullptr; }
+};
+
 /** One primitive piece of a target's body, placed around a pivot that flaps when the piece is a wing */
 USTRUCT(BlueprintType)
 struct FFlightTargetPart
@@ -135,6 +230,10 @@ public:
 	/** The body built from primitives, used while Mesh is empty */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	TArray<FFlightTargetPart> Parts;
+
+	/** Sheets and material of a sprite body. A valid sprite replaces the mesh and the primitive parts (D-093). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	FFlightSpriteBody Sprite;
 
 	/** Uniform scale of the body, picked per target between these */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body", meta = (ClampMin = 0.1))
@@ -209,4 +308,7 @@ public:
 
 	/** A path by weight, or null when the definition lists none */
 	const FFlightPathSettings* PickPath(const TArray<EFlightPathType>& Allowed) const;
+
+	/** A flight loop by weight, or the whole sheet when the sprite lists none */
+	FFlightSpriteLoop PickSpriteLoop() const;
 };

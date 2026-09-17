@@ -10,6 +10,7 @@
 #include "FlightTarget.generated.h"
 
 class AController;
+class UMaterialInstanceDynamic;
 class USphereComponent;
 class UStaticMeshComponent;
 class UFlightTargetDefinition;
@@ -21,6 +22,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FFlightTargetDoneDelegate, AFlightTarget* /
 /**
  *  One flying target built from its definition. It flies a FFlightPathMotion, beats its wings, and on a hit stops,
  *  reports the hit to the style record and to its listeners, and falls or vanishes as the definition says.
+ *
+ *  A definition with sprite sheets draws a flat quad that turns to the camera instead of a body of meshes (D-093): one
+ *  profile view, mirrored in the material when the target crosses the other way, the flight loop running at a constant
+ *  rate whatever the target's speed, size or distance. A hit switches it to the crash sheet, a second hit to the
+ *  knockout cell. The hit spheres and the score do not know the difference.
  *
  *  Leading (D-078): projectiles fly to the target and meet it where it has moved to. Hitscan pellets arrive at once, so for
  *  them the target's hit spheres sit ahead of the body by the distance it covers while a charge at the lead shot speed
@@ -77,6 +83,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<USceneComponent> BodyRoot;
 
+	/** The quad a sprite body is drawn on, turned to face the camera every frame */
+	UPROPERTY(VisibleAnywhere, Category="Components")
+	TObjectPtr<UStaticMeshComponent> Sprite;
+
 	/** Hit spheres at the body, answering projectiles */
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<USphereComponent> BodyHit;
@@ -100,6 +110,13 @@ protected:
 
 	TArray<float> WingSigns;
 
+	/** The sprite's own material, where the sheet, the cell and the mirroring are set */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> SpriteMaterial;
+
+	/** The run of flight frames this target loops, picked from the definition when it launches */
+	FFlightSpriteLoop SpriteLoop;
+
 	FFlightPathMotion Motion;
 	FVector ShooterLocation = FVector::ZeroVector;
 	FVector FallVelocity = FVector::ZeroVector;
@@ -111,6 +128,12 @@ protected:
 	float SpeedAtHit = 0.0f;
 	float DistanceAtHit = 0.0f;
 	double HitAt = -1000.0;
+	/** Cell of the loop this target starts on, so a flock does not beat its wings as one */
+	int32 SpriteStartFrame = 0;
+	int32 SpriteFrame = -1;
+	bool bCrashSheetOn = false;
+	bool bMirrored = false;
+	bool bKnockedOut = false;
 	bool bDown = false;
 	bool bDone = false;
 	bool bHitSpheresOn = true;
@@ -119,6 +142,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void BuildBody();
+	bool HasSprite() const;
+	void BuildSprite();
+	void UpdateSprite();
 	void SetupHitSphere(USphereComponent* Sphere, ECollisionChannel Channel) const;
 	void PlaceHitSpheres();
 	void Finish(bool bWasHit);

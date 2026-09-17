@@ -5,11 +5,14 @@
 #include "HitReactions.h"
 #include "StyleScoringComponent.h"
 #include "StyleSettings.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlightTarget, Log, All);
@@ -24,6 +27,23 @@ namespace FlightTargetTuning
 
 	/** Steepest climb or dive the body leans into */
 	constexpr float MaxPitchDegrees = 35.0f;
+
+	/** The quad a sprite is drawn on when its definition names none */
+	const TCHAR* DefaultQuad = TEXT("/Engine/BasicShapes/Plane.Plane");
+
+	/** Side of the engine's plane in centimetres: the scale of a sprite is its width over this */
+	constexpr float QuadSide = 100.0f;
+
+	/** How far the travel must lean across the screen before the sprite turns around, so a target flying almost at the
+	    player does not flip back and forth */
+	constexpr float MirrorThreshold = 0.2f;
+
+	/** The material parameters a sprite sheet is drawn with */
+	const FName SheetParam(TEXT("Sheet"));
+	const FName ColumnsParam(TEXT("Columns"));
+	const FName RowsParam(TEXT("Rows"));
+	const FName FrameParam(TEXT("Frame"));
+	const FName MirrorParam(TEXT("Mirror"));
 }
 
 AFlightTarget::AFlightTarget()
@@ -35,6 +55,18 @@ AFlightTarget::AFlightTarget()
 
 	BodyRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Body"));
 	BodyRoot->SetupAttachment(Root);
+
+	// the sprite turns to the camera on its own, so it hangs under the root rather than under the body that banks
+	Sprite = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Sprite"));
+	Sprite->SetupAttachment(Root);
+	Sprite->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Sprite->SetGenerateOverlapEvents(false);
+	Sprite->SetCanEverAffectNavigation(false);
+	Sprite->SetCastShadow(false);
+	Sprite->bReceivesDecals = false;
+	Sprite->SetUsingAbsoluteRotation(true);
+	Sprite->SetUsingAbsoluteScale(true);
+	Sprite->SetVisibility(false);
 
 	BodyHit = CreateDefaultSubobject<USphereComponent>(TEXT("BodyHit"));
 	BodyHit->SetupAttachment(Root);
@@ -105,6 +137,12 @@ void AFlightTarget::BuildBody()
 
 	BodyRoot->SetRelativeScale3D(FVector(Size));
 
+	if (HasSprite())
+	{
+		BuildSprite();
+		return;
+	}
+
 	auto AddMesh = [this](USceneComponent* Parent, UStaticMesh* Mesh, UMaterialInterface* Material, const FTransform& Transform)
 	{
 		UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this);
@@ -147,6 +185,125 @@ void AFlightTarget::BuildBody()
 			WingSigns.Add(FMath::Sign(Part.FlapSign));
 		}
 	}
+}
+
+bool AFlightTarget::HasSprite() const
+{
+	return Definition && Definition->Sprite.IsValid();
+}
+
+void AFlightTarget::BuildSprite()
+{
+	const FFlightSpriteBody& Art = Definition->Sprite;
+
+	UStaticMesh* Quad = Art.Quad;
+	if (!Quad)
+	{
+		Quad = LoadObject<UStaticMesh>(nullptr, FlightTargetTuning::DefaultQuad);
+	}
+	if (!Quad)
+	{
+		UE_LOG(LogFlightTarget, Warning, TEXT("%s has sprite sheets but no quad to draw them on"), *GetNameSafe(Definition));
+		return;
+	}
+
+	Sprite->SetStaticMesh(Quad);
+	Sprite->SetWorldScale3D(FVector(Art.Width * Size / FlightTargetTuning::QuadSide));
+	SpriteMaterial = UMaterialInstanceDynamic::Create(Art.Material, this);
+	Sprite->SetMaterial(0, SpriteMaterial);
+	Sprite->SetVisibility(true);
+
+	SpriteLoop = Definition->PickSpriteLoop();
+	SpriteStartFrame = FMath::RandHelper(FMath::Max(SpriteLoop.FrameCount, 1));
+	UpdateSprite();
+}
+
+void AFlightTarget::UpdateSprite()
+{
+	if (!SpriteMaterial)
+	{
+		return;
+	}
+
+	const FFlightSpriteBody& Art = Definition->Sprite;
+	const FVector Location = GetActorLocation();
+
+	// the quad turns its face to the camera: its own right runs across the screen, its own down runs down it
+	FVector ViewLocation = ShooterLocation;
+	if (const APlayerCameraManager* Camera = UGameplayStatics::GetPlayerCameraManager(this, 0))
+	{
+		ViewLocation = Camera->GetCameraLocation();
+	}
+	FVector ToView = (ViewLocation - Location).GetSafeNormal();
+	if (ToView.IsNearlyZero())
+	{
+		ToView = FVector::ForwardVector;
+	}
+	FVector ScreenRight = FVector::CrossProduct(ToView, FVector::UpVector).GetSafeNormal();
+	if (ScreenRight.IsNearlyZero())
+	{
+		ScreenRight = FVector::RightVector;
+	}
+	FVector ScreenDown = FVector::CrossProduct(ToView, ScreenRight);
+
+	if (bDown)
+	{
+		// a hit target turns slowly in the plane of the screen as it drops, the way it was flying
+		const float Spin = Definition->FallSpinDegreesPerSecond * FallTime * (bMirrored ? -1.0f : 1.0f);
+		ScreenRight = ScreenRight.RotateAngleAxis(Spin, ToView);
+		ScreenDown = ScreenDown.RotateAngleAxis(Spin, ToView);
+	}
+	else
+	{
+		// which way it crosses the screen decides whether the one profile view is mirrored (D-093)
+		const FVector Travel = Motion.GetVelocity().GetSafeNormal();
+		const float Side = FVector::DotProduct(Travel, ScreenRight);
+		if (FMath::Abs(Side) > FlightTargetTuning::MirrorThreshold)
+		{
+			bMirrored = Side < 0.0f;
+		}
+	}
+
+	Sprite->SetWorldRotation(FRotationMatrix::MakeFromXY(ScreenRight, ScreenDown).Rotator());
+	// the offset moves with the art: mirroring the cell mirrors where the body sits in it
+	Sprite->SetWorldLocation(Location
+		+ ScreenRight * (Art.Offset.X * (bMirrored ? -1.0f : 1.0f) * Art.Width * Size)
+		- ScreenDown * (Art.Offset.Y * Art.Width * Size));
+
+	// the cell: the flight loop at its own rate while it flies, the crash sheet once it is down
+	const bool bCrash = bDown && Art.Crash.IsValid();
+	const FFlightSpriteSheet& Sheet = bCrash ? Art.Crash : Art.Flight;
+	int32 Frame = 0;
+	if (!bCrash)
+	{
+		const int32 Count = FMath::Max(SpriteLoop.FrameCount, 1);
+		Frame = SpriteLoop.FirstFrame + (SpriteStartFrame + FMath::FloorToInt(FlightTime * Art.FrameRate)) % Count;
+	}
+	else if (bKnockedOut)
+	{
+		Frame = Sheet.Frames - 1;
+	}
+	else
+	{
+		// the fall runs through its own frames once and holds on the last of them; the cells after them are the knockout
+		Frame = FMath::Min(FMath::FloorToInt(FallTime * Art.CrashFrameRate), FMath::Clamp(Art.FallFrames, 1, Sheet.Frames) - 1);
+	}
+	Frame = FMath::Clamp(Frame, 0, Sheet.Frames - 1);
+
+	if (bCrash != bCrashSheetOn)
+	{
+		bCrashSheetOn = bCrash;
+		SpriteMaterial->SetTextureParameterValue(FlightTargetTuning::SheetParam, Sheet.Texture);
+		SpriteMaterial->SetScalarParameterValue(FlightTargetTuning::ColumnsParam, Sheet.Columns);
+		SpriteMaterial->SetScalarParameterValue(FlightTargetTuning::RowsParam, Sheet.Rows);
+		SpriteFrame = -1;
+	}
+	if (Frame != SpriteFrame)
+	{
+		SpriteFrame = Frame;
+		SpriteMaterial->SetScalarParameterValue(FlightTargetTuning::FrameParam, Frame);
+	}
+	SpriteMaterial->SetScalarParameterValue(FlightTargetTuning::MirrorParam, bMirrored ? 1.0f : 0.0f);
 }
 
 void AFlightTarget::PlaceHitSpheres()
@@ -216,6 +373,7 @@ void AFlightTarget::Tick(float DeltaSeconds)
 		}
 
 		PlaceHitSpheres();
+		UpdateSprite();
 		if (Motion.IsFinished())
 		{
 			Finish(false);
@@ -247,6 +405,7 @@ void AFlightTarget::Tick(float DeltaSeconds)
 	{
 		PlaceHitSpheres();
 	}
+	UpdateSprite();
 
 	if (GetActorLocation().Z <= GroundZ || FallTime >= FlightTargetTuning::MaxFallSeconds)
 	{
@@ -276,6 +435,11 @@ bool AFlightTarget::NotifyShot(const FHitResult& Hit, const FVector& ShotDirecti
 		{
 			Style->RecordTargetHit(this, Zone, false);
 		}
+		if (bFollowUp)
+		{
+			// a second hit finishes it: the knockout cell, the last of the crash sheet
+			bKnockedOut = true;
+		}
 		return bFollowUp;
 	}
 
@@ -296,6 +460,7 @@ bool AFlightTarget::NotifyShot(const FHitResult& Hit, const FVector& ShotDirecti
 	if (Definition->HitBehaviour == EFlightHitBehaviour::Vanish)
 	{
 		BodyRoot->SetVisibility(false, true);
+		Sprite->SetVisibility(false);
 	}
 
 	UE_LOG(LogFlightTarget, Verbose, TEXT("%s hit in the %s at %.0f cm, %.0f cm/s, size %.2f"), *GetName(), bHead ? TEXT("head") : TEXT("body"), DistanceAtHit, SpeedAtHit, Size);

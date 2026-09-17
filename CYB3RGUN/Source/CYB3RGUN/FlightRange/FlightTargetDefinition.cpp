@@ -34,3 +34,47 @@ const FFlightPathSettings* UFlightTargetDefinition::PickPath(const TArray<EFligh
 	}
 	return Last;
 }
+
+FFlightSpriteLoop UFlightTargetDefinition::PickSpriteLoop() const
+{
+	// no loop listed: the whole sheet, in the order the artist set (D-092)
+	FFlightSpriteLoop Whole;
+	Whole.FirstFrame = 0;
+	Whole.FrameCount = Sprite.Flight.Frames;
+
+	float Total = 0.0f;
+	for (const FFlightSpriteLoop& Loop : Sprite.Loops)
+	{
+		Total += FMath::Max(Loop.Weight, 0.0f);
+	}
+	if (Total <= 0.0f)
+	{
+		return Whole;
+	}
+
+	float Roll = FMath::FRandRange(0.0f, Total);
+	const FFlightSpriteLoop* Last = nullptr;
+	for (const FFlightSpriteLoop& Loop : Sprite.Loops)
+	{
+		if (Loop.Weight <= 0.0f)
+		{
+			continue;
+		}
+		Last = &Loop;
+		Roll -= Loop.Weight;
+		if (Roll <= 0.0f)
+		{
+			break;
+		}
+	}
+	if (!Last)
+	{
+		return Whole;
+	}
+
+	FFlightSpriteLoop Picked = *Last;
+	Picked.FirstFrame = FMath::Clamp(Picked.FirstFrame, 0, FMath::Max(Sprite.Flight.Frames - 1, 0));
+	const int32 Rest = Sprite.Flight.Frames - Picked.FirstFrame;
+	Picked.FrameCount = Picked.FrameCount > 0 ? FMath::Min(Picked.FrameCount, Rest) : Rest;
+	return Picked;
+}
